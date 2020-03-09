@@ -3,7 +3,7 @@ A simple C compiler written in C. So far it supports only a subset of the C lang
 
 I wrote this compiler based on the excellent tutorial by Nora Sandler: https://norasandler.com/2017/11/29/Write-a-Compiler.html
 
-The compiler source consists of a single file, `main.c`. The other source files are examples of code which can be compiled. 
+The compiler source consists of a single file, `main.c`.
 
 Compile the compiler using `compile.bat` (which uses gcc on Windows, see below)
 
@@ -16,6 +16,7 @@ eg
 
 ```
 jcc fibonacci.c
+jcc expr.c
 ```
 
 This create `source.exe` in the current directory. It also creates assembly language `source.s` in the same directory. Having written this file, the compiler calls the assembler to assemble into an object file and then link into an executable (`source.exe`). You will see the call to gcc which accomplishes this. The assembly file (`source.s`) has some comments in it (beginning with #) which show the state of the variables list at various times. The assembler will ignore these.
