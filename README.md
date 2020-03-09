@@ -1,7 +1,7 @@
 # jcc
 A simple C compiler written in C. So far it supports only a subset of the C language.
 
-I wrote this compiler based on the excellent tutorial by Nora Sandler:https://norasandler.com/2017/11/29/Write-a-Compiler.html
+I wrote this compiler based on the excellent tutorial by Nora Sandler: https://norasandler.com/2017/11/29/Write-a-Compiler.html
 
 The compiler source consists of a single file, `main.c`. The other source files are examples of code which can be compiled. 
 
@@ -37,7 +37,8 @@ int fib(int n) {
 
 int main() {
     int n = 10;
-    return fib(n);
+    printf("The %d-th Fibonacci number is %d\n",n,fib(n));
+    return 0;
 }
 ```
 
