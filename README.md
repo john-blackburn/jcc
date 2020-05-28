@@ -127,7 +127,18 @@ INT_LITERAL: '0'
 SEMICOLON
 CLOSE_BRACE
 ```
-These tokens are placed in a 1 dimensional list called `tokenHead`. The parser then takes these tokens and creates an Abstract Syntax Tree. The output from the parse, for the same example, is
+These tokens are placed in a 1 dimensional list of structs of the type
+```
+struct Token
+{
+  int type;
+  char *id;
+  struct Token *next;
+};
+```
+The type could be an identifier (variable), an int literal, a C keyword such as `return` or one of many punctuation symbols such as `OPEN_BRACKET`. The id is defined only
+for identifiers and int literals. The tokens are assembled into a linked list called `tokenHead`. 
+The parser then takes these tokens and creates an Abstract Syntax Tree. The output from the parser, for the same example, is
 ```
 PROGRAM
    FUNCTION: 'fib'
@@ -166,3 +177,35 @@ PROGRAM
       RETURN
          INT_LITERAL: '0'
 ```
+The AST is made of Nodes of the type
+```
+struct Node
+{
+  int type;
+  char *id;
+  struct Node *child;
+  struct Node *child2;
+  struct Node *child3;
+  struct Node *child4;
+  struct Node **line;
+  int nlines;
+};
+```
+Each Node has a type such as `BINARY_PLUS`, `VAR` (a reference to a variable), `DECL` (a variable declaration) etc. `id` is the name of the node if needed
+(function, variable reference, declaration, call, literals etc) otherwise ignored.
+Each Node has a certain number of children with different meaning depending on the type (the other children are not used):
+
+* unary operators have 1 child (`child`)
+* binary operators have 2 children (`child` and `child2`), 
+* `IF` statements have 3 children (`child` is the condition, `child2` is the positive branch, `child3` is the else branch (if present else NULL))
+* `FOR` statements have 4 children (`child` is the initialiser, `child2` is the condition, `child3` is the increment, `child4` is the body)
+* `WHILE` has 2 children (`child` is the condition and `child2` is the body)
+* `DO` has 2 children (`child` is the body and `child2` is the condition)
+
+The "bodies" mentioned above can be a single statement, a block (see next) or another if, for etc...
+Some nodes have an arbitrary number of children, stored in `line` with `nlines` being the number of children:
+
+* `FUNCTION` the first n children are the arguments then each child is a statement in the function (where "statement" can be a block, if etc)
+* `BLOCK` each child is a statement in the block ("statement" can be another block, an if, for etc)
+* `CALL` each child is function parameter
+* `PROGRAM` each child is a function, function prototype or global variable
