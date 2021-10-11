@@ -5,8 +5,8 @@ int foo(int bar)
 
 int globalMass;
 
-int putchar(int);
-int strlen(char *p);
+int putchar(int c);
+int strlen(int s);
 
 int bar()
 {

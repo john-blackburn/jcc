@@ -816,25 +816,40 @@ struct Node* parse_function()
 
 struct Node* parse_prototype()
 {
-  if (getType()!=INT_DECLARATION) fail("expected int");
+  if (getType()!=INT_DECLARATION) fail("Expected return type");
   advance();
 
   if (getType()!=IDENTIFIER) fail("Expected function name");
-  advance();
-
-  if (getType()!=OPEN_BRACKET) fail("proto expected (");
-  advance();
-
-  while(getType()!=CLOSE_BRACKET)
-    advance();
-
-  advance();
-
-  if (getType()!=SEMICOLON) fail("expected ;");
-  advance();
-
   struct Node *node=(struct Node*)malloc(sizeof(struct Node));
   node->type=PROTOTYPE;
+  node->id=newStr(tokenHead->id);
+  advance();
+
+  if (getType()!=OPEN_BRACKET) fail("Expected (");
+  advance();
+
+  int nargs=countArgs();
+  node->nlines=nargs;
+
+  printf("found %d args\n", nargs);
+
+  node->line=(struct Node**)malloc(nargs*sizeof(struct Node*));
+
+  int i;
+  for (i=0;i<nargs;i++){
+    node->line[i]=parse_arg();
+    if (i<nargs-1){
+      if (getType()!=COMMA) fail("expected ,");
+      advance();
+    }
+  }
+
+  if (getType()!=CLOSE_BRACKET) fail("Expected )");
+  advance();
+
+  if (getType()!=SEMICOLON) fail("Expected ;");
+  advance();
+
   return node;
 }
 
@@ -1050,7 +1065,7 @@ void writeTree(struct Node *node, int indent)
 
   int nodetype=node->type;
 
-  if (nodetype==ASSIGNMENT || nodetype==INT_LITERAL || nodetype==FUNCTION || 
+  if (nodetype==ASSIGNMENT || nodetype==INT_LITERAL || nodetype==FUNCTION || nodetype==PROTOTYPE ||
       nodetype==VAR || nodetype==DECL || nodetype==CALL || nodetype==ARG || 
       nodetype==GLOBAL || nodetype==STRING || nodetype==CHAR)
     printf(": '%s'\n",node->id);
@@ -1099,7 +1114,7 @@ void writeTree(struct Node *node, int indent)
     writeTree(node->child,indent+3);
     writeTree(node->child2,indent+3);
   }
-  else if (nodetype==FUNCTION || nodetype==BLOCK || nodetype==CALL || nodetype==PROGRAM){
+  else if (nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==BLOCK || nodetype==CALL || nodetype==PROGRAM){
     int i;
     for (i=0;i<node->nlines;i++){
       writeTree(node->line[i],indent+3);
