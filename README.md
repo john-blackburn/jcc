@@ -1,5 +1,5 @@
 # jcc
-A simple C compiler written in C. So far it supports only a subset of the C language.
+A simple C compiler written in C which outputs x86 assembly. So far it supports only a subset of the C language. This project is just an experiment and should not be used for anything serious!
 
 I wrote this compiler based on the excellent tutorial by Nora Sandler: https://norasandler.com/2017/11/29/Write-a-Compiler.html
 
@@ -19,11 +19,11 @@ jcc fibonacci.c
 jcc expr.c
 ```
 
-This creates assembly language `source.s` in the same directory. Having written this file, the compiler calls the assembler to assemble into an object file and then link into an executable (`source.exe`). You will see the call to gcc which accomplishes this. The assembly file (`source.s`) has some comments in it (beginning with #) which show the state of the variables list at various times. The assembler will ignore these.
+This creates assembly language `source.s` in the same directory. Having written this file, the compiler calls the assembler to assemble into an object file and then link into an executable (`source.exe`). You will see the call to gcc which accomplishes this. The assembly file (`source.s`) has some comments in it (beginning with `#`) which show the state of the variables list at various times. The assembler will ignore these.
 
 In addition to compiling, the compiler writes lots of debug info to stdout. First it writes the output from the lexer (tokens), then the output from the parser (an Abstract Syntax Tree of Nodes)
 
-I have used the 32-bit gcc/mingw compiler for Windows to compile the compiler and also to act as assembler (ie I'm using Gnu's AS assembler). Thus, the assembler directives are in AS format, including the use of `#` as comments.
+I have used the 32-bit gcc/mingw compiler for Windows to compile the compiler and also to act as assembler (ie I'm using Gnu's AS assembler). Thus, the assembler directives in the `.s` file are in AS format, including the use of `#` as comments. You will see various directives in the `.s` file beginning with dots eg `.intel_syntax noprefix` specifies to use the more readable Intel syntax for the x86 assembly language (not AT&T).
 
 The compiler is currently very limited supporting only a subset of the C language (maybe about 50%). Here is an example of code it can compile
 
@@ -51,9 +51,11 @@ Limitations include:
 * No support for `switch, case, default, union, enum, typedef, goto, continue`
 * No support for `auto, const, double, extern, float, long, register, short, (un)signed, static, void, volatile`
 
-Note also that the compiler does not include a preprocessor so directives like `#include` are not supported. However, such includes are not needed: the compiler ignores function prototypes and would not understand other code in standard library headers. The above code will compile and run fine even though `printf` is not declared. 
+There's a long, long way to go!
 
-This code does not include a linker: the compiler's only function is to create an assembly language file which must be assembled into an object file then linked into an executable or library.
+Note also that the compiler does not include a preprocessor so directives like `#include` are not supported. However, such includes would not be meaningful to the compiler anyway: the compiler ignores function prototypes and would not understand other code in standard library headers. The above code will compile and run fine even though `printf` is not declared. When calling a function, the compiler simply passes the arguments through not checking or coercing types (or even the number of arguments).
+
+This code does not include a linker: the compiler's only function is to create an assembly language file (`.s`) which must be assembled into an object file (`.o`) then linked into an executable or library.
 
 # How it works
 
