@@ -227,3 +227,5 @@ struct Var
 ```
 where `id` is the variable name, `level` is the scoping level with 0 being global scope, 1 function level scope and higher numbers being within (nested) blocks.
 `offset` is the offset of each variable on the stack (negative for local variables, positive for function arguments).
+
+The compiler uses the stack to evaluate expressions pushing and poping values onto it to do calculations. Values from this "calculator stack" are popped off onto the `eax` and `ecx` registers to do calculations and these are the only registers used. When calling functions `jcc` uses only the `cdecl` calling convention (arguments pushed onto the stack right to left and `eax`, `ecx`, `edx` corrupted during the call: caller must preserve these. Return value put on eax [in fact the compiler doesn't use `edx`]). A stack frame is set up using `esp` and `ebp`. Note that local variables within inner scopes (eg in an if-block) are created on demand by pushing them onto the stack. This is different from commercial compilers which will create all local variables within a function right at the beginning of the function.
