@@ -16,7 +16,7 @@ Function protoypes (currently ignored)
 Initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"}
 Multi-dim arrays
 
-Other calling conventions. Stack alignment.
+Other calling conventions. Stack alignment. (Application Binary Interface)
 Pre-processor
 Linker
 */
@@ -37,12 +37,7 @@ char *tokNames[]={"<<=", ">>=",
 
 		  "return", "int", "if", "else", "for", "while", "do", "break", "continue"};
 
-/*
-char *tokNames[]={";",  "(",  ")",  "{",  "}",  "-", "~", "+", "*", "/", 
-		  "&&", "||", "==", "!=", "<=", "<", ">=", ">", "!", "=", ",",
-		  "return", "int", "if", "else", "for", "while", "do", "break", "continue"};
-*/
-int numToks=52;
+int numToks=52;  // ie number of entries in tokNames
 
 #define LESSTHAN2_EQUAL 0
 #define GREATERTHAN2_EQUAL 1
@@ -89,13 +84,13 @@ int numToks=52;
 #define TILDE 42
 #define RETURN 43           // "return"
 #define INT_DECLARATION 44  // "int"
-#define IF 45
-#define ELSE 46
-#define FOR 47
-#define WHILE 48
-#define DO 49
-#define BREAK 50
-#define CONTINUE 51
+#define IF 45               // "if"
+#define ELSE 46             // "else"
+#define FOR 47              // "for"
+#define WHILE 48            // "while"
+#define DO 49               // "do"
+#define BREAK 50            // "break"
+#define CONTINUE 51         // "continue"
 
 #define INT_LITERAL 52      // eg 123
 #define IDENTIFIER 53       // eg main
@@ -128,6 +123,9 @@ int numToks=52;
 #define GLOBAL 79
 #define PROGRAM 80
 #define PROTOTYPE 81
+#define DEREF 82
+#define ADDRESS 83
+#define INDEX 84
 
 char *names[]={
   "LESSTHAN2_EQUAL",
@@ -213,7 +211,10 @@ char *names[]={
   "ARG",
   "GLOBAL",
   "PROGRAM",
-  "PROTOTYPE"
+  "PROTOTYPE",
+  "DEREF",
+  "ADDRESS",
+  "INDEX"
 };
 
 struct Token
@@ -223,10 +224,16 @@ struct Token
   struct Token *next;
 };
 
+struct Type
+{
+    char data[32];
+};
+
 struct Node
 {
   int type;
   char *id;
+  struct Type varType;
   struct Node *child;
   struct Node *child2;
   struct Node *child3;
@@ -238,13 +245,14 @@ struct Node
 struct Var
 {
   char *id;
+  struct Type varType;
   int level;
   int offset;
   struct Var *prev;
 };
 
-int g_offset;
-struct Var *varEnd;
+int g_offset;             // offset relative to ebp for local vars and args
+struct Var *varEnd;       // top of the stack where we store variable declarations
 struct Token *tokenHead;  // global for parsing
 
 FILE* fps;
@@ -360,37 +368,81 @@ int countArgsAndLines()
 
 // ######################################################################
 
-// 2 or -2
+struct Node* parse_identifier()
+{
+    struct Node *exp=(struct Node*)malloc(sizeof(struct Node));
+    exp->type=VAR;
+    exp->id=newStr(tokenHead->id);
+    exp->child=NULL;
+    advance();
+    return exp;
+}
+
+// ######################################################################
+
+// a[2][3], a[i+1], a[b[3]][4]
+struct Node* parse_index()
+{
+  struct Node *factor=parse_identifier();
+  int nextType=getType();
+  while (nextType==OPEN_SQUARE)
+  {
+    advance();
+    struct Node *next_factor=parse_exp();
+    if (getType()!=CLOSE_SQUARE)
+        fail("expected ]");
+    advance();
+
+    struct Node *new_factor=(struct Node*)malloc(sizeof(struct Node));
+
+    new_factor->type=INDEX;
+
+    new_factor->child=factor;
+    new_factor->child2=next_factor;
+    factor=new_factor;
+    nextType=getType();
+  }
+
+  return factor;
+}
+
+// ######################################################################
+
+// 2, -2, 'c', "string", a, *a, &a, a[1][2], a(2,3), !a, ~a
 struct Node* parse_factor()
 {
-  struct Node *exp=(struct Node*)malloc(sizeof(struct Node));
+  struct Node *exp;
   int type=getType();
 
   if (type==OPEN_BRACKET){
     advance();
     exp=parse_exp();
-    if (type != CLOSE_BRACKET) fail("Expected )");
+    if (getType() != CLOSE_BRACKET) fail("Expected )");
     advance();
   }
   else if (type==INT_LITERAL){
+    exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=INT_LITERAL;
     exp->id=newStr(tokenHead->id);
     exp->child=NULL;    
     advance();
   }
-  else if (type==STRING){
+  else if (type==STRING){              // "foo"
+    exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=STRING;
     exp->id=newStr(tokenHead->id);
     exp->child=NULL;
     advance();
   }
-  else if (type==CHAR){
+  else if (type==CHAR){                // 'c'
+    exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=CHAR;
     exp->id=newStr(tokenHead->id);
     exp->child=NULL;
     advance();
   }
   else if (type==IDENTIFIER && tokenHead->next->type==OPEN_BRACKET){
+    exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=CALL;
     exp->id=newStr(tokenHead->id);
     advance();
@@ -407,27 +459,42 @@ struct Node* parse_factor()
     if (getType()!=CLOSE_BRACKET) fail("expected )");
     advance();
   }
-  else if (type==IDENTIFIER){
-    exp->type=VAR;
-    exp->id=newStr(tokenHead->id);
-    exp->child=NULL;
-
-    advance();
+  else if (type==AMP)        // &a
+  {
+      exp=(struct Node*)malloc(sizeof(struct Node));
+      exp->type=ADDRESS;
+      advance();
+      exp->child=parse_factor();
+  }  
+  else if (type==ASTERISK)   // *p, **p etc
+  {
+      exp=(struct Node*)malloc(sizeof(struct Node));
+      exp->type=DEREF;
+      advance();
+      exp->child=parse_factor();
   }
   else if (type==MINUS){
+      exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=UNARY_MINUS;
     advance();
     exp->child=parse_factor();
   }
   else if (type==TILDE){
+      exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=UNARY_COMPLEMENT;
     advance();
     exp->child=parse_factor();
   }
   else if (type==EXCLAM){
+      exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=UNARY_NOT;
     advance();
     exp->child=parse_factor();
+  }
+  else if (type==IDENTIFIER)
+  {
+      // don't allocate
+      exp=parse_index();
   }
   else
     fail("Expected literal or unary operator");
@@ -436,8 +503,7 @@ struct Node* parse_factor()
 }
 
 // ######################################################################
-
-//3*5*7
+// a * 5 * 7
 struct Node* parse_term()
 {
   struct Node *factor=parse_factor();
@@ -595,25 +661,29 @@ struct Node* parse_or_exp()
 }
 
 // ######################################################################
+// x = y = 0
+// <exp> ::= <logical-or-exp> [ "=" <exp> ]
 
 struct Node* parse_exp()
 {
-  struct Node *exp;
-  if (getType()==IDENTIFIER && tokenHead->next->type==EQUALS){
-    exp=(struct Node*)malloc(sizeof(struct Node));
-    exp->type=ASSIGNMENT;
-    exp->id=newStr(tokenHead->id);
-    advance();
-    advance();
+    struct Node *temp=parse_or_exp();
+    struct Node *exp;
 
-    exp->child=parse_exp();
-  }
-  else{
-    exp=parse_or_exp();
-  }
-  return exp;
+    if (getType()==EQUALS)
+    {
+        advance();
+        exp=(struct Node*)malloc(sizeof(struct Node));
+        exp->type=ASSIGNMENT;
+        exp->child=temp;
+        exp->child2=parse_exp();
+    }
+    else
+    {
+        exp=temp;
+    }
+    return exp;
 }
-
+    
 // ######################################################################
 
 // return 2;
@@ -726,6 +796,7 @@ struct Node* parse_statement()
     advance();
     statement->type=DECL;
     statement->id=newStr(tokenHead->id);
+    strcpy(statement->varType.data, "int");
     advance();
 
     if (getType()==EQUALS){
@@ -759,6 +830,7 @@ struct Node* parse_arg()
   struct Node* arg=(struct Node*)malloc(sizeof(struct Node));
   arg->type=ARG;
   arg->id=newStr(tokenHead->id);
+  strcpy(arg->varType.data,"int");
 
   advance();
   return arg;
@@ -775,6 +847,8 @@ struct Node* parse_function()
   struct Node *function=(struct Node*)malloc(sizeof(struct Node));
   function->type=FUNCTION;
   function->id=newStr(tokenHead->id);
+  strcpy(function->varType.data,"int");
+  
   advance();
 
   if (getType()!=OPEN_BRACKET) fail("Expected (");
@@ -1065,14 +1139,26 @@ void writeTree(struct Node *node, int indent)
 
   int nodetype=node->type;
 
-  if (nodetype==ASSIGNMENT || nodetype==INT_LITERAL || nodetype==FUNCTION || nodetype==PROTOTYPE ||
-      nodetype==VAR || nodetype==DECL || nodetype==CALL || nodetype==ARG || 
+  if (nodetype==DECL || nodetype==FUNCTION || nodetype==ARG)
+    printf(": '%s' [%s]\n",node->id, node->varType.data);
+  else if (nodetype==INT_LITERAL || nodetype==PROTOTYPE ||
+      nodetype==VAR || nodetype==CALL || 
       nodetype==GLOBAL || nodetype==STRING || nodetype==CHAR)
     printf(": '%s'\n",node->id);
   else 
     printf("\n");
 
-  if (nodetype==WHILE){
+  if (nodetype==ASSIGNMENT)
+  {
+      writeTree(node->child,indent+3);      
+      writeTree(node->child2,indent+3);
+  }
+  else if (nodetype==INDEX)
+  {
+      writeTree(node->child,indent+3);      
+      writeTree(node->child2,indent+3);
+  }
+  else if (nodetype==WHILE){
     writeTree(node->child,indent+3);
     writeTree(node->child2,indent+3);    
   }
@@ -1096,7 +1182,9 @@ void writeTree(struct Node *node, int indent)
       nodetype==UNARY_MINUS ||
       nodetype==UNARY_COMPLEMENT ||
       nodetype==UNARY_NOT ||
-      nodetype==ASSIGNMENT){    
+      nodetype==ASSIGNMENT ||
+      nodetype==DEREF || nodetype==ADDRESS)
+  {    
     writeTree(node->child,indent+3);
   }
   else if (nodetype==BINARY_PLUS ||
@@ -1166,7 +1254,7 @@ void writeVars()
 
 // ######################################################################
 
-void writeAsm(struct Node *node, int level)
+void writeAsm(struct Node *node, int level, int lvalue)
 {
   static int s_label=0;
   int nodetype=node->type;
@@ -1175,7 +1263,7 @@ void writeAsm(struct Node *node, int level)
     varEnd=NULL;
     int i;
     for (i=0;i<node->nlines;i++){
-      writeAsm(node->line[i], level);
+      writeAsm(node->line[i], level, 0);
     }
   }
   else if (node->type==GLOBAL){
@@ -1215,7 +1303,7 @@ void writeAsm(struct Node *node, int level)
     fprintf(fps,"mov ebp,esp\n");
 
     for ( ; i<node->nlines; i++){
-      writeAsm(node->line[i], level+1);
+      writeAsm(node->line[i], level+1, 0);
     }    
 
     // Clear local vars (level 1) from list
@@ -1241,7 +1329,7 @@ void writeAsm(struct Node *node, int level)
   else if (node->type==BLOCK){
     int i;
     for (i=0;i<node->nlines;i++){
-      writeAsm(node->line[i], level+1);
+      writeAsm(node->line[i], level+1, 0);
     }
 
     // clear local variables in BLOCK from end of list. ADD to ESP, increase g_offset
@@ -1261,7 +1349,7 @@ void writeAsm(struct Node *node, int level)
   }
   else if (node->type==IF){
     int label=s_label++;
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
 
     fprintf(fps,"cmp eax, 0\n");          // If cond is false, jump either to end or else
     if (node->child3==NULL)
@@ -1269,13 +1357,13 @@ void writeAsm(struct Node *node, int level)
     else
       fprintf(fps,"je _else%d\n",label);
 
-    writeAsm(node->child2,level);
+    writeAsm(node->child2,level,0);
 
     if (node->child3!=NULL){
       fprintf(fps,"jmp _end%d\n",label);  // jump over else since if was true
       fprintf(fps,"_else%d:\n",label);
 
-      writeAsm(node->child3,level);
+      writeAsm(node->child3,level,0);
     }
 
     fprintf(fps,"_end%d:\n",label);
@@ -1285,12 +1373,12 @@ void writeAsm(struct Node *node, int level)
 
     fprintf(fps,"_start%d:\n",label);
 
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
 
     fprintf(fps,"cmp eax, 0\n");
     fprintf(fps,"je _end%d\n",label);
 
-    writeAsm(node->child2,level);
+    writeAsm(node->child2,level,0);
     fprintf(fps,"jmp _start%d\n",label);
     fprintf(fps,"_end%d:\n",label);
   }
@@ -1299,9 +1387,9 @@ void writeAsm(struct Node *node, int level)
 
     fprintf(fps,"_start%d:\n",label);
 
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
 
-    writeAsm(node->child2,level);
+    writeAsm(node->child2,level,0);
     fprintf(fps,"cmp eax, 1\n");
 
     fprintf(fps,"je _start%d\n",label);
@@ -1310,41 +1398,41 @@ void writeAsm(struct Node *node, int level)
   else if (node->type==FOR){
     int label=s_label++;
 
-    writeAsm(node->child,level);  // init
+    writeAsm(node->child,level,0);  // init
 
     fprintf(fps,"_start%d:\n",label);
 
-    writeAsm(node->child2,level); // cond
+    writeAsm(node->child2,level,0); // cond
 
     fprintf(fps,"cmp eax, 0\n");
     fprintf(fps,"je _end%d\n",label);
 
-    writeAsm(node->child4,level);  // body
-    writeAsm(node->child3,level);  // increment
+    writeAsm(node->child4,level,0);  // body
+    writeAsm(node->child3,level,0);  // increment
     fprintf(fps,"jmp _start%d\n",label);
     fprintf(fps,"_end%d:\n",label);
   }
   else if (node->type==RETURN){
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
     fprintf(fps,"mov esp,ebp\n");
     fprintf(fps,"pop ebp\n");
 
     fprintf(fps,"ret\n");
   }
   else if (node->type==EXPR){
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
   }
   else if (node->type==CALL){
     int i;
     for (i=node->nlines-1;i>=0;i--){
-      writeAsm(node->line[i],level);
+      writeAsm(node->line[i],level,0);
       fprintf(fps,"push eax\n");
     }
     fprintf(fps,"call _%s\n",node->id);
     fprintf(fps,"add esp,%d\n",4*node->nlines);
   }
   else if (node->type==DECL){
-    if (node->child!=NULL) writeAsm(node->child,level);
+    if (node->child!=NULL) writeAsm(node->child,level,0);
     fprintf(fps,"push eax # declare %s (level %d)\n",node->id,level);
 
     struct Var *oldVarEnd=varEnd;  // might be NULL
@@ -1357,8 +1445,27 @@ void writeAsm(struct Node *node, int level)
 
     writeVars();
   }
-  else if (node->type==ASSIGNMENT){
-    writeAsm(node->child,level);
+  else if (node->type==INDEX)
+  {
+    writeAsm(node->child2,level,0); // the index
+    fprintf(fps,"push eax\n");
+
+    writeAsm(node->child,level,1);  // the variable address, lvalue requested
+    fprintf(fps,"pop ecx\n");
+    
+    fprintf(fps,"add eax,ecx\n");
+    if (lvalue==0)
+        fprintf(fps,"mov eax,[eax]\n");
+  }    
+  else if (node->type==ASSIGNMENT)
+  {
+    writeAsm(node->child,level,1);    // lvalue requested for LHS
+    fprintf(fps,"push eax\n");
+
+    writeAsm(node->child2,level,0);  // value to be assigned
+    fprintf(fps,"pop ecx\n");
+
+/*
     struct Var *p=varEnd;
     int offset=0;
     int found=0;
@@ -1371,27 +1478,42 @@ void writeAsm(struct Node *node, int level)
       p=p->prev;
     }
     if (found==0) {printf("Assign to undeclared variable %s\n",node->id); exit(1);}
-    if (offset==0)
-      fprintf(fps,"mov _%s,eax\n",node->id);
-    else
-      fprintf(fps,"mov [ebp%+d],eax # %s\n",offset,node->id);
+*/
+    fprintf(fps,"mov [ecx],eax\n");
+//    if (offset==0)
+//      fprintf(fps,"mov _%s,eax\n",node->id);
+//    else
+//      fprintf(fps,"mov [ebp%+d],eax # %s\n",offset,node->id);
+  }
+  else if (node->type==DEREF)
+  {
+      writeAsm(node->child,level,0);
+      if (lvalue==0)
+        fprintf(fps,"mov eax,[eax]\n");
+  }
+  else if (node->type==ADDRESS)
+  {
+      writeAsm(node->child,level,1); // request lvalue
   }
   else if (node->type==UNARY_MINUS){
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
     fprintf(fps,"neg eax\n");
   }
   else if (node->type==UNARY_COMPLEMENT){
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
     fprintf(fps,"not eax\n");
   }
   else if (node->type==UNARY_NOT){
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
     fprintf(fps,"cmp eax,0\n");    // set ZF on if exp == 0, set it off otherwise
     fprintf(fps,"mov eax,0\n");    // zero out EAX (doesn't change FLAGS)
     fprintf(fps,"sete al\n");
   }
   else if (node->type==INT_LITERAL){
     fprintf(fps,"mov eax,%s\n",node->id);
+//    struct Type type;
+//    strcpy(type.data,"int");
+//    return type;
   }
   else if (node->type==STRING){
     int label=s_label++;
@@ -1405,49 +1527,63 @@ void writeAsm(struct Node *node, int level)
   else if (node->type==CHAR){
     fprintf(fps,"mov eax,'%s'\n",node->id);
   }
-  else if (node->type==VAR){
+  else if (node->type==VAR)
+  {
     struct Var *p=varEnd;
     int offset=0;
     int found=0;
-    while(p!=NULL){
-      if (strcmp(node->id,p->id)==0){
-	offset=p->offset;
-	found=1;
-	break;
-      }
-      p=p->prev;
+    while(p!=NULL)
+    {
+        if (strcmp(node->id,p->id)==0)
+        {
+            offset=p->offset;
+            found=1;
+            break;
+        }
+        p=p->prev;
     }
     if (found==0) {printf("Refer to undeclared variable %s\n",node->id); exit(1);}
-    if (offset==0)
-      fprintf(fps,"mov eax,_%s\n",node->id);
+    if (lvalue==0)
+    {
+        if (offset==0)
+            fprintf(fps,"mov eax,_%s\n",node->id);
+        else
+            fprintf(fps,"mov eax,[ebp%+d] # %s\n",offset,node->id);
+    }
     else
-      fprintf(fps,"mov eax,[ebp%+d] # %s\n",offset,node->id);
+    {
+        if (offset==0)
+            fprintf(fps,"mov eax,offset _%s\n",node->id);
+        else
+            fprintf(fps,"lea eax,[ebp%+d] # %s\n",offset,node->id);
+    }
+        
   }
   else if (node->type==BINARY_PLUS){
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
     fprintf(fps,"push eax\n");
-    writeAsm(node->child2,level);
+    writeAsm(node->child2,level,0);
     fprintf(fps,"pop ecx\n");
     fprintf(fps,"add eax,ecx\n");
   }
   else if (node->type==BINARY_MINUS){
-    writeAsm(node->child2,level);
+    writeAsm(node->child2,level,0);
     fprintf(fps,"push eax\n");
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
     fprintf(fps,"pop ecx\n");
     fprintf(fps,"sub eax,ecx\n");
   }
   else if (node->type==BINARY_TIMES){
-    writeAsm(node->child2,level);
+    writeAsm(node->child2,level,0);
     fprintf(fps,"push eax\n");
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
     fprintf(fps,"pop ecx\n");
     fprintf(fps,"imul eax,ecx\n");
   }
   else if (node->type==BINARY_DIVIDE){
-    writeAsm(node->child2,level);
+    writeAsm(node->child2,level,0);
     fprintf(fps,"push eax\n");
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
     fprintf(fps,"pop ecx\n");
     fprintf(fps,"cdq\n");
     fprintf(fps,"idiv eax,ecx\n");
@@ -1459,9 +1595,9 @@ void writeAsm(struct Node *node, int level)
 	   nodetype==BINARY_GREATER_THAN_OR_EQUAL ||
 	   nodetype==BINARY_EQUAL ||
 	   nodetype==BINARY_NOT_EQUAL){
-    writeAsm(node->child2,level);
+    writeAsm(node->child2,level,0);
     fprintf(fps,"push eax\n");       // save value of e1 on the stack
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
     fprintf(fps,"pop ecx\n");         // pop e1 from the stack into ecx - e2 is already in eax
     fprintf(fps,"cmp eax, ecx\n");    // set ZF on if e1 == e2, set it off otherwise
     fprintf(fps,"mov eax, 0\n");      //zero out EAX (doesn't change FLAGS)
@@ -1485,7 +1621,7 @@ void writeAsm(struct Node *node, int level)
     // 1 || 0 = 1
     // 1 || 1 = 1
     int label=s_label++;
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
 
     fprintf(fps,"cmp eax, 0\n");          // check if e1 is 0
     fprintf(fps,"je _else%d\n",label);    // e1 is 0, so we need to evaluate _else
@@ -1493,7 +1629,7 @@ void writeAsm(struct Node *node, int level)
     fprintf(fps,"jmp _end%d\n",label);
     fprintf(fps,"_else%d:\n",label);
 
-    writeAsm(node->child2,level);
+    writeAsm(node->child2,level,0);
 
     fprintf(fps,"cmp eax, 0\n");          // check if e2 is true
     fprintf(fps,"mov eax, 0\n");          // zero out EAX without changing ZF
@@ -1506,7 +1642,7 @@ void writeAsm(struct Node *node, int level)
     // 1 && 0 = 0
     // 1 && 1 = 1
     int label=s_label++;
-    writeAsm(node->child,level);
+    writeAsm(node->child,level,0);
 
     fprintf(fps,"cmp eax, 0\n");          // check if e1 is 0
     fprintf(fps,"jne _else%d\n",label);   // e1 isnt 0, so we need to evaluate _else
@@ -1514,7 +1650,7 @@ void writeAsm(struct Node *node, int level)
     fprintf(fps,"jmp _end%d\n",label);
     fprintf(fps,"_else%d:\n",label);
 
-    writeAsm(node->child2,level);
+    writeAsm(node->child2,level,0);
 
     fprintf(fps,"cmp eax, 0\n");          // check if e2 is 0
     fprintf(fps,"mov eax, 0\n");          // zero out EAX without changing ZF
@@ -1650,14 +1786,14 @@ int main(int argc, char **argv)
   // Write out assembly
   // ----------------------------------------------------------------------
 
-  //  exit(1);
-
   fps=fopen(sname,"w");
   fprintf(fps,".intel_syntax noprefix\n");
 
-  writeAsm(tree,0);
+  writeAsm(tree,0,0);
 
   fclose(fps);
+  
+//  exit(1);
 
   char cmd[256];
   sprintf(cmd,"gcc -o %s %s",exename,sname);
