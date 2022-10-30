@@ -3,22 +3,24 @@ Usage:
 jcc path/to/foo.c
 Creates foo.s in current directory and assembles/links to get foo.exe
 TODO:
-Additional operators: unary+, binary-&, |, <<, >>, ^, %, ternary ?:, sizeof
+Additional operators: unary+, |, bitwise-&, <<, >>, ^, %, ternary ?:, sizeof
 += -= /= *= %= <<= >>= &= |= ^= ++ -- comma operator
 break
-struct, pointer, array (unary-&, unary-*, ., ->, [])
-char, 'a', "string literal"
+struct (., ->)
+
+Generalise how args are put on the stack for call
+Generalise create arg variables at beginning of function [ebp+x]
+Generalise remove vars at end of block
 
 Not needed to compile this compiler:
 switch, case, default, union, enum, typedef, goto, continue
 auto, const, double, extern, float, long, register, short, (un)signed, static, void, volatile
-Function protoypes (currently ignored)
+Function protoypes (currently ignored but return value considered)
 Initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"}
-Multi-dim arrays
 
-Other calling conventions. Stack alignment. (Application Binary Interface)
-Pre-processor
-Linker
+Other calling conventions. Stack alignment (always push multiple of 4 bytes). (Application Binary Interface)
+Pre-processor?
+Linker?
 */
 
 #include <stdio.h>
@@ -35,7 +37,7 @@ char *tokNames[]={"<<=", ">>=",
 		  "<", ">", "!", "=", ",", ";", ".", "(",  ")", "{", "}", "[", "]",
 		  "+", "-", "*", "/", "%", "&", "|", "^", "~",
 
-		  "return", "int", "if", "else", "for", "while", "do", "break", "continue"};
+		  "return", "int", "char", "if", "else", "for", "while", "do", "break", "continue"};
 
 int numToks=52;  // ie number of entries in tokNames
 
@@ -83,49 +85,50 @@ int numToks=52;  // ie number of entries in tokNames
 #define HAT 41
 #define TILDE 42
 #define RETURN 43           // "return"
-#define INT_DECLARATION 44  // "int"
-#define IF 45               // "if"
-#define ELSE 46             // "else"
-#define FOR 47              // "for"
-#define WHILE 48            // "while"
-#define DO 49               // "do"
-#define BREAK 50            // "break"
-#define CONTINUE 51         // "continue"
+#define INT_DECLARATION  44 // "int"
+#define CHAR_DECLARATION 45 // "char"
+#define IF               46 // "if"
+#define ELSE             47 // "else"
+#define FOR              48 // "for"
+#define WHILE            49 // "while"
+#define DO               50 // "do"
+#define BREAK            51 // "break"
+#define CONTINUE         52 // "continue"
 
-#define INT_LITERAL 52      // eg 123
-#define IDENTIFIER 53       // eg main
-#define STRING 54           // "hello, world!\n"
-#define CHAR 55             // '\n'
+#define INT_LITERAL 53      // eg 123
+#define IDENTIFIER 54       // eg main
+#define STRING_LITERAL 55           // "hello, world!\n"
+#define CHAR_LITERAL 56             // '\n'
 
-#define FUNCTION 56         // AST only
-#define UNARY_MINUS 57
-#define UNARY_COMPLEMENT 58
-#define UNARY_NOT 59
-#define BINARY_PLUS 60
-#define BINARY_MINUS 61
-#define BINARY_TIMES 62
-#define BINARY_DIVIDE 63
-#define BINARY_AND 64
-#define BINARY_OR 65
-#define BINARY_EQUAL 66
-#define BINARY_NOT_EQUAL 67
-#define BINARY_LESS_THAN_OR_EQUAL 68
-#define BINARY_LESS_THAN 69
-#define BINARY_GREATER_THAN_OR_EQUAL 70
-#define BINARY_GREATER_THAN 71
-#define ASSIGNMENT 72
-#define VAR 73
-#define EXPR 74
-#define DECL 75
-#define BLOCK 76
-#define CALL 77
-#define ARG 78
-#define GLOBAL 79
-#define PROGRAM 80
-#define PROTOTYPE 81
-#define DEREF 82
-#define ADDRESS 83
-#define INDEX 84
+#define FUNCTION 57         // AST only
+#define UNARY_MINUS 58
+#define UNARY_COMPLEMENT 59
+#define UNARY_NOT 60
+#define BINARY_PLUS 61
+#define BINARY_MINUS 62
+#define BINARY_TIMES 63
+#define BINARY_DIVIDE 64
+#define BINARY_AND 65
+#define BINARY_OR 66
+#define BINARY_EQUAL 67
+#define BINARY_NOT_EQUAL 68
+#define BINARY_LESS_THAN_OR_EQUAL 69
+#define BINARY_LESS_THAN 70
+#define BINARY_GREATER_THAN_OR_EQUAL 71
+#define BINARY_GREATER_THAN 72
+#define ASSIGNMENT 73
+#define VAR 74
+#define EXPR 75
+#define DECL 76
+#define BLOCK 77
+#define CALL 78
+#define ARG 79
+#define GLOBAL 80
+#define PROGRAM 81
+#define PROTOTYPE 82
+#define DEREF 83
+#define ADDRESS 84
+#define INDEX 85
 
 char *names[]={
   "LESSTHAN2_EQUAL",
@@ -173,6 +176,7 @@ char *names[]={
   "TILDE",
   "RETURN",           // "return"
   "INT_DECLARATION",  // "int"
+  "CHAR_DECLARATION", // "char"
   "IF",
   "ELSE",
   "FOR",
@@ -183,8 +187,8 @@ char *names[]={
 
   "INT_LITERAL",      // eg 123
   "IDENTIFIER",       // eg main
-  "STRING",           // "hello, world!"
-  "CHAR",             // 'a'
+  "STRING_LITERAL",           // "hello, world!"
+  "CHAR_LITERAL",             // 'a'
 
   "FUNCTION",         // AST only
   "UNARY_MINUS",
@@ -224,6 +228,7 @@ struct Token
   struct Token *next;
 };
 
+// A fixed length string
 struct Type
 {
     char data[32];
@@ -427,16 +432,16 @@ struct Node* parse_factor()
     exp->child=NULL;    
     advance();
   }
-  else if (type==STRING){              // "foo"
+  else if (type==STRING_LITERAL){              // "foo"
     exp=(struct Node*)malloc(sizeof(struct Node));
-    exp->type=STRING;
+    exp->type=STRING_LITERAL;
     exp->id=newStr(tokenHead->id);
     exp->child=NULL;
     advance();
   }
-  else if (type==CHAR){                // 'c'
+  else if (type==CHAR_LITERAL){                // 'c'
     exp=(struct Node*)malloc(sizeof(struct Node));
-    exp->type=CHAR;
+    exp->type=CHAR_LITERAL;
     exp->id=newStr(tokenHead->id);
     exp->child=NULL;
     advance();
@@ -792,12 +797,39 @@ struct Node* parse_statement()
     if (getType()!=SEMICOLON) fail("Expected ;");
     advance();
   }
-  else if (getType()==INT_DECLARATION){
+  else if (getType()==INT_DECLARATION || getType()==CHAR_DECLARATION){
+    if (getType()==INT_DECLARATION)
+        strcpy(statement->varType.data, "int");
+    else
+        strcpy(statement->varType.data, "char");        
+
     advance();
     statement->type=DECL;
+        
+    while (getType()==ASTERISK)
+    {
+        strcat(statement->varType.data,"*");
+        advance();
+    }        
+
+    if (getType()!=IDENTIFIER)
+        fail("expecting identifier");
+    
     statement->id=newStr(tokenHead->id);
-    strcpy(statement->varType.data, "int");
     advance();
+    
+    while (getType()==OPEN_SQUARE)
+    {
+        strcat(statement->varType.data,"[");
+        advance();
+        while(getType()!=CLOSE_SQUARE)
+        {            
+            strcat(statement->varType.data,tokenHead->id);
+            advance();
+        }
+        strcat(statement->varType.data,"]");
+        advance();
+    }
 
     if (getType()==EQUALS){
       advance();
@@ -1050,7 +1082,7 @@ struct Token* getTok(char *st, char **ed)
       if (*p=='"'){
 	int sz=p-st;
 	tok->id=(char*) malloc(sz+1);
-	tok->type=STRING;
+	tok->type=STRING_LITERAL;
 	memcpy(tok->id,st,sz);
 	tok->id[sz]='\0';
 	*ed=p+1;
@@ -1067,7 +1099,7 @@ struct Token* getTok(char *st, char **ed)
       if (*p=='\''){
 	int sz=p-st;
 	tok->id=(char*) malloc(sz+1);
-	tok->type=CHAR;
+	tok->type=CHAR_LITERAL;
 	memcpy(tok->id,st,sz);
 	tok->id[sz]='\0';
 	*ed=p+1;
@@ -1143,7 +1175,7 @@ void writeTree(struct Node *node, int indent)
     printf(": '%s' [%s]\n",node->id, node->varType.data);
   else if (nodetype==INT_LITERAL || nodetype==PROTOTYPE ||
       nodetype==VAR || nodetype==CALL || 
-      nodetype==GLOBAL || nodetype==STRING || nodetype==CHAR)
+      nodetype==GLOBAL || nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL)
     printf(": '%s'\n",node->id);
   else 
     printf("\n");
@@ -1220,10 +1252,10 @@ void writeTree(struct Node *node, int indent)
   else if (nodetype==GLOBAL){
     return;
   }
-  else if (nodetype==STRING){
+  else if (nodetype==STRING_LITERAL){
     return;
   }
-  else if (nodetype==CHAR){
+  else if (nodetype==CHAR_LITERAL){
     return;
   }
   else if (nodetype==PROTOTYPE){
@@ -1246,7 +1278,7 @@ void writeVars()
   fprintf(fps,"# ======================\n");
   struct Var *p=varEnd;
   while(p!=NULL){
-    fprintf(fps,"# %s %d %d\n", p->id, p->level, p->offset);
+    fprintf(fps,"# %s %d %d [%s]\n", p->id, p->level, p->offset, p->varType.data);
     p=p->prev;
   }  
   fprintf(fps,"# ======================\n");
@@ -1254,10 +1286,150 @@ void writeVars()
 
 // ######################################################################
 
-void writeAsm(struct Node *node, int level, int lvalue)
+int endsWith(char* t, char c)
+{
+    int l=strlen(t);
+    return t[l-1]==c;
+}
+
+// int*[3][6] -> open={4,7} close={6,8}, return 2
+int getArray(char* t, int open[], int close[])
+{
+    int l=strlen(t);
+
+    int i, ind=0;
+
+    for (i=0;i<l;i++)
+    {
+        if (t[i]=='[')
+        {
+            open[ind]=i;
+        }
+        if (t[i]==']')
+        {
+            close[ind]=i;
+            ind++;
+        }        
+    }
+    return ind;
+}
+
+// int*[3][6] -> 3*6*4 bytes
+int sizeOf(struct Type t)
+{
+    int i, n;
+    int open[10], close[10];
+    
+    n = getArray(t.data, open, close);
+ 
+    int nElem=1,st,len;
+    char index[16];    
+    char* endptr = NULL;
+    for (i=0; i<n; i++)
+    {        
+        st=open[i]+1; len=close[i]-1-st+1;
+        memcpy(index, t.data+st, len);
+        index[len]='\0';
+        
+        errno = 0;
+
+        nElem *= strtol(index, &endptr, 0);
+
+        if (!(errno == 0 && *endptr == '\0'))
+        {
+            printf("Failed to parse index number\n");
+            exit(1);
+        }
+    }
+    
+    // int*
+    
+    printf("n=%d\n", n);
+    
+    struct Type s = t;
+    
+    if (n>0)
+    {
+        s.data[open[0]]='\0';
+    }
+    
+    if (endsWith(s.data, '*'))
+        return 4*nElem;
+    else if (strcmp(s.data, "int") == 0)
+        return 4*nElem;
+    else if (strcmp(s.data, "char") == 0)
+        return nElem;
+}
+
+int isPointer(struct Type t)
+{
+    return endsWith(t.data, '*');
+}
+
+int isArray(struct Type t)
+{
+    int n;
+    int open[10], close[10];
+    
+    n = getArray(t.data, open, close);
+    return n!=0;
+ }
+
+// int** -> int*
+struct Type removePointer(struct Type t)
+{
+    if (!isPointer(t))
+    {
+        printf("Can't removePointer if not pointer %s\n", t.data);
+        exit(1);
+    }
+    
+    // int*
+    struct Type s;
+    s=t;
+    int l=strlen(s.data);
+    s.data[l-1]='\0';
+    return s;
+}
+
+// int* -> int**
+struct Type addPointer(struct Type t)
+{
+    struct Type s;
+    s = t;
+    strcat(s.data, "*");
+    return s;
+}
+
+// int[2][3] -> int[3]
+struct Type removeArray(struct Type t)
+{
+    int open[10], close[10];
+    int n = getArray(t.data, open, close);
+    if (n==0) return t;
+    
+    struct Type s = t;
+    s.data[open[0]]='\0';
+    
+    char ind[16];
+    int i, st, len;
+    for (i=1;i<n;i++)
+    {
+        st=open[i]; len=close[i]-st+1;
+        memcpy(ind, t.data+st, len);
+        ind[len]='\0';
+        strcat(s.data, ind);
+    }
+    return s;
+}
+
+// ######################################################################
+
+struct Type writeAsm(struct Node *node, int level, int lvalue)
 {
   static int s_label=0;
   int nodetype=node->type;
+  struct Type varType, type1, type2;
 
   if (node->type==PROGRAM){
     varEnd=NULL;
@@ -1277,20 +1449,31 @@ void writeAsm(struct Node *node, int level, int lvalue)
     varEnd=malloc(sizeof(struct Var));
     varEnd->offset=0;
     varEnd->id=newStr(node->id);
+    varEnd->varType=node->varType;
     varEnd->level=0;
     varEnd->prev=oldVarEnd;
     writeVars();
   }
   else if (node->type==FUNCTION){
 
-    g_offset=-4;
+    struct Var *oldVarEnd=varEnd;  // put name of function on vars stack
+    varEnd=malloc(sizeof(struct Var));
+    varEnd->offset=0;
+    varEnd->id=newStr(node->id);
+    varEnd->varType=node->varType;
+    varEnd->level=0;
+    varEnd->prev=oldVarEnd;
+    writeVars();
+
+    g_offset = 0;
 
     int i=0;
     while(node->line[i]->type==ARG){
-      struct Var *oldVarEnd=varEnd;  // might be NULL
+      oldVarEnd=varEnd;  // might be NULL
       varEnd=malloc(sizeof(struct Var));
       varEnd->offset=i*4+8;
       varEnd->id=newStr(node->line[i]->id);
+      varEnd->varType=node->line[i]->varType;
       varEnd->level=1;
       varEnd->prev=oldVarEnd;
       i++;
@@ -1343,7 +1526,7 @@ void writeAsm(struct Node *node, int level, int lvalue)
       varEnd=prev;
     }
     fprintf(fps,"add esp,%d\n",4*count);
-    g_offset+=4*count;
+    g_offset += 4*count;
     fprintf(fps,"# ** End of block **\n");
     writeVars();
   }
@@ -1425,97 +1608,133 @@ void writeAsm(struct Node *node, int level, int lvalue)
   else if (node->type==CALL){
     int i;
     for (i=node->nlines-1;i>=0;i--){
-      writeAsm(node->line[i],level,0);
+      type1 = writeAsm(node->line[i],level,0);
+      if (sizeOf(type1)==1)
+          fprintf(fps,"movzx eax,ax\n");
       fprintf(fps,"push eax\n");
     }
     fprintf(fps,"call _%s\n",node->id);
     fprintf(fps,"add esp,%d\n",4*node->nlines);
+
+    strcpy(varType.data,"int");
+    struct Var *p=varEnd;
+    while(p!=NULL)
+    {
+        if (strcmp(node->id,p->id)==0)
+        {
+            varType=p->varType;
+            break;
+        }
+        p=p->prev;
+    }
   }
   else if (node->type==DECL){
-    if (node->child!=NULL) writeAsm(node->child,level,0);
-    fprintf(fps,"push eax # declare %s (level %d)\n",node->id,level);
+    int size=sizeOf(node->varType);
+    int paddedSize= size%4 == 0 ? size : (1+size/4)*4;
+
+    if (node->child!=NULL) 
+    {
+        type1 = writeAsm(node->child,level,0);
+        if (sizeOf(type1)==1) fprintf(fps,"movzx eax,al\n");
+    }
+    
+    if (paddedSize==4)
+        fprintf(fps,"push eax # declare %s (level %d)\n",node->id,level);
+    else
+        fprintf(fps,"sub esp,%d # declare %s (level %d)\n",paddedSize,node->id,level);
+
+    g_offset -= paddedSize;
 
     struct Var *oldVarEnd=varEnd;  // might be NULL
     varEnd=malloc(sizeof(struct Var));
     varEnd->offset=g_offset;
     varEnd->id=newStr(node->id);
+    varEnd->varType=node->varType;
     varEnd->level=level;
     varEnd->prev=oldVarEnd;
-    g_offset -= 4;
 
     writeVars();
   }
   else if (node->type==INDEX)
   {
-    writeAsm(node->child2,level,0); // the index
+    type2 = writeAsm(node->child2,level,0); // the index
     fprintf(fps,"push eax\n");
 
-    writeAsm(node->child,level,1);  // the variable address, lvalue requested
+    type1 = writeAsm(node->child,level,1);  // the variable address, lvalue requested
     fprintf(fps,"pop ecx\n");
-    
+
+    varType=removeArray(type1);
+    fprintf(fps,"imul ecx,%d\n",sizeOf(varType));
     fprintf(fps,"add eax,ecx\n");
+
     if (lvalue==0)
-        fprintf(fps,"mov eax,[eax]\n");
+    {
+        if (sizeOf(varType)==1)
+            fprintf(fps,"mov al,[eax]\nmovzx eax,al\n");
+        else
+            fprintf(fps,"mov eax,[eax]\n");
+    }    
   }    
   else if (node->type==ASSIGNMENT)
   {
-    writeAsm(node->child,level,1);    // lvalue requested for LHS
+    type1 = writeAsm(node->child,level,1);    // lvalue requested for LHS
     fprintf(fps,"push eax\n");
-
-    writeAsm(node->child2,level,0);  // value to be assigned
+ 
+    type2 = writeAsm(node->child2,level,0);  // value to be assigned
     fprintf(fps,"pop ecx\n");
 
-/*
-    struct Var *p=varEnd;
-    int offset=0;
-    int found=0;
-    while(p!=NULL){
-      if (strcmp(node->id,p->id)==0){
-	offset=p->offset;
-	found=1;
-	break;
-      }
-      p=p->prev;
+    if (sizeOf(type1)==1)   // LHS = char
+    {
+        if (sizeOf(type2)==4)
+        {
+            printf("Cannot narrow int to char\n");
+            exit(1);
+        }
+        fprintf(fps,"mov [ecx],al\n");
     }
-    if (found==0) {printf("Assign to undeclared variable %s\n",node->id); exit(1);}
-*/
-    fprintf(fps,"mov [ecx],eax\n");
-//    if (offset==0)
-//      fprintf(fps,"mov _%s,eax\n",node->id);
-//    else
-//      fprintf(fps,"mov [ebp%+d],eax # %s\n",offset,node->id);
+    else // LHS=int
+    {
+        if (sizeOf(type2)==1)
+            fprintf(fps,"movzx eax,al\n");
+        fprintf(fps,"mov [ecx],eax\n");
+    }
+    varType=type1;
   }
   else if (node->type==DEREF)
   {
-      writeAsm(node->child,level,0);
-      if (lvalue==0)
+    type1 = writeAsm(node->child,level,0);
+    if (lvalue==0)
         fprintf(fps,"mov eax,[eax]\n");
+    
+    varType=removePointer(type1);      
   }
   else if (node->type==ADDRESS)
   {
-      writeAsm(node->child,level,1); // request lvalue
+      type1 = writeAsm(node->child,level,1); // request lvalue
+      varType=addPointer(type1);
   }
   else if (node->type==UNARY_MINUS){
-    writeAsm(node->child,level,0);
+    type1 = writeAsm(node->child,level,0);
     fprintf(fps,"neg eax\n");
+    varType = type1;
   }
   else if (node->type==UNARY_COMPLEMENT){
-    writeAsm(node->child,level,0);
+    type1 = writeAsm(node->child,level,0);
     fprintf(fps,"not eax\n");
+    varType = type1;
   }
   else if (node->type==UNARY_NOT){
-    writeAsm(node->child,level,0);
+    type1 = writeAsm(node->child,level,0);
     fprintf(fps,"cmp eax,0\n");    // set ZF on if exp == 0, set it off otherwise
     fprintf(fps,"mov eax,0\n");    // zero out EAX (doesn't change FLAGS)
     fprintf(fps,"sete al\n");
+    varType = type1;
   }
   else if (node->type==INT_LITERAL){
     fprintf(fps,"mov eax,%s\n",node->id);
-//    struct Type type;
-//    strcpy(type.data,"int");
-//    return type;
+    strcpy(varType.data,"int");
   }
-  else if (node->type==STRING){
+  else if (node->type==STRING_LITERAL){
     int label=s_label++;
 
     fprintf(fps,".data\n");
@@ -1523,11 +1742,16 @@ void writeAsm(struct Node *node, int level, int lvalue)
     fprintf(fps,".asciz \"%s\"\n",node->id);
     fprintf(fps,".text\n");
     fprintf(fps,"mov eax, offset _string%d\n",label);
+    strcpy(varType.data,"char*");
   }
-  else if (node->type==CHAR){
-    fprintf(fps,"mov eax,'%s'\n",node->id);
+  else if (node->type==CHAR_LITERAL){
+      if (strcmp(node->id,"\\0")==0)
+          fprintf(fps,"mov al,0\n");
+      else
+          fprintf(fps,"mov al,'%s'\n",node->id);
+      strcpy(varType.data,"char");
   }
-  else if (node->type==VAR)
+  else if (node->type==VAR)           // variable reference
   {
     struct Var *p=varEnd;
     int offset=0;
@@ -1537,34 +1761,75 @@ void writeAsm(struct Node *node, int level, int lvalue)
         if (strcmp(node->id,p->id)==0)
         {
             offset=p->offset;
+            varType=p->varType;
             found=1;
             break;
         }
         p=p->prev;
     }
     if (found==0) {printf("Refer to undeclared variable %s\n",node->id); exit(1);}
-    if (lvalue==0)
-    {
-        if (offset==0)
-            fprintf(fps,"mov eax,_%s\n",node->id);
-        else
-            fprintf(fps,"mov eax,[ebp%+d] # %s\n",offset,node->id);
-    }
+
+    char reg[3];
+    if (sizeOf(varType)==1)
+        strcpy(reg,"al");
     else
+        strcpy(reg,"eax");
+        
+    if (lvalue==1 || isArray(varType))
     {
         if (offset==0)
             fprintf(fps,"mov eax,offset _%s\n",node->id);
         else
             fprintf(fps,"lea eax,[ebp%+d] # %s\n",offset,node->id);
     }
+    else
+    {
+        if (offset==0)
+            fprintf(fps,"mov %s,_%s\n",reg,node->id);
+        else
+            fprintf(fps,"mov %s,[ebp%+d] # %s\n",reg,offset,node->id);
+    }
         
   }
   else if (node->type==BINARY_PLUS){
-    writeAsm(node->child,level,0);
+    type2 = writeAsm(node->child2,level,0);
     fprintf(fps,"push eax\n");
-    writeAsm(node->child2,level,0);
-    fprintf(fps,"pop ecx\n");
-    fprintf(fps,"add eax,ecx\n");
+
+    type1 = writeAsm(node->child,level,0);
+    fprintf(fps,"pop ecx\n");  // child on eax, child2 on ecx
+
+    if (strcmp(type1.data,"char")==0 && strcmp(type2.data,"int")==0)
+    {
+        fprintf(fps,"movzx eax,al\n");
+        fprintf(fps,"add eax,ecx\n");
+        strcpy(varType.data,"int");
+    }
+    else if (strcmp(type1.data,"int")==0 && strcmp(type2.data,"char")==0)
+    {
+        fprintf(fps,"movzx ecx,cl\n");
+        fprintf(fps,"add eax,ecx\n");
+        strcpy(varType.data,"int");
+    }
+    else if (strcmp(type1.data,"char")==0 && strcmp(type2.data,"char")==0)
+    {
+        fprintf(fps,"add al,cl\n");
+        strcpy(varType.data,"char");
+    }
+    else if (isPointer(type1) && strcmp(type2.data,"int")==0)
+    {
+        fprintf(fps, "imul ecx,%d\n",sizeOf(removePointer(type1)));
+        varType=type1;
+    }
+    else if (strcmp(type1.data,"int")==0 && isPointer(type2))
+    {
+        fprintf(fps, "imul eax,%d\n",sizeOf(removePointer(type2)));
+        varType=type1;
+    }
+    else
+    {
+        fprintf(fps,"add eax,ecx\n");
+        strcpy(varType.data,"int");
+    }
   }
   else if (node->type==BINARY_MINUS){
     writeAsm(node->child2,level,0);
@@ -1595,6 +1860,7 @@ void writeAsm(struct Node *node, int level, int lvalue)
 	   nodetype==BINARY_GREATER_THAN_OR_EQUAL ||
 	   nodetype==BINARY_EQUAL ||
 	   nodetype==BINARY_NOT_EQUAL){
+
     writeAsm(node->child2,level,0);
     fprintf(fps,"push eax\n");       // save value of e1 on the stack
     writeAsm(node->child,level,0);
@@ -1661,12 +1927,38 @@ void writeAsm(struct Node *node, int level, int lvalue)
     printf("Internal compiler error: illegal nodetype (writeAsm). Got %d\n",nodetype);
     exit(1);
   }
+  return varType;
 }
 
 // ######################################################################
 
 int main(int argc, char **argv)
 {
+    struct Type t;
+    strcpy(t.data, "int*");
+    printf("sizeOf int* =%d, isPointer=%d\n", sizeOf(t),isPointer(t));
+
+    strcpy(t.data, "int");
+    printf("sizeOf int =%d, isPointer=%d\n", sizeOf(t),isPointer(t));
+    
+    strcpy(t.data, "char");
+    printf("sizeOf char =%d isPointer=%d\n", sizeOf(t), isPointer(t));
+
+    strcpy(t.data, "char*");
+    printf("sizeOf char* =%d isPointer=%d\n", sizeOf(t), isPointer(t));
+
+    strcpy(t.data, "char*[2][3]");
+    printf("sizeOf char*[2][3] =%d isPointer=%d\n", sizeOf(t), isPointer(t));
+    
+    int open[10], close[10];
+    int n = getArray(t.data, open, close);
+
+    for (int i=0;i<n;i++)
+        printf("o=%d c=%d\n",open[i],close[i]);
+    
+    struct Type s = removeArray(t);
+    printf("After remove %s\n", s.data); 
+//    exit(1);
 
   // ----------------------------------------------------------------------
   // Read source file into source
@@ -1761,7 +2053,7 @@ int main(int argc, char **argv)
   tok=head;
   while(tok!=NULL){
     printf("%s",names[tok->type]);
-    if (tok->type==IDENTIFIER || tok->type==INT_LITERAL || tok->type==STRING)
+    if (tok->type==IDENTIFIER || tok->type==INT_LITERAL || tok->type==STRING_LITERAL || tok->type == CHAR_LITERAL)
       printf(": '%s'\n",tok->id);
     else 
       printf("\n");
@@ -1781,7 +2073,8 @@ int main(int argc, char **argv)
   // ----------------------------------------------------------------------
 
   writeTree(tree,0);
-
+//  exit(1);
+  
   // ----------------------------------------------------------------------
   // Write out assembly
   // ----------------------------------------------------------------------
