@@ -33,7 +33,7 @@ int main()
   globalMass=4;
   printf("globalMass=%d\n",globalMass);
 
-  int cmd="dir *.c";
+  char *cmd="dir *.c";
   printf("cmd=%s %p %d\n",cmd,cmd,strlen(cmd));
   
   int disc=b*b-4*a*c;

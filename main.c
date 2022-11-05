@@ -8,10 +8,6 @@ Additional operators: unary+, |, bitwise-&, <<, >>, ^, %, ternary ?:, sizeof
 break
 struct (., ->)
 
-Generalise how args are put on the stack for call
-Generalise create arg variables at beginning of function [ebp+x]
-Generalise remove vars at end of block
-
 Not needed to compile this compiler:
 switch, case, default, union, enum, typedef, goto, continue
 auto, const, double, extern, float, long, register, short, (un)signed, static, void, volatile
@@ -253,6 +249,7 @@ struct Var
   struct Type varType;
   int level;
   int offset;
+  int isArg;
   struct Var *prev;
 };
 
@@ -855,6 +852,45 @@ struct Node* parse_statement()
 
 struct Node* parse_arg()
 {
+
+  struct Node* arg=(struct Node*)malloc(sizeof(struct Node));
+    
+    if (getType()==INT_DECLARATION)
+        strcpy(arg->varType.data, "int");
+    else if (getType()==CHAR_DECLARATION)
+        strcpy(arg->varType.data, "char");        
+    else
+        fail("Expected int or char in DECL");
+
+    advance();
+    arg->type=ARG;
+        
+    while (getType()==ASTERISK)
+    {
+        strcat(arg->varType.data,"*");
+        advance();
+    }        
+
+    if (getType()!=IDENTIFIER)
+        fail("expecting identifier");
+    
+    arg->id=newStr(tokenHead->id);
+    advance();
+    
+    while (getType()==OPEN_SQUARE)
+    {
+        strcat(arg->varType.data,"[");
+        advance();
+        while(getType()!=CLOSE_SQUARE)
+        {            
+            strcat(arg->varType.data,tokenHead->id);
+            advance();
+        }
+        strcat(arg->varType.data,"]");
+        advance();
+    }
+    
+    /*
   if (getType()!=INT_DECLARATION) fail("Expected int in arg declaration");
   advance();
   if (getType()!=IDENTIFIER) fail("Expected identifier in arg declaration");
@@ -865,6 +901,7 @@ struct Node* parse_arg()
   strcpy(arg->varType.data,"int");
 
   advance();
+  */
   return arg;
 }
 
@@ -961,6 +998,40 @@ struct Node* parse_prototype()
 
 // ######################################################################
 
+/*
+       strcpy(statement->varType.data, "int");
+    else
+        strcpy(statement->varType.data, "char");        
+
+    advance();
+    statement->type=DECL;
+        
+    while (getType()==ASTERISK)
+    {
+        strcat(statement->varType.data,"*");
+        advance();
+    }        
+
+    if (getType()!=IDENTIFIER)
+        fail("expecting identifier");
+    
+    statement->id=newStr(tokenHead->id);
+    advance();
+    
+    while (getType()==OPEN_SQUARE)
+    {
+        strcat(statement->varType.data,"[");
+        advance();
+        while(getType()!=CLOSE_SQUARE)
+        {            
+            strcat(statement->varType.data,tokenHead->id);
+            advance();
+        }
+        strcat(statement->varType.data,"]");
+        advance();
+    }
+*/
+
 struct Node* parse_global()
 {
   if (getType()!=INT_DECLARATION) fail("expected int");
@@ -969,6 +1040,8 @@ struct Node* parse_global()
   struct Node *global=(struct Node*)malloc(sizeof(struct Node));
   global->type=GLOBAL;
   global->id=newStr(tokenHead->id);
+  strcpy(global->varType.data, "int");
+
   advance();
 
   if (getType()!=SEMICOLON) fail("expected ;");
@@ -1171,11 +1244,11 @@ void writeTree(struct Node *node, int indent)
 
   int nodetype=node->type;
 
-  if (nodetype==DECL || nodetype==FUNCTION || nodetype==ARG)
+  if (nodetype==DECL || nodetype==FUNCTION || nodetype==ARG || nodetype==GLOBAL)
     printf(": '%s' [%s]\n",node->id, node->varType.data);
   else if (nodetype==INT_LITERAL || nodetype==PROTOTYPE ||
       nodetype==VAR || nodetype==CALL || 
-      nodetype==GLOBAL || nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL)
+      nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL)
     printf(": '%s'\n",node->id);
   else 
     printf("\n");
@@ -1278,7 +1351,7 @@ void writeVars()
   fprintf(fps,"# ======================\n");
   struct Var *p=varEnd;
   while(p!=NULL){
-    fprintf(fps,"# %s %d %d [%s]\n", p->id, p->level, p->offset, p->varType.data);
+    fprintf(fps,"# %s %d %d [%s] %d\n", p->id, p->level, p->offset, p->varType.data, p->isArg);
     p=p->prev;
   }  
   fprintf(fps,"# ======================\n");
@@ -1344,7 +1417,7 @@ int sizeOf(struct Type t)
     
     // int*
     
-    printf("n=%d\n", n);
+//    printf("n=%d\n", n);
     
     struct Type s = t;
     
@@ -1423,6 +1496,75 @@ struct Type removeArray(struct Type t)
     return s;
 }
 
+int isInt(struct Type t)
+{
+    return strcmp(t.data,"int")==0;
+}
+
+int isChar(struct Type t)
+{
+    return strcmp(t.data,"char")==0;
+}
+
+struct Type writeBinOp(char* op, struct Type type1, struct Type type2)
+{
+    struct Type varType;
+
+    if (isChar(type1) && isInt(type2))
+    {
+        fprintf(fps,"movzx eax,al\n");
+        fprintf(fps,"%s eax,ecx\n", op);
+        strcpy(varType.data,"int");
+    }
+    else if (isInt(type1) && isChar(type2))
+    {
+        fprintf(fps,"movzx ecx,cl\n");
+        fprintf(fps,"%s eax,ecx\n", op);
+        strcpy(varType.data,"int");
+    }
+    else if (isChar(type1) && isChar(type2))
+    {
+        fprintf(fps,"%s al,cl\n", op);
+        strcpy(varType.data,"char");
+    }
+    else if (isInt(type1) && isInt(type2))
+    {
+        fprintf(fps,"%s eax,ecx\n", op);
+        strcpy(varType.data,"int");
+    }
+    else if (strstr("add,sub", op)!=0 && isPointer(type1) && isInt(type2))
+    {
+        fprintf(fps, "imul ecx,%d\n",sizeOf(removePointer(type1)));
+        fprintf(fps,"%s eax,ecx\n", op);
+        varType=type1;
+    }
+    else if (strcmp(op,"add")==0 && isInt(type1) && isPointer(type2))
+    {
+        fprintf(fps, "imul eax,%d\n",sizeOf(removePointer(type2)));
+        fprintf(fps,"add eax,ecx\n");
+        varType=type1;
+    }
+    else if (strcmp(op,"sub")==0 && isPointer(type1) && isPointer(type2))
+    {
+        if (strcmp(type1.data, type2.data)!=0)
+        {
+            printf("Pointers must be identical in subtraction\n");
+            exit(1);
+        }
+
+        fprintf(fps,"sub eax,ecx\n");
+        fprintf(fps,"cdq\n");
+        fprintf(fps,"idiv eax,%d\n", sizeOf(removePointer(type1)));
+        varType=type1;
+    }
+    else
+    {
+        printf("Illegal combination of types during %s\n", op);
+        exit(1);
+    }    
+    return varType;
+}
+
 // ######################################################################
 
 struct Type writeAsm(struct Node *node, int level, int lvalue)
@@ -1430,14 +1572,25 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
   static int s_label=0;
   int nodetype=node->type;
   struct Type varType, type1, type2;
+  
+  /*
+  PROGRAM
+  */
 
   if (node->type==PROGRAM){
     varEnd=NULL;
     int i;
-    for (i=0;i<node->nlines;i++){
+    for (i=0; i<node->nlines; i++){
       writeAsm(node->line[i], level, 0);
     }
   }
+  
+  /*
+  GLOBAL
+  Create data section with new global variable
+  Add it to the variable stack
+  */
+  
   else if (node->type==GLOBAL){
     fprintf(fps,".data\n");
     fprintf(fps,".globl _%s\n",node->id);
@@ -1451,10 +1604,23 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     varEnd->id=newStr(node->id);
     varEnd->varType=node->varType;
     varEnd->level=0;
+    varEnd->isArg=0;
     varEnd->prev=oldVarEnd;
     writeVars();
   }
-  else if (node->type==FUNCTION){
+  
+  /*
+  FUNCTION
+  Put function name and type on variable stack (global scope)
+  Put args on var stack (varEnd) as local variables with offsets
+  Setup stack frame
+  Process lines within function
+  Remove stack frame
+  Remove locals from variable stack
+  */
+  
+  else if (node->type==FUNCTION)
+  {
 
     struct Var *oldVarEnd=varEnd;  // put name of function on vars stack
     varEnd=malloc(sizeof(struct Var));
@@ -1462,21 +1628,26 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     varEnd->id=newStr(node->id);
     varEnd->varType=node->varType;
     varEnd->level=0;
+    varEnd->isArg=0;
     varEnd->prev=oldVarEnd;
     writeVars();
 
     g_offset = 0;
 
     int i=0;
-    while(node->line[i]->type==ARG){
+    int tot=8;
+    while(node->line[i]->type==ARG)
+    {
       oldVarEnd=varEnd;  // might be NULL
       varEnd=malloc(sizeof(struct Var));
-      varEnd->offset=i*4+8;
+      varEnd->offset=tot;
       varEnd->id=newStr(node->line[i]->id);
       varEnd->varType=node->line[i]->varType;
       varEnd->level=1;
+      varEnd->isArg=1;
       varEnd->prev=oldVarEnd;
       i++;
+      tot += sizeOf(varEnd->varType);
     }
 
     fprintf(fps,".globl _%s\n",node->id);
@@ -1485,7 +1656,8 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     fprintf(fps,"push ebp\n");
     fprintf(fps,"mov ebp,esp\n");
 
-    for ( ; i<node->nlines; i++){
+    for ( ; i<node->nlines; i++)
+    {
       writeAsm(node->line[i], level+1, 0);
     }    
 
@@ -1509,7 +1681,15 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
   }
   else if (node->type==PROTOTYPE){    
   }
+  
+  /*
+  BLOCK
+  Process lines
+  Clear local variables from variable stack (and machine stack by adding to ESP)
+  */
+  
   else if (node->type==BLOCK){
+      
     int i;
     for (i=0;i<node->nlines;i++){
       writeAsm(node->line[i], level+1, 0);
@@ -1517,19 +1697,25 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
 
     // clear local variables in BLOCK from end of list. ADD to ESP, increase g_offset
     int count=0;
+    int tot=0;
     while(varEnd!=NULL){
-      if (varEnd->level>level+1) perror("Error: Unexpected high level variable\n");
-      if (varEnd->level!=level+1) break;
+      if (varEnd->level > level+1) perror("Error: Unexpected high level variable\n");
+      if (varEnd->level != level+1) break;
+      tot += sizeOf(varEnd->varType);
       struct Var *prev=varEnd->prev;
       free(varEnd);
-      count++;
       varEnd=prev;
     }
     fprintf(fps,"add esp,%d\n",4*count);
-    g_offset += 4*count;
+    g_offset += tot;
     fprintf(fps,"# ** End of block **\n");
     writeVars();
   }
+  
+  /*
+  IF
+  */
+  
   else if (node->type==IF){
     int label=s_label++;
     writeAsm(node->child,level,0);
@@ -1551,6 +1737,11 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
 
     fprintf(fps,"_end%d:\n",label);
   }
+
+  /*
+  WHILE
+  */
+
   else if (node->type==WHILE){
     int label=s_label++;
 
@@ -1565,6 +1756,11 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     fprintf(fps,"jmp _start%d\n",label);
     fprintf(fps,"_end%d:\n",label);
   }
+
+  /*
+  DO
+  */
+
   else if (node->type==DO){
     int label=s_label++;
 
@@ -1578,6 +1774,11 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     fprintf(fps,"je _start%d\n",label);
     fprintf(fps,"_end%d:\n",label);
   }
+
+  /*
+  FOR
+  */
+
   else if (node->type==FOR){
     int label=s_label++;
 
@@ -1595,26 +1796,61 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     fprintf(fps,"jmp _start%d\n",label);
     fprintf(fps,"_end%d:\n",label);
   }
+  
+  /*
+  RETURN
+  Cast to return value to int (for now)
+  */
+
   else if (node->type==RETURN){
-    writeAsm(node->child,level,0);
+    type1 = writeAsm(node->child,level,0);
+    if (sizeOf(type1)==1)
+        fprintf(fps,"movzx eax,al\n");
     fprintf(fps,"mov esp,ebp\n");
     fprintf(fps,"pop ebp\n");
 
     fprintf(fps,"ret\n");
   }
+  
+  /*
+  EXPR: expression followed by semi-colon, eg i=2*f(n);
+  */
+
   else if (node->type==EXPR){
     writeAsm(node->child,level,0);
   }
+  
+  /*
+  CALL
+  Push args on the stack right to left. If 1 byte, push 4 bytes with char first
+  On return clear arguments from stack
+  Find the return type of the function and pass it up to caller node
+  */
+
   else if (node->type==CALL){
     int i;
-    for (i=node->nlines-1;i>=0;i--){
+    int tot=0;
+    int size;
+    int paddedSize;
+
+    for (i=node->nlines-1;i>=0;i--)
+    {
       type1 = writeAsm(node->line[i],level,0);
+      if (isArray(type1)) 
+          size=4;
+      else
+          size = sizeOf(type1);
+
+      paddedSize= size%4 == 0 ? size : (1+size/4)*4;
+      tot += paddedSize;
+      
       if (sizeOf(type1)==1)
-          fprintf(fps,"movzx eax,ax\n");
+          fprintf(fps,"movzx eax,al\n");
       fprintf(fps,"push eax\n");
     }
+
     fprintf(fps,"call _%s\n",node->id);
-    fprintf(fps,"add esp,%d\n",4*node->nlines);
+    fprintf(fps,"add esp,%d\n",tot);
 
     strcpy(varType.data,"int");
     struct Var *p=varEnd;
@@ -1628,9 +1864,24 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
         p=p->prev;
     }
   }
-  else if (node->type==DECL){
+  
+  /*
+  DECL
+  Declare a local variable and push it onto the stack. If 1 byte, push 4 bytes with char first. For arrays pad to multiple of 4 bytes
+  First calculate its initial value (if any).
+  Add new variable to var stack
+  */
+
+  else if (node->type==DECL)
+  {
     int size=sizeOf(node->varType);
     int paddedSize= size%4 == 0 ? size : (1+size/4)*4;
+
+      if (strcmp(node->id,"ret")==0)
+      {
+          printf("size ret=%d %d %d\n", size,paddedSize,g_offset);
+      }
+
 
     if (node->child!=NULL) 
     {
@@ -1651,10 +1902,19 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     varEnd->id=newStr(node->id);
     varEnd->varType=node->varType;
     varEnd->level=level;
+    varEnd->isArg=0;
     varEnd->prev=oldVarEnd;
 
     writeVars();
   }
+  
+  /*
+  INDEX. Calculate array index eg a[2]
+  First child is variable or lvalue expression like *p or a[3] so call with lvalue=1
+  So eax is set to a pointer. If WE have been asked for an rvalue, get memory at this pointer
+  (if our type is char, get a single byte). Multiply so a[2][3] -> offset = 2*sizeof(int[3])+3*sizeof(int)
+  */
+
   else if (node->type==INDEX)
   {
     type2 = writeAsm(node->child2,level,0); // the index
@@ -1670,11 +1930,17 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     if (lvalue==0)
     {
         if (sizeOf(varType)==1)
-            fprintf(fps,"mov al,[eax]\nmovzx eax,al\n");
+            fprintf(fps,"mov al,[eax]\n");
         else
             fprintf(fps,"mov eax,[eax]\n");
     }    
   }    
+
+  /*
+  ASSIGNMENT. First child is lvalue so call Node with lvalue=1, get back a pointer
+  Widen or narrow before putting into memory. Second child is rvalue.
+  */
+
   else if (node->type==ASSIGNMENT)
   {
     type1 = writeAsm(node->child,level,1);    // lvalue requested for LHS
@@ -1685,7 +1951,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
 
     if (sizeOf(type1)==1)   // LHS = char
     {
-        if (sizeOf(type2)==4)
+        if (sizeOf(type2)==4)   // narrow int to char
         {
             printf("Cannot narrow int to char\n");
             exit(1);
@@ -1694,42 +1960,89 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     }
     else // LHS=int
     {
-        if (sizeOf(type2)==1)
+        if (sizeOf(type2)==1)  // RHS = char so widen
             fprintf(fps,"movzx eax,al\n");
         fprintf(fps,"mov [ecx],eax\n");
     }
     varType=type1;
   }
-  else if (node->type==DEREF)
+  
+  /*
+  DEREF eg *p
+  eg child note type is int*, return int (remove one *)
+  If rvalue requested, dereference
+  */
+  
+  else if (node->type==DEREF)   // int* p; *p=1+*q. return varType = int (lvalue or rvalue) not int*
   {
     type1 = writeAsm(node->child,level,0);
+    varType=removePointer(type1);
     if (lvalue==0)
-        fprintf(fps,"mov eax,[eax]\n");
+    {
+        if (sizeOf(varType)==1)
+            fprintf(fps,"mov al,[eax]\n");
+        else
+            fprintf(fps,"mov eax,[eax]\n");
+    }
     
     varType=removePointer(type1);      
   }
+
+  /*
+  ADDRESS. eg &a
+  eg child node is int, return int* (add one *)
+  Request lvalue so we get a pointer to the object
+  */  
+  
   else if (node->type==ADDRESS)
   {
       type1 = writeAsm(node->child,level,1); // request lvalue
-      varType=addPointer(type1);
+      varType = addPointer(type1);
   }
+  
+  /*
+  Unary operations, MINUS, COMPLEMENT, NOT
+  */
+  
   else if (node->type==UNARY_MINUS){
     type1 = writeAsm(node->child,level,0);
-    fprintf(fps,"neg eax\n");
+    if (sizeOf(type1)==1)
+        fprintf(fps,"neg al\n");
+    else
+        fprintf(fps,"neg eax\n");
+        
     varType = type1;
   }
   else if (node->type==UNARY_COMPLEMENT){
     type1 = writeAsm(node->child,level,0);
-    fprintf(fps,"not eax\n");
+    if (sizeOf(type1)==1)
+        fprintf(fps,"not al\n");
+    else
+        fprintf(fps,"not eax\n");
+        
     varType = type1;
   }
   else if (node->type==UNARY_NOT){
     type1 = writeAsm(node->child,level,0);
-    fprintf(fps,"cmp eax,0\n");    // set ZF on if exp == 0, set it off otherwise
-    fprintf(fps,"mov eax,0\n");    // zero out EAX (doesn't change FLAGS)
-    fprintf(fps,"sete al\n");
+    if (sizeOf(type1)==1)
+    {
+        fprintf(fps,"cmp al,0\n");
+        fprintf(fps,"sete al\n");
+    }
+    else
+    {
+        fprintf(fps,"cmp eax,0\n");    // set ZF on if exp == 0, set it off otherwise
+        fprintf(fps,"mov eax,0\n");    // zero out EAX (doesn't change FLAGS)
+        fprintf(fps,"sete al\n");
+    }
     varType = type1;
   }
+  
+  /*
+  Literals
+  GNU assembler (as) doesn't understand '\0' so do special case
+  */
+  
   else if (node->type==INT_LITERAL){
     fprintf(fps,"mov eax,%s\n",node->id);
     strcpy(varType.data,"int");
@@ -1744,6 +2057,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     fprintf(fps,"mov eax, offset _string%d\n",label);
     strcpy(varType.data,"char*");
   }
+    
   else if (node->type==CHAR_LITERAL){
       if (strcmp(node->id,"\\0")==0)
           fprintf(fps,"mov al,0\n");
@@ -1751,17 +2065,27 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
           fprintf(fps,"mov al,'%s'\n",node->id);
       strcpy(varType.data,"char");
   }
+  
+  /*
+  Variable reference. Find variable in var stack and get its type and offset and whether is Arg
+  If rvalue was requested, deref and put result in eax or al (char)
+  If lvalue was requested, don't deref but get address in eax
+  Either local or global might be requested
+  */
+  
   else if (node->type==VAR)           // variable reference
   {
     struct Var *p=varEnd;
     int offset=0;
     int found=0;
+    int isArg;
     while(p!=NULL)
     {
         if (strcmp(node->id,p->id)==0)
         {
             offset=p->offset;
             varType=p->varType;
+            isArg=p->isArg;
             found=1;
             break;
         }
@@ -1769,13 +2093,34 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     }
     if (found==0) {printf("Refer to undeclared variable %s\n",node->id); exit(1);}
 
-    char reg[3];
+    char reg[4];
     if (sizeOf(varType)==1)
         strcpy(reg,"al");
     else
         strcpy(reg,"eax");
-        
-    if (lvalue==1 || isArray(varType))
+
+    // Special case for arrays. Normally return the address but if array is arg to our function dereference it
+    if (isArray(varType))
+    {
+        if (isArg)
+        {
+            if (offset==0)
+                fprintf(fps,"mov %s,_%s\n",reg,node->id);
+            else
+                fprintf(fps,"mov %s,[ebp%+d] # %s\n",reg,offset,node->id);
+        }
+        else
+        {
+            if (offset==0)
+                fprintf(fps,"mov eax,offset _%s\n",node->id);
+            else
+                fprintf(fps,"lea eax,[ebp%+d] # %s\n",offset,node->id);
+        }
+        return varType;
+    }
+
+    // normal case        
+    if (lvalue)
     {
         if (offset==0)
             fprintf(fps,"mov eax,offset _%s\n",node->id);
@@ -1789,69 +2134,97 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
         else
             fprintf(fps,"mov %s,[ebp%+d] # %s\n",reg,offset,node->id);
     }
-        
   }
+  
+  /*
+  Binary ops. 
+  If both char, result is char
+  If both int, result int
+  If char, int, promote to int
+  If pointer, int, do pointer arithmetic
+  */
+  
   else if (node->type==BINARY_PLUS){
     type2 = writeAsm(node->child2,level,0);
     fprintf(fps,"push eax\n");
 
     type1 = writeAsm(node->child,level,0);
     fprintf(fps,"pop ecx\n");  // child on eax, child2 on ecx
+    
+    varType = writeBinOp("add", type1, type2);
 
-    if (strcmp(type1.data,"char")==0 && strcmp(type2.data,"int")==0)
+/*
+    if (isChar(type1) && isInt(type2))
     {
         fprintf(fps,"movzx eax,al\n");
         fprintf(fps,"add eax,ecx\n");
         strcpy(varType.data,"int");
     }
-    else if (strcmp(type1.data,"int")==0 && strcmp(type2.data,"char")==0)
+    else if (isInt(type1) && isChar(type2))
     {
         fprintf(fps,"movzx ecx,cl\n");
         fprintf(fps,"add eax,ecx\n");
         strcpy(varType.data,"int");
     }
-    else if (strcmp(type1.data,"char")==0 && strcmp(type2.data,"char")==0)
+    else if (isChar(type1) && isChar(type2))
     {
         fprintf(fps,"add al,cl\n");
         strcpy(varType.data,"char");
     }
-    else if (isPointer(type1) && strcmp(type2.data,"int")==0)
-    {
-        fprintf(fps, "imul ecx,%d\n",sizeOf(removePointer(type1)));
-        varType=type1;
-    }
-    else if (strcmp(type1.data,"int")==0 && isPointer(type2))
-    {
-        fprintf(fps, "imul eax,%d\n",sizeOf(removePointer(type2)));
-        varType=type1;
-    }
-    else
+    else if (isInt(type1) && isInt(type2))
     {
         fprintf(fps,"add eax,ecx\n");
         strcpy(varType.data,"int");
     }
+    else if (isPointer(type1) && isInt(type2))
+    {
+        fprintf(fps, "imul ecx,%d\n",sizeOf(removePointer(type1)));
+        fprintf(fps,"add eax,ecx\n");
+        varType=type1;
+    }
+    else if (isInt(type1) && isPointer(type2))
+    {
+        fprintf(fps, "imul eax,%d\n",sizeOf(removePointer(type2)));
+        fprintf(fps,"add eax,ecx\n");
+        varType=type1;
+    }
+    else
+    {
+        printf("Illegal combination of types during BINARY_PLUS\n");
+        exit(1);
+    }    
+    */
   }
   else if (node->type==BINARY_MINUS){
-    writeAsm(node->child2,level,0);
+    type2 = writeAsm(node->child2,level,0);
     fprintf(fps,"push eax\n");
-    writeAsm(node->child,level,0);
+    type1 = writeAsm(node->child,level,0);
     fprintf(fps,"pop ecx\n");
-    fprintf(fps,"sub eax,ecx\n");
+    
+    varType = writeBinOp("sub", type1, type2);
+    
+//    fprintf(fps,"sub eax,ecx\n");
   }
   else if (node->type==BINARY_TIMES){
-    writeAsm(node->child2,level,0);
+    type2 = writeAsm(node->child2,level,0);
     fprintf(fps,"push eax\n");
-    writeAsm(node->child,level,0);
+    type1 = writeAsm(node->child,level,0);
     fprintf(fps,"pop ecx\n");
-    fprintf(fps,"imul eax,ecx\n");
+    
+    varType = writeBinOp("imul", type1, type2);
+        
+//    fprintf(fps,"imul eax,ecx\n");
   }
   else if (node->type==BINARY_DIVIDE){
-    writeAsm(node->child2,level,0);
+    type2 = writeAsm(node->child2,level,0);
     fprintf(fps,"push eax\n");
-    writeAsm(node->child,level,0);
+    type1 = writeAsm(node->child,level,0);
     fprintf(fps,"pop ecx\n");
     fprintf(fps,"cdq\n");
-    fprintf(fps,"idiv eax,ecx\n");
+
+    varType = writeBinOp("idiv", type1, type2);
+
+//    fprintf(fps,"idiv eax,ecx\n");
   }
   else if (
 	   nodetype==BINARY_LESS_THAN ||
@@ -1861,11 +2234,15 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
 	   nodetype==BINARY_EQUAL ||
 	   nodetype==BINARY_NOT_EQUAL){
 
-    writeAsm(node->child2,level,0);
+    type2 = writeAsm(node->child2,level,0);
     fprintf(fps,"push eax\n");       // save value of e1 on the stack
-    writeAsm(node->child,level,0);
+    type1 = writeAsm(node->child,level,0);
     fprintf(fps,"pop ecx\n");         // pop e1 from the stack into ecx - e2 is already in eax
-    fprintf(fps,"cmp eax, ecx\n");    // set ZF on if e1 == e2, set it off otherwise
+
+    varType = writeBinOp("cmp", type1, type2);
+
+//    fprintf(fps,"cmp eax, ecx\n");    // set ZF on if e1 == e2, set it off otherwise
+
     fprintf(fps,"mov eax, 0\n");      //zero out EAX (doesn't change FLAGS)
 
     if (nodetype==BINARY_LESS_THAN)      
@@ -1887,18 +2264,36 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     // 1 || 0 = 1
     // 1 || 1 = 1
     int label=s_label++;
-    writeAsm(node->child,level,0);
+    type1 = writeAsm(node->child,level,0);
 
-    fprintf(fps,"cmp eax, 0\n");          // check if e1 is 0
+    if (sizeOf(type1)==1)
+        fprintf(fps,"cmp al, 0\n");
+    else
+        fprintf(fps,"cmp eax, 0\n");          // check if e1 is 0
+            
     fprintf(fps,"je _else%d\n",label);    // e1 is 0, so we need to evaluate _else
-    fprintf(fps,"mov eax, 1\n");          // we didn't jump, so e1 is 1 and therefore result is 1
+
+    if (sizeOf(type1)==1)
+        fprintf(fps,"mov al, 1\n");
+    else
+        fprintf(fps,"mov eax, 1\n");          // we didn't jump, so e1 is 1 and therefore result is 1
+
     fprintf(fps,"jmp _end%d\n",label);
     fprintf(fps,"_else%d:\n",label);
 
-    writeAsm(node->child2,level,0);
+    type2 = writeAsm(node->child2,level,0);
 
-    fprintf(fps,"cmp eax, 0\n");          // check if e2 is true
-    fprintf(fps,"mov eax, 0\n");          // zero out EAX without changing ZF
+    if (sizeOf(type2)==1)
+    {
+        fprintf(fps,"cmp al, 0\n");
+        fprintf(fps,"mov al, 0\n");
+    }
+    else
+    {
+        fprintf(fps,"cmp eax, 0\n");          // check if e2 is true
+        fprintf(fps,"mov eax, 0\n");          // zero out EAX without changing ZF
+    }
+
     fprintf(fps,"setne al\n");           // set AL register (the low byte of EAX) to 1 iff e2 != 0
     fprintf(fps,"_end%d:\n",label);
   }
@@ -1910,23 +2305,43 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     int label=s_label++;
     writeAsm(node->child,level,0);
 
-    fprintf(fps,"cmp eax, 0\n");          // check if e1 is 0
+    if (sizeOf(type1)==1)
+        fprintf(fps,"cmp al, 0\n");
+    else
+        fprintf(fps,"cmp eax, 0\n");          // check if e1 is 0
+        
     fprintf(fps,"jne _else%d\n",label);   // e1 isnt 0, so we need to evaluate _else
-    fprintf(fps,"mov eax, 0\n");          // we didn't jump, so e1 is 0 and therefore result is 0
+
+    if (sizeOf(type1)==1)
+        fprintf(fps,"mov al, 0\n");
+    else
+        fprintf(fps,"mov eax, 0\n");          // we didn't jump, so e1 is 0 and therefore result is 0
+
     fprintf(fps,"jmp _end%d\n",label);
     fprintf(fps,"_else%d:\n",label);
 
     writeAsm(node->child2,level,0);
 
-    fprintf(fps,"cmp eax, 0\n");          // check if e2 is 0
-    fprintf(fps,"mov eax, 0\n");          // zero out EAX without changing ZF
+    if (sizeOf(type1)==1)
+    {
+        fprintf(fps,"cmp al, 0\n");
+        fprintf(fps,"mov al, 0\n");
+    }
+    else
+    {
+        fprintf(fps,"cmp eax, 0\n");          // check if e2 is 0
+        fprintf(fps,"mov eax, 0\n");          // zero out EAX without changing ZF
+    }
+      
     fprintf(fps,"setne al\n");           // set AL register (the low byte of EAX) to 1 iff e2 != 0
     fprintf(fps,"_end%d:\n",label);
   }
-  else{
+  else
+  {
     printf("Internal compiler error: illegal nodetype (writeAsm). Got %d\n",nodetype);
     exit(1);
   }
+
   return varType;
 }
 
