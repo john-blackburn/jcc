@@ -3,15 +3,14 @@ Usage:
 jcc path/to/foo.c
 Creates foo.s in current directory and assembles/links to get foo.exe
 TODO:
-Additional operators: unary+, |, bitwise-&, <<, >>, ^, %, ternary ?:, sizeof
+Additional operators: ternary ?:, sizeof, cast
 += -= /= *= %= <<= >>= &= |= ^= ++ -- comma operator
-break
 struct (., ->)
 
 Not needed to compile this compiler:
 switch, case, default, union, enum, typedef, goto, continue
 auto, const, double, extern, float, long, register, short, (un)signed, static, void, volatile
-Function protoypes (currently ignored but return value considered)
+Function protoypes (currently ignored but return value considered) Coercion
 Initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"}
 
 Other calling conventions. Stack alignment (always push multiple of 4 bytes). (Application Binary Interface)
@@ -93,8 +92,8 @@ int numToks=52;  // ie number of entries in tokNames
 
 #define INT_LITERAL 53      // eg 123
 #define IDENTIFIER 54       // eg main
-#define STRING_LITERAL 55           // "hello, world!\n"
-#define CHAR_LITERAL 56             // '\n'
+#define STRING_LITERAL 55   // "hello, world!\n"
+#define CHAR_LITERAL 56     // '\n'
 
 #define FUNCTION 57         // AST only
 #define UNARY_MINUS 58
@@ -125,6 +124,14 @@ int numToks=52;  // ie number of entries in tokNames
 #define DEREF 83
 #define ADDRESS 84
 #define INDEX 85
+#define UNARY_PLUS 86
+#define BINARY_LEFT_SHIFT 87
+#define BINARY_RIGHT_SHIFT 88
+#define BINARY_BITWISE_AND 89
+#define BINARY_BITWISE_XOR 90
+#define BINARY_BITWISE_OR  91
+#define BINARY_MODULO 92
+#define INC 93
 
 char *names[]={
   "LESSTHAN2_EQUAL",
@@ -214,7 +221,15 @@ char *names[]={
   "PROTOTYPE",
   "DEREF",
   "ADDRESS",
-  "INDEX"
+  "INDEX",
+  "UNARY_PLUS",
+  "BINARY_LEFT_SHIFT",
+  "BINARY_RIGHT_SHIFT",
+  "BINARY_BITWISE_AND",
+  "BINARY_BITWISE_XOR",
+  "BINARY_BITWISE_OR",
+  "BINARY_MODULO",
+  "INC"
 };
 
 struct Token
@@ -481,6 +496,18 @@ struct Node* parse_factor()
     advance();
     exp->child=parse_factor();
   }
+  else if (type==PLUS){
+      exp=(struct Node*)malloc(sizeof(struct Node));
+    exp->type=UNARY_PLUS;
+    advance();
+    exp->child=parse_factor();
+  }
+  else if (type==PLUS2){
+      exp=(struct Node*)malloc(sizeof(struct Node));
+    exp->type=INC;
+    advance();
+    exp->child=parse_factor();
+  }
   else if (type==TILDE){
       exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=UNARY_COMPLEMENT;
@@ -510,15 +537,17 @@ struct Node* parse_term()
 {
   struct Node *factor=parse_factor();
   int nextType=getType();
-  while (nextType==ASTERISK || nextType==SLASH){
+  while (nextType==ASTERISK || nextType==SLASH || nextType==PERCENT){
     advance();
     struct Node *next_factor=parse_factor();
     struct Node *new_factor=(struct Node*)malloc(sizeof(struct Node));
 
     if (nextType==ASTERISK)
       new_factor->type=BINARY_TIMES;
-    else
+    else if (nextType==SLASH)
       new_factor->type=BINARY_DIVIDE;
+    else
+      new_factor->type=BINARY_MODULO;
 
     new_factor->child=factor;
     new_factor->child2=next_factor;
@@ -557,15 +586,41 @@ struct Node* parse_additive_exp()
 
 // ######################################################################
 
+//1<<2
+struct Node* parse_shift_exp()
+{
+    struct Node* term = parse_additive_exp();
+    int nextType = getType();
+    while (nextType == LESSTHAN2 || nextType == GREATERTHAN2) {
+        advance();
+        struct Node* next_term = parse_additive_exp();
+        struct Node* new_term = (struct Node*)malloc(sizeof(struct Node));
+
+        if (nextType == LESSTHAN2)
+            new_term->type = BINARY_LEFT_SHIFT;
+        else
+            new_term->type = BINARY_RIGHT_SHIFT;
+
+        new_term->child = term;
+        new_term->child2 = next_term;
+        term = new_term;
+        nextType = getType();
+    }
+
+    return term;
+}
+
+// ######################################################################
+
 //1<2<=3
 struct Node* parse_relational_exp()
 {
-  struct Node *term=parse_additive_exp();
+  struct Node *term=parse_shift_exp();
   int nextType=getType();
   while (nextType==GREATERTHAN || nextType==LESSTHAN ||
 	 nextType==GREATERTHAN_EQUAL || nextType==LESSTHAN_EQUAL){
     advance();
-    struct Node *next_term=parse_additive_exp();
+    struct Node *next_term=parse_shift_exp();
     struct Node *new_term=(struct Node*)malloc(sizeof(struct Node));
 
     if (nextType==GREATERTHAN){
@@ -618,14 +673,83 @@ struct Node* parse_equality_exp()
 
 // ######################################################################
 
+//1 | 2 
+struct Node* parse_bitwise_and_exp()
+{
+    struct Node* term = parse_equality_exp();
+    int nextType = getType();
+    while (nextType == AMP) {
+        advance();
+        struct Node* next_term = parse_equality_exp();
+        struct Node* new_term = (struct Node*)malloc(sizeof(struct Node));
+
+        new_term->type = BINARY_BITWISE_AND;
+
+        new_term->child = term;
+        new_term->child2 = next_term;
+        term = new_term;
+        nextType = getType();
+    }
+
+    return term;
+}
+
+// ######################################################################
+
+//1 ^ 2 
+struct Node* parse_bitwise_xor_exp()
+{
+    struct Node* term = parse_bitwise_and_exp();
+    int nextType = getType();
+    while (nextType == HAT) {
+        advance();
+        struct Node* next_term = parse_bitwise_and_exp();
+        struct Node* new_term = (struct Node*)malloc(sizeof(struct Node));
+
+        new_term->type = BINARY_BITWISE_XOR;
+
+        new_term->child = term;
+        new_term->child2 = next_term;
+        term = new_term;
+        nextType = getType();
+    }
+
+    return term;
+}
+
+// ######################################################################
+
+//1 | 2 
+struct Node* parse_bitwise_or_exp()
+{
+    struct Node* term = parse_bitwise_xor_exp();
+    int nextType = getType();
+    while (nextType == PIPE) {
+        advance();
+        struct Node* next_term = parse_bitwise_xor_exp();
+        struct Node* new_term = (struct Node*)malloc(sizeof(struct Node));
+
+        new_term->type = BINARY_BITWISE_OR;
+
+        new_term->child = term;
+        new_term->child2 = next_term;
+        term = new_term;
+        nextType = getType();
+    }
+
+    return term;
+}
+
+// ######################################################################
+
 //1 && 2 && 3
 struct Node* parse_and_exp()
 {
-  struct Node *term=parse_equality_exp();
+  struct Node *term=parse_bitwise_or_exp();
   int nextType=getType();
   while (nextType==AMP2){
     advance();
-    struct Node *next_term=parse_equality_exp();
+    struct Node *next_term=parse_bitwise_or_exp();
     struct Node *new_term=(struct Node*)malloc(sizeof(struct Node));
 
     new_term->type=BINARY_AND;
@@ -671,11 +795,17 @@ struct Node* parse_exp()
     struct Node *temp=parse_or_exp();
     struct Node *exp;
 
-    if (getType()==EQUALS)
+    int nextType=getType();
+    if (nextType==EQUALS || nextType==PLUS_EQUALS)
     {
         advance();
         exp=(struct Node*)malloc(sizeof(struct Node));
-        exp->type=ASSIGNMENT;
+        
+        if (nextType==EQUALS)
+            exp->type=ASSIGNMENT;
+        else
+            exp->type=PLUS_EQUALS;
+        
         exp->child=temp;
         exp->child2=parse_exp();
     }
@@ -838,6 +968,15 @@ struct Node* parse_statement()
     if (getType()!=SEMICOLON) fail("Expected ;");
     advance();
   }
+  else if(getType()==BREAK)
+  {
+      advance();
+      statement->type=BREAK;
+      statement->child=NULL;
+      
+      if (getType()!=SEMICOLON) fail("Expected ;");
+      advance();      
+  }
   else{
     statement->type=EXPR;    
     statement->child=parse_exp();  // removes 2
@@ -890,19 +1029,7 @@ struct Node* parse_arg()
         advance();
     }
     
-    /*
-  if (getType()!=INT_DECLARATION) fail("Expected int in arg declaration");
-  advance();
-  if (getType()!=IDENTIFIER) fail("Expected identifier in arg declaration");
-  
-  struct Node* arg=(struct Node*)malloc(sizeof(struct Node));
-  arg->type=ARG;
-  arg->id=newStr(tokenHead->id);
-  strcpy(arg->varType.data,"int");
-
-  advance();
-  */
-  return arg;
+    return arg;
 }
 
 // ######################################################################
@@ -1253,7 +1380,7 @@ void writeTree(struct Node *node, int indent)
   else 
     printf("\n");
 
-  if (nodetype==ASSIGNMENT)
+  if (nodetype==ASSIGNMENT || nodetype==PLUS_EQUALS)
   {
       writeTree(node->child,indent+3);      
       writeTree(node->child2,indent+3);
@@ -1285,10 +1412,11 @@ void writeTree(struct Node *node, int indent)
   else if (nodetype==EXPR ||
       nodetype==RETURN || 
       nodetype==UNARY_MINUS ||
+      nodetype==UNARY_PLUS ||
       nodetype==UNARY_COMPLEMENT ||
       nodetype==UNARY_NOT ||
       nodetype==ASSIGNMENT ||
-      nodetype==DEREF || nodetype==ADDRESS)
+      nodetype==DEREF || nodetype==ADDRESS || nodetype==INC)
   {    
     writeTree(node->child,indent+3);
   }
@@ -1296,6 +1424,7 @@ void writeTree(struct Node *node, int indent)
 	   nodetype==BINARY_MINUS ||
 	   nodetype==BINARY_TIMES ||
 	   nodetype==BINARY_DIVIDE ||
+	   nodetype==BINARY_MODULO ||
 	   nodetype==BINARY_LESS_THAN ||
 	   nodetype==BINARY_LESS_THAN_OR_EQUAL ||
 	   nodetype==BINARY_GREATER_THAN ||
@@ -1303,13 +1432,20 @@ void writeTree(struct Node *node, int indent)
 	   nodetype==BINARY_EQUAL ||
 	   nodetype==BINARY_NOT_EQUAL ||
 	   nodetype==BINARY_AND ||
-	   nodetype==BINARY_OR){
+	   nodetype==BINARY_OR ||
+	   nodetype==BINARY_BITWISE_AND ||
+	   nodetype==BINARY_BITWISE_OR ||
+  	   nodetype==BINARY_BITWISE_XOR ||
+       nodetype==BINARY_LEFT_SHIFT ||
+       nodetype==BINARY_RIGHT_SHIFT)
+  {
     writeTree(node->child,indent+3);
     writeTree(node->child2,indent+3);
   }
   else if (nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==BLOCK || nodetype==CALL || nodetype==PROGRAM){
     int i;
-    for (i=0;i<node->nlines;i++){
+    for (i=0; i < node->nlines; i++)
+    {
       writeTree(node->line[i],indent+3);
     }
   }
@@ -1332,7 +1468,10 @@ void writeTree(struct Node *node, int indent)
     return;
   }
   else if (nodetype==PROTOTYPE){
-    return;
+    return;    
+  }
+  else if (nodetype==BREAK){
+      return;
   }
   else if (nodetype==DECL){
     if (node->child!=NULL) writeTree(node->child,indent+3);
@@ -1717,7 +1856,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
   */
   
   else if (node->type==IF){
-    int label=s_label++;
+    int label = ++s_label;
     writeAsm(node->child,level,0);
 
     fprintf(fps,"cmp eax, 0\n");          // If cond is false, jump either to end or else
@@ -1743,7 +1882,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
   */
 
   else if (node->type==WHILE){
-    int label=s_label++;
+    int label = ++s_label;
 
     fprintf(fps,"_start%d:\n",label);
 
@@ -1762,7 +1901,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
   */
 
   else if (node->type==DO){
-    int label=s_label++;
+    int label = ++s_label;
 
     fprintf(fps,"_start%d:\n",label);
 
@@ -1780,7 +1919,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
   */
 
   else if (node->type==FOR){
-    int label=s_label++;
+    int label = ++s_label;
 
     writeAsm(node->child,level,0);  // init
 
@@ -1795,6 +1934,11 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     writeAsm(node->child3,level,0);  // increment
     fprintf(fps,"jmp _start%d\n",label);
     fprintf(fps,"_end%d:\n",label);
+  }
+  
+  else if (node->type==BREAK)
+  {
+      fprintf(fps, "jmp _end%d", s_label);
   }
   
   /*
@@ -1941,14 +2085,20 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
   Widen or narrow before putting into memory. Second child is rvalue.
   */
 
-  else if (node->type==ASSIGNMENT)
+  else if (node->type==ASSIGNMENT || node->type==PLUS_EQUALS)
   {
     type1 = writeAsm(node->child,level,1);    // lvalue requested for LHS
     fprintf(fps,"push eax\n");
  
     type2 = writeAsm(node->child2,level,0);  // value to be assigned
     fprintf(fps,"pop ecx\n");
-
+    
+    char* op;
+    if (node->type==ASSIGNMENT)
+        op="mov";
+    else
+        op="add";
+        
     if (sizeOf(type1)==1)   // LHS = char
     {
         if (sizeOf(type2)==4)   // narrow int to char
@@ -1956,13 +2106,13 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
             printf("Cannot narrow int to char\n");
             exit(1);
         }
-        fprintf(fps,"mov [ecx],al\n");
+        fprintf(fps,"%s [ecx],al\n",op);
     }
     else // LHS=int
     {
         if (sizeOf(type2)==1)  // RHS = char so widen
             fprintf(fps,"movzx eax,al\n");
-        fprintf(fps,"mov [ecx],eax\n");
+        fprintf(fps,"%s [ecx],eax\n",op);
     }
     varType=type1;
   }
@@ -2013,6 +2163,18 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
         
     varType = type1;
   }
+  else if (node->type==UNARY_PLUS)
+  {
+      // does nothing!
+  }
+  else if (node->type==INC)
+  {
+    varType = writeAsm(node->child,level,1);
+    if (sizeOf(varType)==1)
+        fprintf(fps,"inc byte ptr [eax]\n");
+    else
+        fprintf(fps,"inc dword ptr [eax]\n");
+  }
   else if (node->type==UNARY_COMPLEMENT){
     type1 = writeAsm(node->child,level,0);
     if (sizeOf(type1)==1)
@@ -2048,7 +2210,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     strcpy(varType.data,"int");
   }
   else if (node->type==STRING_LITERAL){
-    int label=s_label++;
+    int label = ++s_label;
 
     fprintf(fps,".data\n");
     fprintf(fps,"_string%d:\n",label);
@@ -2152,48 +2314,6 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     fprintf(fps,"pop ecx\n");  // child on eax, child2 on ecx
     
     varType = writeBinOp("add", type1, type2);
-
-/*
-    if (isChar(type1) && isInt(type2))
-    {
-        fprintf(fps,"movzx eax,al\n");
-        fprintf(fps,"add eax,ecx\n");
-        strcpy(varType.data,"int");
-    }
-    else if (isInt(type1) && isChar(type2))
-    {
-        fprintf(fps,"movzx ecx,cl\n");
-        fprintf(fps,"add eax,ecx\n");
-        strcpy(varType.data,"int");
-    }
-    else if (isChar(type1) && isChar(type2))
-    {
-        fprintf(fps,"add al,cl\n");
-        strcpy(varType.data,"char");
-    }
-    else if (isInt(type1) && isInt(type2))
-    {
-        fprintf(fps,"add eax,ecx\n");
-        strcpy(varType.data,"int");
-    }
-    else if (isPointer(type1) && isInt(type2))
-    {
-        fprintf(fps, "imul ecx,%d\n",sizeOf(removePointer(type1)));
-        fprintf(fps,"add eax,ecx\n");
-        varType=type1;
-    }
-    else if (isInt(type1) && isPointer(type2))
-    {
-        fprintf(fps, "imul eax,%d\n",sizeOf(removePointer(type2)));
-        fprintf(fps,"add eax,ecx\n");
-        varType=type1;
-    }
-    else
-    {
-        printf("Illegal combination of types during BINARY_PLUS\n");
-        exit(1);
-    }    
-    */
   }
   else if (node->type==BINARY_MINUS){
     type2 = writeAsm(node->child2,level,0);
@@ -2225,6 +2345,44 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     varType = writeBinOp("idiv", type1, type2);
 
 //    fprintf(fps,"idiv eax,ecx\n");
+  }
+  else if (node->type==BINARY_MODULO){
+    type2 = writeAsm(node->child2,level,0);
+    fprintf(fps,"push eax\n");
+    type1 = writeAsm(node->child,level,0);
+    fprintf(fps,"pop ecx\n");
+    fprintf(fps,"cdq\n");
+
+    varType = writeBinOp("idiv", type1, type2);
+    
+    fprintf(fps,"mov eax,edx\n");
+  }
+  else if (node->type==BINARY_BITWISE_AND)
+  {
+    type2 = writeAsm(node->child2,level,0);
+    fprintf(fps,"push eax\n");
+    type1 = writeAsm(node->child,level,0);
+    fprintf(fps,"pop ecx\n");
+
+    varType = writeBinOp("and", type1, type2);
+  }
+  else if (node->type==BINARY_BITWISE_OR)
+  {
+    type2 = writeAsm(node->child2,level,0);
+    fprintf(fps,"push eax\n");
+    type1 = writeAsm(node->child,level,0);
+    fprintf(fps,"pop ecx\n");
+
+    varType = writeBinOp("or", type1, type2);
+  }
+  else if (node->type==BINARY_BITWISE_XOR)
+  {
+    type2 = writeAsm(node->child2,level,0);
+    fprintf(fps,"push eax\n");
+    type1 = writeAsm(node->child,level,0);
+    fprintf(fps,"pop ecx\n");
+
+    varType = writeBinOp("xor", type1, type2);
   }
   else if (
 	   nodetype==BINARY_LESS_THAN ||
@@ -2263,7 +2421,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     // 0 || 1 = 1
     // 1 || 0 = 1
     // 1 || 1 = 1
-    int label=s_label++;
+    int label = ++s_label;
     type1 = writeAsm(node->child,level,0);
 
     if (sizeOf(type1)==1)
@@ -2302,7 +2460,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     // 0 && 1 = 0
     // 1 && 0 = 0
     // 1 && 1 = 1
-    int label=s_label++;
+    int label = ++s_label;
     writeAsm(node->child,level,0);
 
     if (sizeOf(type1)==1)
