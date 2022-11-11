@@ -2,16 +2,24 @@
 Usage:
 jcc path/to/foo.c
 Creates foo.s in current directory and assembles/links to get foo.exe
+
 TODO:
 Additional operators: ternary ?:, sizeof, cast
-+= -= /= *= %= <<= >>= &= |= ^= ++ -- comma operator
+-=, /=, *=, %=, <<=, >>=, &=, |=, ^=, ++(postfix), --(postfix)
 struct (., ->)
 
-Not needed to compile this compiler:
+Allow functions to return non-int. Add void and void*. Pass, return structs
+Function protoypes (currently ignored but return value considered). Coercion.
+
+Not needed to compile this compiler (and not done):
+comma operator
+function pointers
 switch, case, default, union, enum, typedef, goto, continue
-auto, const, double, extern, float, long, register, short, (un)signed, static, void, volatile
-Function protoypes (currently ignored but return value considered) Coercion
+auto, const, double, extern, float, long, register, short, (un)signed, static, volatile
 Initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"}
+Floats with SSE
+Multiple declarations per line (int x,y;)
+short int (2 bytes on AX)
 
 Other calling conventions. Stack alignment (always push multiple of 4 bytes). (Application Binary Interface)
 Pre-processor?
@@ -32,9 +40,9 @@ char *tokNames[]={"<<=", ">>=",
 		  "<", ">", "!", "=", ",", ";", ".", "(",  ")", "{", "}", "[", "]",
 		  "+", "-", "*", "/", "%", "&", "|", "^", "~",
 
-		  "return", "int", "char", "if", "else", "for", "while", "do", "break", "continue"};
+		  "return", "int", "char", "if", "else", "for", "while", "do", "break", "continue", "struct"};
 
-int numToks=52;  // ie number of entries in tokNames
+int numToks=54;  // ie number of entries in tokNames
 
 #define LESSTHAN2_EQUAL 0
 #define GREATERTHAN2_EQUAL 1
@@ -89,49 +97,51 @@ int numToks=52;  // ie number of entries in tokNames
 #define DO               50 // "do"
 #define BREAK            51 // "break"
 #define CONTINUE         52 // "continue"
+#define STRUCT           53 // "struct"
 
-#define INT_LITERAL 53      // eg 123
-#define IDENTIFIER 54       // eg main
-#define STRING_LITERAL 55   // "hello, world!\n"
-#define CHAR_LITERAL 56     // '\n'
+#define INT_LITERAL 54      // eg 123
+#define IDENTIFIER 55       // eg main
+#define STRING_LITERAL 56   // "hello, world!\n"
+#define CHAR_LITERAL 57     // '\n'
 
-#define FUNCTION 57         // AST only
-#define UNARY_MINUS 58
-#define UNARY_COMPLEMENT 59
-#define UNARY_NOT 60
-#define BINARY_PLUS 61
-#define BINARY_MINUS 62
-#define BINARY_TIMES 63
-#define BINARY_DIVIDE 64
-#define BINARY_AND 65
-#define BINARY_OR 66
-#define BINARY_EQUAL 67
-#define BINARY_NOT_EQUAL 68
-#define BINARY_LESS_THAN_OR_EQUAL 69
-#define BINARY_LESS_THAN 70
-#define BINARY_GREATER_THAN_OR_EQUAL 71
-#define BINARY_GREATER_THAN 72
-#define ASSIGNMENT 73
-#define VAR 74
-#define EXPR 75
-#define DECL 76
-#define BLOCK 77
-#define CALL 78
-#define ARG 79
-#define GLOBAL 80
-#define PROGRAM 81
-#define PROTOTYPE 82
-#define DEREF 83
-#define ADDRESS 84
-#define INDEX 85
-#define UNARY_PLUS 86
-#define BINARY_LEFT_SHIFT 87
-#define BINARY_RIGHT_SHIFT 88
-#define BINARY_BITWISE_AND 89
-#define BINARY_BITWISE_XOR 90
-#define BINARY_BITWISE_OR  91
-#define BINARY_MODULO 92
-#define INC 93
+#define FUNCTION 58         // AST only
+#define UNARY_MINUS 59
+#define UNARY_COMPLEMENT 60
+#define UNARY_NOT 61
+#define BINARY_PLUS 62
+#define BINARY_MINUS 63
+#define BINARY_TIMES 64
+#define BINARY_DIVIDE 65
+#define BINARY_AND 66
+#define BINARY_OR 67
+#define BINARY_EQUAL 68
+#define BINARY_NOT_EQUAL 69
+#define BINARY_LESS_THAN_OR_EQUAL 70
+#define BINARY_LESS_THAN 71
+#define BINARY_GREATER_THAN_OR_EQUAL 72
+#define BINARY_GREATER_THAN 73
+#define ASSIGNMENT 74
+#define VAR 75
+#define EXPR 76
+#define DECL 77
+#define BLOCK 78
+#define CALL 79
+#define ARG 80
+#define GLOBAL 81
+#define PROGRAM 82
+#define PROTOTYPE 83
+#define DEREF 84
+#define ADDRESS 85
+#define INDEX 86
+#define UNARY_PLUS 87
+#define BINARY_LEFT_SHIFT 88
+#define BINARY_RIGHT_SHIFT 89
+#define BINARY_BITWISE_AND 90
+#define BINARY_BITWISE_XOR 91
+#define BINARY_BITWISE_OR  92
+#define BINARY_MODULO 93
+#define INC 94
+#define ARROW 95
 
 char *names[]={
   "LESSTHAN2_EQUAL",
@@ -187,6 +197,7 @@ char *names[]={
   "DO",
   "BREAK",
   "CONTINUE",
+  "STRUCT",
 
   "INT_LITERAL",      // eg 123
   "IDENTIFIER",       // eg main
@@ -229,7 +240,8 @@ char *names[]={
   "BINARY_BITWISE_XOR",
   "BINARY_BITWISE_OR",
   "BINARY_MODULO",
-  "INC"
+  "INC",
+  "ARROW"
 };
 
 struct Token
@@ -265,6 +277,7 @@ struct Var
   int level;
   int offset;
   int isArg;
+  struct Node *structNode;
   struct Var *prev;
 };
 
@@ -292,8 +305,11 @@ int getType()
 
 void fail(char *err)
 {
-  printf("Error: %s got %s\n",err,names[getType()]);
-  exit(1);
+    if (tokenHead->id==NULL)
+        printf("Error: %s got %s\n",err,names[getType()]);
+    else       
+        printf("Error: %s got %s (%s)\n",err,names[getType()],tokenHead->id);
+    exit(1);
 }
 
 // ######################################################################
@@ -304,6 +320,43 @@ char* newStr(char *from)
   char* to=(char*)malloc(len+1);
   strcpy(to,from);
   return to;
+}
+
+char* newStrStruct(char *from)
+{
+  int len=strlen(from+7);
+  char* to=(char*)malloc(len+1);
+  strcpy(to,"struct ");
+  strcat(to,from);
+  return to;
+}
+
+int isProtoOrFunc()
+{
+    struct Token* p = tokenHead;
+    int isproto = 0;
+    while (p->type != SEMICOLON)
+    {
+        if (p->type == EQUALS)       // Eg: int foo=1; Eg: int foo=static_cast<int>(1.0); ==> it's a DECL
+        {                            // but StreamContainer_ &operator=(StreamContainer_ &&) = default; ==> PROTO
+            isproto = 0;
+            break;
+        }
+        else if (p->type == OPEN_SQUARE)  // Eg unsigned char m_val[sizeof(T)]; ==> DECL
+        {
+            isproto = 0;
+            break;
+        }
+        else if (p->type == OPEN_BRACKET)   // Eg: int foo(int x=1); Eg int foo(int x){} ==> It's a PROTO
+        {                                               // but not if masked by <...> eg MyArray<float, sizeof(int)> ma; ==> DECL
+            isproto = 1;                             
+            break;
+        }
+
+        p = p->next;
+    }  
+    // Eg: int foo; vector<Point*>** p;  ==> it's a DECL
+    return isproto;
 }
 
 // ######################################################################
@@ -397,22 +450,36 @@ struct Node* parse_identifier()
 
 // ######################################################################
 
-// a[2][3], a[i+1], a[b[3]][4]
+// a[2][3], a[i+1], a[b[3]][4], a.x, a->y
 struct Node* parse_index()
 {
   struct Node *factor=parse_identifier();
   int nextType=getType();
-  while (nextType==OPEN_SQUARE)
+  while (nextType==OPEN_SQUARE || nextType==DOT || nextType==MINUS_GREATERTHAN)
   {
     advance();
-    struct Node *next_factor=parse_exp();
-    if (getType()!=CLOSE_SQUARE)
-        fail("expected ]");
-    advance();
+    struct Node *next_factor;
+    
+    if (nextType==OPEN_SQUARE)
+    {
+        next_factor=parse_exp();
+        if (getType()!=CLOSE_SQUARE)
+            fail("expected ]");
+        advance();
+    }
+    else
+    {
+        next_factor=parse_identifier();
+    }
 
     struct Node *new_factor=(struct Node*)malloc(sizeof(struct Node));
 
-    new_factor->type=INDEX;
+    if (nextType==OPEN_SQUARE)
+        new_factor->type=INDEX;
+    else if (nextType==DOT)
+        new_factor->type=DOT;
+    else
+        new_factor->type=ARROW;
 
     new_factor->child=factor;
     new_factor->child2=next_factor;
@@ -815,6 +882,122 @@ struct Node* parse_exp()
     }
     return exp;
 }
+
+// ######################################################################
+
+// int foo**[3][4];
+// struct Foo foo;
+// type can be DECL, GLOBAL, 
+// ARG, FUNCTION, PROTOTYPE (in which case don't advance past ;)
+
+struct Node* parse_decl(int type)
+{
+  struct Node *decl=(struct Node*)malloc(sizeof(struct Node));
+
+    if (getType()==INT_DECLARATION)
+        strcpy(decl->varType.data, "int");
+    else if (getType()==CHAR_DECLARATION)
+        strcpy(decl->varType.data, "char");
+    else if (getType()==STRUCT)
+    {
+         strcpy(decl->varType.data, "struct ");
+         advance();
+         strcat(decl->varType.data, tokenHead->id);
+    }
+
+    advance();
+    decl->type=type;
+        
+    while (getType()==ASTERISK)
+    {
+        strcat(decl->varType.data,"*");
+        advance();
+    }        
+
+    if (getType()!=IDENTIFIER)
+        fail("expecting identifier");
+    
+    decl->id=newStr(tokenHead->id);
+    advance();
+    
+    while (getType()==OPEN_SQUARE)
+    {
+        strcat(decl->varType.data,"[");
+        advance();
+        while(getType()!=CLOSE_SQUARE)
+        {            
+            strcat(decl->varType.data,tokenHead->id);
+            advance();
+        }
+        strcat(decl->varType.data,"]");
+        advance();
+    }
+
+    if (getType()==EQUALS){
+      advance();
+      decl->child=parse_exp();
+    }
+    else
+      decl->child=NULL;
+
+    if (type != ARG && type != FUNCTION && type != PROTOTYPE)
+    {
+        if (getType()!=SEMICOLON) fail("Expected ; in DECL");
+        advance();
+    }
+
+    return decl;
+}
+
+// ######################################################################
+// struct Foo {int x; int y;};
+
+struct Node* parse_struct()
+{
+    struct Node *str=(struct Node*)malloc(sizeof(struct Node));
+    str->type=STRUCT;
+  
+    advance();
+    
+    str->id=newStr(tokenHead->id);
+    advance();
+
+    if (getType()!=OPEN_BRACE)
+    {
+        fail("Expected { at beginning of struct");
+        exit(1);
+    }
+
+    advance();
+
+    int n=countLines(NULL);
+    printf("Found struct with %d lines\n", n);
+
+    str->nlines=n;
+    str->line=(struct Node**)malloc(n*sizeof(struct Node*));
+    
+    int i;
+    for (i=0; i<n; i++)
+    {
+        str->line[i]=parse_decl(DECL);
+    }
+
+    if (getType()!=CLOSE_BRACE)
+    {
+        fail("Expected } at end of struct");
+        exit(1);
+    }
+    advance();
+    
+    if (getType()!=SEMICOLON)
+    {
+        fail("Expected ; at end of struct");
+        exit(1);
+    }
+    advance();    
+
+    return str;
+}
     
 // ######################################################################
 
@@ -924,49 +1107,14 @@ struct Node* parse_statement()
     if (getType()!=SEMICOLON) fail("Expected ;");
     advance();
   }
-  else if (getType()==INT_DECLARATION || getType()==CHAR_DECLARATION){
-    if (getType()==INT_DECLARATION)
-        strcpy(statement->varType.data, "int");
-    else
-        strcpy(statement->varType.data, "char");        
+  else if(getType()==STRUCT && tokenHead->next->next->type==OPEN_BRACE)  // struct Foo{int x; int y;};
+  {
+      return parse_struct();
+  }
 
-    advance();
-    statement->type=DECL;
-        
-    while (getType()==ASTERISK)
-    {
-        strcat(statement->varType.data,"*");
-        advance();
-    }        
-
-    if (getType()!=IDENTIFIER)
-        fail("expecting identifier");
-    
-    statement->id=newStr(tokenHead->id);
-    advance();
-    
-    while (getType()==OPEN_SQUARE)
-    {
-        strcat(statement->varType.data,"[");
-        advance();
-        while(getType()!=CLOSE_SQUARE)
-        {            
-            strcat(statement->varType.data,tokenHead->id);
-            advance();
-        }
-        strcat(statement->varType.data,"]");
-        advance();
-    }
-
-    if (getType()==EQUALS){
-      advance();
-      statement->child=parse_exp();
-    }
-    else
-      statement->child=NULL;
-
-    if (getType()!=SEMICOLON) fail("Expected ;");
-    advance();
+  else if (getType()==INT_DECLARATION || getType()==CHAR_DECLARATION || getType()==STRUCT)
+  {
+      return parse_decl(DECL);
   }
   else if(getType()==BREAK)
   {
@@ -991,51 +1139,14 @@ struct Node* parse_statement()
 
 struct Node* parse_arg()
 {
-
-  struct Node* arg=(struct Node*)malloc(sizeof(struct Node));
-    
-    if (getType()==INT_DECLARATION)
-        strcpy(arg->varType.data, "int");
-    else if (getType()==CHAR_DECLARATION)
-        strcpy(arg->varType.data, "char");        
-    else
-        fail("Expected int or char in DECL");
-
-    advance();
-    arg->type=ARG;
-        
-    while (getType()==ASTERISK)
-    {
-        strcat(arg->varType.data,"*");
-        advance();
-    }        
-
-    if (getType()!=IDENTIFIER)
-        fail("expecting identifier");
-    
-    arg->id=newStr(tokenHead->id);
-    advance();
-    
-    while (getType()==OPEN_SQUARE)
-    {
-        strcat(arg->varType.data,"[");
-        advance();
-        while(getType()!=CLOSE_SQUARE)
-        {            
-            strcat(arg->varType.data,tokenHead->id);
-            advance();
-        }
-        strcat(arg->varType.data,"]");
-        advance();
-    }
-    
-    return arg;
+    return parse_decl(ARG);
 }
 
 // ######################################################################
 
 struct Node* parse_function()
 {
+    /*
   if (getType()!=INT_DECLARATION) fail("Expected return type");
   advance();
 
@@ -1046,6 +1157,9 @@ struct Node* parse_function()
   strcpy(function->varType.data,"int");
   
   advance();
+  */
+  
+  struct Node* function=parse_decl(FUNCTION);
 
   if (getType()!=OPEN_BRACKET) fail("Expected (");
   advance();
@@ -1086,6 +1200,7 @@ struct Node* parse_function()
 
 struct Node* parse_prototype()
 {
+  /*
   if (getType()!=INT_DECLARATION) fail("Expected return type");
   advance();
 
@@ -1094,14 +1209,17 @@ struct Node* parse_prototype()
   node->type=PROTOTYPE;
   node->id=newStr(tokenHead->id);
   advance();
-
+  */
+  
+  struct Node *node=parse_decl(PROTOTYPE);
+  
   if (getType()!=OPEN_BRACKET) fail("Expected (");
   advance();
 
   int nargs=countArgs();
   node->nlines=nargs;
 
-  printf("found %d args\n", nargs);
+  printf("found %d args in prototype\n", nargs);
 
   node->line=(struct Node**)malloc(nargs*sizeof(struct Node*));
 
@@ -1125,65 +1243,26 @@ struct Node* parse_prototype()
 
 // ######################################################################
 
-/*
-       strcpy(statement->varType.data, "int");
-    else
-        strcpy(statement->varType.data, "char");        
-
-    advance();
-    statement->type=DECL;
-        
-    while (getType()==ASTERISK)
-    {
-        strcat(statement->varType.data,"*");
-        advance();
-    }        
-
-    if (getType()!=IDENTIFIER)
-        fail("expecting identifier");
-    
-    statement->id=newStr(tokenHead->id);
-    advance();
-    
-    while (getType()==OPEN_SQUARE)
-    {
-        strcat(statement->varType.data,"[");
-        advance();
-        while(getType()!=CLOSE_SQUARE)
-        {            
-            strcat(statement->varType.data,tokenHead->id);
-            advance();
-        }
-        strcat(statement->varType.data,"]");
-        advance();
-    }
-*/
-
 struct Node* parse_global()
 {
-  if (getType()!=INT_DECLARATION) fail("expected int");
-  advance();
-
-  struct Node *global=(struct Node*)malloc(sizeof(struct Node));
-  global->type=GLOBAL;
-  global->id=newStr(tokenHead->id);
-  strcpy(global->varType.data, "int");
-
-  advance();
-
-  if (getType()!=SEMICOLON) fail("expected ;");
-  advance();
-
-  return global;
+    return parse_decl(GLOBAL);
 }
 
 // ######################################################################
+
+/*
+int foo;
+int foo();
+int foo(){}
+struct Foo{};
+*/
 
 int countGlobals()
 {
   int count=0;
   int level=0;
   struct Token *p=tokenHead;
+  struct Token *prev=p;
   while (p!=NULL){
     if (p->type==OPEN_BRACE){
       if (level==0) count++;
@@ -1191,9 +1270,10 @@ int countGlobals()
     }
     if (p->type==CLOSE_BRACE)
       level--;
-    if (level==0 && p->type==SEMICOLON)
+    if (level==0 && p->type==SEMICOLON && prev->type!=CLOSE_BRACE)
       count++;
 
+    prev=p;
     p=p->next;
   }
   if (level!=0) fail("Mismatched braces");
@@ -1201,6 +1281,7 @@ int countGlobals()
 }
 
 // ######################################################################
+// The whole program
 
 struct Node* parse_program()
 {
@@ -1208,6 +1289,9 @@ struct Node* parse_program()
   program->type=PROGRAM;
 
   int n=countGlobals();
+  
+  printf("Found %d global objects in program\n",n);
+  
   program->nlines=n;
   program->line=(struct Node**)malloc(n*sizeof(struct Node*));
 
@@ -1215,23 +1299,33 @@ struct Node* parse_program()
   // int foo(){}
   // int foo;
   // int foo=2;
+  // struct Foo {int x; int y;};
+  // struct Foo f;
 
   int i;
-  for (i=0; i<n; i++){
-    if (tokenHead->next->next->type==SEMICOLON){
-      program->line[i]=parse_global();      
+  for (i=0; i<n; i++)
+  {
+    if (getType()==STRUCT && tokenHead->next->next->type==OPEN_BRACE) // struct Foo {int x; int y;};
+    {
+        program->line[i]=parse_struct();
     }
-    else{
+    else if (!isProtoOrFunc())   // int foo=2; struct Foo f;
+    {
+      program->line[i]=parse_global();
+    }
+    else
+    {
       struct Token *p=tokenHead;
-      while(p->type!=CLOSE_BRACKET){
-	if (p==NULL) fail("unexpected end of file");
-	p=p->next;
+      while(p->type!=CLOSE_BRACKET)
+      {
+          if (p==NULL) fail("unexpected end of file");
+             p=p->next;
       }
       p=p->next;
       if (p->type==SEMICOLON)
-	program->line[i]=parse_prototype();
+	     program->line[i]=parse_prototype();    // int foo();
       else
-	program->line[i]=parse_function();
+	     program->line[i]=parse_function();     // int foo(){}
     }
   }
 
@@ -1256,6 +1350,7 @@ struct Token* getTok(char *st, char **ed)
 
   struct Token *tok=(struct Token*) malloc(sizeof (struct Token));
   tok->next=NULL;
+  tok->id=NULL;
 
   for (j=0;j<numToks;j++){
     int lentok=strlen(tokNames[j]);
@@ -1371,11 +1466,11 @@ void writeTree(struct Node *node, int indent)
 
   int nodetype=node->type;
 
-  if (nodetype==DECL || nodetype==FUNCTION || nodetype==ARG || nodetype==GLOBAL)
+  if (nodetype==DECL || nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==ARG || nodetype==GLOBAL)
     printf(": '%s' [%s]\n",node->id, node->varType.data);
-  else if (nodetype==INT_LITERAL || nodetype==PROTOTYPE ||
+  else if (nodetype==INT_LITERAL || 
       nodetype==VAR || nodetype==CALL || 
-      nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL)
+      nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL || nodetype==STRUCT)
     printf(": '%s'\n",node->id);
   else 
     printf("\n");
@@ -1385,7 +1480,7 @@ void writeTree(struct Node *node, int indent)
       writeTree(node->child,indent+3);      
       writeTree(node->child2,indent+3);
   }
-  else if (nodetype==INDEX)
+  else if (nodetype==INDEX || nodetype==DOT || nodetype==ARROW)
   {
       writeTree(node->child,indent+3);      
       writeTree(node->child2,indent+3);
@@ -1442,7 +1537,8 @@ void writeTree(struct Node *node, int indent)
     writeTree(node->child,indent+3);
     writeTree(node->child2,indent+3);
   }
-  else if (nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==BLOCK || nodetype==CALL || nodetype==PROGRAM){
+  else if (nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==BLOCK || nodetype==CALL || 
+           nodetype==PROGRAM || nodetype==STRUCT){
     int i;
     for (i=0; i < node->nlines; i++)
     {
@@ -1487,9 +1583,11 @@ void writeTree(struct Node *node, int indent)
 
 void writeVars()
 {
-  fprintf(fps,"# ======================\n");
   struct Var *p=varEnd;
-  while(p!=NULL){
+
+  fprintf(fps,"# ======================\n");
+  while(p!=NULL)
+  {
     fprintf(fps,"# %s %d %d [%s] %d\n", p->id, p->level, p->offset, p->varType.data, p->isArg);
     p=p->prev;
   }  
@@ -1502,6 +1600,19 @@ int endsWith(char* t, char c)
 {
     int l=strlen(t);
     return t[l-1]==c;
+}
+
+int startsWith(char *t, char *s)
+{
+    if (strlen(s) > strlen(t)) return 0;
+    
+    int i;
+    for (i=0; i< strlen(s); i++)
+    {
+        if (t[i] != s[i])
+            return 0;
+    }
+    return 1;
 }
 
 // int*[3][6] -> open={4,7} close={6,8}, return 2
@@ -1527,8 +1638,11 @@ int getArray(char* t, int open[], int close[])
 }
 
 // int*[3][6] -> 3*6*4 bytes
+// struct Point p[3][6]
 int sizeOf(struct Type t)
 {
+    if (strlen(t.data)==0) return 0;  // For Structs put on the stack (no type)
+    
     int i, n;
     int open[10], close[10];
     
@@ -1571,6 +1685,39 @@ int sizeOf(struct Type t)
         return 4*nElem;
     else if (strcmp(s.data, "char") == 0)
         return nElem;
+    else if (startsWith(s.data, "struct"))
+    {
+        struct Var *p=varEnd;
+        struct Node* structNode;
+        int found=0;
+        while(p!=NULL)
+        {
+            if (strcmp(s.data, p->id) == 0)
+            {
+                structNode=p->structNode;
+                found=1;
+                break;
+            }
+            p=p->prev;
+        }
+        if (found==0) 
+        {
+            printf("Unknown struct %s\n",s.data);
+            exit(1);
+        }
+
+        int tot=0;
+        for (i=0; i < structNode->nlines; i++)
+        {
+            tot += sizeOf(structNode->line[i]->varType);
+        }    
+        return nElem*tot;
+    }
+    else
+    {
+        printf("Cannot find sizeof %s\n", s.data);
+        exit(1);
+    }
 }
 
 int isPointer(struct Type t)
@@ -1585,7 +1732,12 @@ int isArray(struct Type t)
     
     n = getArray(t.data, open, close);
     return n!=0;
- }
+}
+
+int isStruct(struct Type t)
+{
+    return startsWith(t.data, "struct") && !isArray(t) && !isPointer(t);
+}
 
 // int** -> int*
 struct Type removePointer(struct Type t)
@@ -1769,7 +1921,6 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     varEnd->level=0;
     varEnd->isArg=0;
     varEnd->prev=oldVarEnd;
-    writeVars();
 
     g_offset = 0;
 
@@ -1788,6 +1939,8 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
       i++;
       tot += sizeOf(varEnd->varType);
     }
+    
+    writeVars();
 
     fprintf(fps,".globl _%s\n",node->id);
     fprintf(fps,"_%s:\n",node->id);
@@ -1818,7 +1971,16 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     fprintf(fps,"pop ebp\n");
     fprintf(fps,"ret\n");
   }
-  else if (node->type==PROTOTYPE){    
+  else if (node->type==PROTOTYPE)
+  {
+    struct Var *oldVarEnd=varEnd;  // put name of function on vars stack
+    varEnd=malloc(sizeof(struct Var));
+    varEnd->offset=0;
+    varEnd->id=newStr(node->id);
+    varEnd->varType=node->varType;
+    varEnd->level=0;
+    varEnd->isArg=0;
+    varEnd->prev=oldVarEnd;
   }
   
   /*
@@ -1938,7 +2100,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
   
   else if (node->type==BREAK)
   {
-      fprintf(fps, "jmp _end%d", s_label);
+      fprintf(fps, "jmp _end%d\n", s_label);
   }
   
   /*
@@ -1948,8 +2110,11 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
 
   else if (node->type==RETURN){
     type1 = writeAsm(node->child,level,0);
+    
+    // Coerce return to int for now...
     if (sizeOf(type1)==1)
         fprintf(fps,"movzx eax,al\n");
+
     fprintf(fps,"mov esp,ebp\n");
     fprintf(fps,"pop ebp\n");
 
@@ -1990,7 +2155,23 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
       
       if (sizeOf(type1)==1)
           fprintf(fps,"movzx eax,al\n");
-      fprintf(fps,"push eax\n");
+
+      if (paddedSize==4)
+        fprintf(fps,"push eax\n");
+      else
+      {
+        fprintf(fps,"sub esp,%d\n",paddedSize);
+
+        // memcpy(esp,eax,sizeOf(type1));
+        
+        fprintf(fps,"mov ecx,esp\n");       // store esp as we are about to change it
+        fprintf(fps,"push %d\n",sizeOf(type1));
+        fprintf(fps,"push eax\n");
+        fprintf(fps,"push ecx\n");
+        fprintf(fps,"call _memcpy\n");
+        fprintf(fps,"add esp,12\n");
+
+      }
     }
 
     fprintf(fps,"call _%s\n",node->id);
@@ -2010,6 +2191,25 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
   }
   
   /*
+  STRUCT. shove it on varEnd with the variables and give a pointer to its position in the tree
+  */
+
+  else if (node->type==STRUCT)
+  {
+    struct Var *oldVarEnd=varEnd;  // might be NULL
+    varEnd=malloc(sizeof(struct Var));
+    varEnd->offset=0;
+    varEnd->id=newStrStruct(node->id);  // eg "struct Point"
+    varEnd->varType.data[0]='\0';       // no type. sizeOf this will be 0
+    varEnd->level=level;
+    varEnd->isArg=0;
+    varEnd->structNode=node;            // Pointer to this STRUCT on the tree
+    varEnd->prev=oldVarEnd;
+
+    writeVars();
+  }
+  
+  /*
   DECL
   Declare a local variable and push it onto the stack. If 1 byte, push 4 bytes with char first. For arrays pad to multiple of 4 bytes
   First calculate its initial value (if any).
@@ -2021,12 +2221,6 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     int size=sizeOf(node->varType);
     int paddedSize= size%4 == 0 ? size : (1+size/4)*4;
 
-      if (strcmp(node->id,"ret")==0)
-      {
-          printf("size ret=%d %d %d\n", size,paddedSize,g_offset);
-      }
-
-
     if (node->child!=NULL) 
     {
         type1 = writeAsm(node->child,level,0);
@@ -2037,6 +2231,19 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
         fprintf(fps,"push eax # declare %s (level %d)\n",node->id,level);
     else
         fprintf(fps,"sub esp,%d # declare %s (level %d)\n",paddedSize,node->id,level);
+
+    if (isStruct(type1))
+    {
+        // memcpy(esp,eax,sizeOf(type1));
+        fprintf(fps,"mov ecx,esp\n");
+        fprintf(fps,"push %d\n",sizeOf(type1));
+        fprintf(fps,"push eax\n");
+        fprintf(fps,"push ecx\n");
+        fprintf(fps,"call _memcpy\n");
+        fprintf(fps,"add esp,12\n");
+
+        return type1;
+    }
 
     g_offset -= paddedSize;
 
@@ -2071,21 +2278,137 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     fprintf(fps,"imul ecx,%d\n",sizeOf(varType));
     fprintf(fps,"add eax,ecx\n");
 
-    if (lvalue==0)
+    if (lvalue==0 && !isStruct(varType) && !isArray(varType))
+    {
+        if (lvalue==0)
+        {
+            if (sizeOf(varType)==1)
+                fprintf(fps,"mov al,[eax]\n");
+            else
+                fprintf(fps,"mov eax,[eax]\n");
+        }    
+    }
+  }    
+
+  /*
+  DOT eg p.x; type1=struct Point
+  */
+  
+  else if (node->type==DOT || node->type==ARROW)
+  {
+    char* field = node->child2->id; // eg x
+
+    type1 = writeAsm(node->child,level,1);  // p, lvalue requested (type1=struct Point)
+
+    if (node->type==ARROW) 
+    {
+        type1 = removePointer(type1); 
+        fprintf(fps,"mov eax,[eax]\n");
+    }
+    
+    struct Var *p=varEnd;
+    struct Node* structNode;
+    int found=0;
+    while(p!=NULL)
+    {
+        if (strcmp(type1.data, p->id) == 0)
+        {
+            structNode=p->structNode;
+            found=1;
+            break;
+        }
+        p=p->prev;
+    }
+    if (found==0) 
+    {
+        printf("Unknown struct %s\n",type1.data);
+        exit(1);
+    }
+
+    int tot=0;
+    found=0;
+    int i;
+    for (i=0; i < structNode->nlines; i++)
+    {
+        if (strcmp(field, structNode->line[i]->id)==0)
+        {
+            varType = structNode->line[i]->varType;
+            found=1;
+            break;
+        }
+        tot += sizeOf(structNode->line[i]->varType);
+    }    
+    if (found==0)
+    {
+        printf("Struct %s has no field %s\n", type1.data, field);
+        exit(1);
+    }
+
+    fprintf(fps,"mov ecx,%d\n",tot);
+    fprintf(fps,"add eax,ecx\n");
+
+    if (lvalue==0 && !isStruct(varType) && !isArray(varType))
     {
         if (sizeOf(varType)==1)
             fprintf(fps,"mov al,[eax]\n");
         else
             fprintf(fps,"mov eax,[eax]\n");
-    }    
-  }    
-
+    }          
+  }
+  
   /*
   ASSIGNMENT. First child is lvalue so call Node with lvalue=1, get back a pointer
   Widen or narrow before putting into memory. Second child is rvalue.
   */
 
-  else if (node->type==ASSIGNMENT || node->type==PLUS_EQUALS)
+  else if (node->type==ASSIGNMENT)
+  {
+    type1 = writeAsm(node->child,level,1);    // lvalue requested for LHS
+    fprintf(fps,"push eax\n");
+ 
+    type2 = writeAsm(node->child2,level,0);  // value to be assigned
+    fprintf(fps,"pop ecx\n");
+    
+    if (isStruct(type1) && isStruct(type2))
+    {
+        if (strcmp(type1.data, type2.data)!=0)
+        {
+            printf("Different struct types in assignment\n");
+            exit(1);
+        }
+        // memcpy(ecx,eax,sizeOf(type1));
+        fprintf(fps,"push %d\n",sizeOf(type1));
+        fprintf(fps,"push eax\n");
+        fprintf(fps,"push ecx\n");
+        fprintf(fps,"call _memcpy\n");
+        fprintf(fps,"add esp,12\n");
+
+        return type1;
+    }
+            
+    if (sizeOf(type1)==1)   // LHS = char
+    {
+        if (sizeOf(type2)==4)   // narrow int to char
+        {
+            printf("Cannot narrow int to char\n");
+            exit(1);
+        }
+        fprintf(fps,"mov [ecx],al\n");
+    }
+    else // LHS=int
+    {
+        if (sizeOf(type2)==1)  // RHS = char so widen
+            fprintf(fps,"movzx eax,al\n");
+        fprintf(fps,"mov [ecx],eax\n");
+    }
+    varType=type1;
+  }
+  
+  /*
+  PLUS_EQUALS (+=) etc
+  */
+
+  else if (node->type==PLUS_EQUALS || node->type==MINUS_EQUALS)
   {
     type1 = writeAsm(node->child,level,1);    // lvalue requested for LHS
     fprintf(fps,"push eax\n");
@@ -2094,10 +2417,10 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     fprintf(fps,"pop ecx\n");
     
     char* op;
-    if (node->type==ASSIGNMENT)
-        op="mov";
-    else
+    if (node->type==PLUS_EQUALS)
         op="add";
+    else
+        op="sub";
         
     if (sizeOf(type1)==1)   // LHS = char
     {
@@ -2107,12 +2430,20 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
             exit(1);
         }
         fprintf(fps,"%s [ecx],al\n",op);
+        fprintf(fps,"mov al,[ecx]\n");
     }
     else // LHS=int
     {
         if (sizeOf(type2)==1)  // RHS = char so widen
             fprintf(fps,"movzx eax,al\n");
-        fprintf(fps,"%s [ecx],eax\n",op);
+
+//        fprintf(fps,"mov edx,[ecx]\n");
+//        fprintf(fps,"%s edx,eax\n",op);
+//        fprintf(fps,"mov [ecx],edx\n");
+//        fprintf(fps,"mov eax,edx\n");
+
+          fprintf(fps,"%s [ecx],eax\n",op);
+          fprintf(fps,"mov eax,[ecx]\n");
     }
     varType=type1;
   }
@@ -2171,9 +2502,15 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
   {
     varType = writeAsm(node->child,level,1);
     if (sizeOf(varType)==1)
+    {
         fprintf(fps,"inc byte ptr [eax]\n");
+        fprintf(fps,"mov al,[eax]\n");
+    }
     else
+    {
         fprintf(fps,"inc dword ptr [eax]\n");
+        fprintf(fps,"mov eax,[eax]\n");
+    }
   }
   else if (node->type==UNARY_COMPLEMENT){
     type1 = writeAsm(node->child,level,0);
@@ -2229,6 +2566,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
   }
   
   /*
+  VAR
   Variable reference. Find variable in var stack and get its type and offset and whether is Arg
   If rvalue was requested, deref and put result in eax or al (char)
   If lvalue was requested, don't deref but get address in eax
@@ -2255,11 +2593,11 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
     }
     if (found==0) {printf("Refer to undeclared variable %s\n",node->id); exit(1);}
 
-    char reg[4];
+    char *reg;
     if (sizeOf(varType)==1)
-        strcpy(reg,"al");
+        reg="al";
     else
-        strcpy(reg,"eax");
+        reg="eax";
 
     // Special case for arrays. Normally return the address but if array is arg to our function dereference it
     if (isArray(varType))
@@ -2278,6 +2616,17 @@ struct Type writeAsm(struct Node *node, int level, int lvalue)
             else
                 fprintf(fps,"lea eax,[ebp%+d] # %s\n",offset,node->id);
         }
+        return varType;
+    }
+
+    // Special case for structs. Always give address
+    if (isStruct(varType) && !isPointer(varType))
+    {
+        if (offset==0)
+            fprintf(fps,"mov eax,offset _%s\n",node->id);
+        else
+            fprintf(fps,"lea eax,[ebp%+d] # %s\n",offset,node->id);
+
         return varType;
     }
 

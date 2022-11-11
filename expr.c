@@ -8,6 +8,8 @@ int globalMass;
 int putchar(int c);
 int strlen(int s);
 
+char* newStr(char* p);
+
 int bar()
 {
   int ret=2*globalMass+3;
