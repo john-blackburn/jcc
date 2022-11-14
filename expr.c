@@ -9,6 +9,7 @@ int putchar(int c);
 int strlen(int s);
 
 char* newStr(char* p);
+void* malloc(int size);
 
 int bar()
 {
