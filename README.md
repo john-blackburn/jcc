@@ -1,5 +1,5 @@
 # jcc
-A simple C compiler written in C which outputs x86 assembly. So far it supports only a subset of the C language. This project is just an experiment and should not be used for anything serious!
+A simple C compiler written in C which outputs x86 assembly. So far it supports only a subset of the C89 language. This project is just an experiment and should not be used for anything serious!
 
 I wrote this compiler based on the excellent tutorial by Nora Sandler: https://norasandler.com/2017/11/29/Write-a-Compiler.html
 
@@ -25,35 +25,59 @@ In addition to compiling, the compiler writes lots of debug info to stdout. Firs
 
 I have used the 32-bit gcc/mingw compiler for Windows to compile the compiler and also to act as assembler (ie I'm using Gnu's AS assembler). Thus, the assembler directives in the `.s` file are in AS format, including the use of `#` as comments. You will see various directives in the `.s` file beginning with dots eg `.intel_syntax noprefix` specifies to use the more readable Intel syntax for the x86 assembly language (not AT&T).
 
-The compiler is currently very limited supporting only a subset of the C language (maybe about 50%). Here is an example of code it can compile
+The compiler supports only a subset of the ANSI C89 language (maybe 90%). Here is an example of code it can compile
 
 ```
-int fib(int n) {
-    if (n == 0 || n == 1) {
+int fib(int n)
+{
+    if (n == 0 || n == 1)
+    {
         return n;
-    } else {
+    } 
+    else 
+    {
         return fib(n - 1) + fib(n - 2);
     }
 }
 
 int main() {
     int n = 10;
-    printf("The %d-th Fibonacci number is %d\n",n,fib(n));
+    printf("The %d-th Fibonacci number is %d\n", n, fib(n));
     return 0;
 }
 ```
 
 This source file is provided as `fibonacci.c`.
 
+The compiler implements the following language features:
+
+* int (4 bytes) and char (1 byte) base types. Also literal strings and void.
+* arrays, pointers and structs are fully supported.
+* All C operators are supported except for the comma operator (,) and the ternary operator (?:)
+* for, if, do, while fully supported
+* variable scope fully supported including local and global variables. New variables can be declaraed anywhere inside a block.
+* function calls supported using the cdecl calling convention only. Can call the std library no problem!
+
 Limitations include:
-* Only ints supported: no float, double or char.
-* No pointers, arrays, structs
-* No support for `switch, case, default, union, enum, typedef, goto, continue`
-* No support for `auto, const, double, extern, float, long, register, short, (un)signed, static, void, volatile`
 
-There's a long, long way to go!
+* No floats or doubles yet.
+* Only int and char base types supported. Qualifiers short/long and signed/unsigned are not supported.
+* No support for `switch, case, default, union, enum, typedef, goto`
+* No support for qualifiers `auto, const, extern, register, static, volatile`
+* Single initialisations like `int i=j+k;` are supported but more complex block initialisation is not
+ fully implemented. However `int i[]={1,2,3}` and `char* names[]={"foo","bar","zap"}` are allowed for global variables only.
+* Function pointers are not supported. Types may not include parentheses eg `struct Foo**[3][6]` is allowed but `int (*fp)()` is not.
+(note there is no limit to the number of array dimensions or pointer dereferences)
+* Function prototypes are parsed but only the return value is considered. No coercion is done when calling functions or on return values.
 
-Note also that the compiler does not include a preprocessor so directives like `#include` are not supported. However, such includes would not be meaningful to the compiler anyway: the compiler ignores function prototypes and would not understand other code in standard library headers. The above code will compile and run fine even though `printf` is not declared. When calling a function, the compiler simply passes the arguments through not checking or coercing types (or even the number of arguments).
+There's a long way to go but...
+
+**The compiler is now advanced enough to compile itself!**
+
+Note also that the compiler does not include a preprocessor so directives like `#include` are not supported. However, such includes would not be meaningful to the compiler anyway: the compiler ignores function prototypes (except for return values)
+and would not understand a lot of code in standard library headers. The above code will compile and 
+run fine even though `printf` is not declared (you could also write the prototype by hand). When calling a function, the compiler simply passes the 
+arguments through not checking or coercing types (or even the number of arguments).
 
 This code does not include a linker: the compiler's only function is to create an assembly language file (`.s`) which must be assembled into an object file (`.o`) then linked into an executable or library.
 
@@ -143,8 +167,8 @@ for identifiers and literals. The tokens are assembled into a linked list pointe
 The parser then takes these tokens and creates an Abstract Syntax Tree. The output from the parser, for the same example, is
 ```
 PROGRAM
-   FUNCTION: 'fib'
-      ARG: 'n'
+   FUNCTION: 'fib' [int]
+      ARG: 'n' [int]
       IF
          BINARY_OR
             BINARY_EQUAL
@@ -168,7 +192,7 @@ PROGRAM
                         VAR: 'n'
                         INT_LITERAL: '2'
    FUNCTION: 'main'
-      DECL: 'n'
+      DECL: 'n' [int]
          INT_LITERAL: '10'
       EXPR
          CALL: 'printf'
@@ -185,6 +209,7 @@ struct Node
 {
   int type;
   char *id;
+  struct Type varType;
   struct Node *child;
   struct Node *child2;
   struct Node *child3;
@@ -194,7 +219,15 @@ struct Node
 };
 ```
 Each Node has a type such as `BINARY_PLUS`, `VAR` (a reference to a variable), `DECL` (a variable declaration) etc. `id` is the name of the node if needed
-(function, variable reference, declaration, call, literals etc) otherwise ignored.
+(function, variable reference, declaration, call, literals etc) otherwise ignored. `varType` is the variable type if appropriate stored as a string with
+
+```
+struct Type
+{
+    char data[32];
+};
+```
+
 Each Node has a certain number of children with different meaning depending on the type (the other children are not used):
 
 * unary operators have 1 child (`child`)
@@ -215,17 +248,25 @@ Some nodes have an arbitrary number of children, stored in `line` with `nlines` 
 The AST is generated by calling `parse_program` which recursively calls a series of other functions `parse_xxx`. These functions advance pointer `tokenHead` (a global variable)
 until no more tokens are available.
 
-Finally `writeAsm` creates the assembly language from the AST. It is a recursive function. As it generates code, this function maintains a linked list of local variables of the form:
+Finally `writeAsm` creates the assembly language from the AST. It is a recursive function. As it generates code, this function maintains a linked list (a stack) of local variables of the form:
 ```
 struct Var
 {
   char *id;
+  struct Type varType;
   int level;
   int offset;
+  int isArg;
+  struct Node *structNode;
   struct Var *prev;
 };
 ```
 where `id` is the variable name, `level` is the scoping level with 0 being global scope, 1 function level scope and higher numbers being within (nested) blocks.
 `offset` is the offset of each variable on the stack (negative for local variables, positive for function arguments).
 
-The compiler uses the stack to evaluate expressions pushing and poping values onto it to do calculations. Values from this "calculator stack" are popped off onto the `eax` and `ecx` registers to do calculations and these are the only registers used. When calling functions `jcc` uses only the `cdecl` calling convention (arguments pushed onto the stack right to left and `eax`, `ecx`, `edx` corrupted during the call: caller must preserve these. Return value put on eax [in fact the compiler doesn't use `edx`]). A stack frame is set up using `esp` and `ebp`. Note that local variables within inner scopes (eg in an if-block) are created on demand by pushing them onto the stack. This is different from commercial compilers which will create all local variables within a function right at the beginning of the function.
+`varType` is the variable type stored as a fixed length string eg `int*[3][6]`. `isArg` specifies if the variable is a function argument.
+`structNode` is a pointer to the AST which is used when defining structs. Note that when a struct is declared its name is pushed onto the variable stack with 
+`structNode` pointing to the AST location of the struct.
+
+The compiler uses the machine stack to evaluate expressions pushing and poping values onto it to do calculations. Values from this "calculator stack" are popped off onto the `eax` and `ecx` registers to do calculations and these are the only registers used. When calling functions `jcc` uses only the `cdecl` calling convention (arguments pushed onto the stack right to left and `eax`, `ecx`, `edx` corrupted during the call: caller must preserve these. Return value put on eax [in fact the compiler doesn't use `edx`]). A stack frame is set up using `esp` and `ebp`. Note that local variables within inner scopes (eg in an if-block) are created on demand by pushing them onto the stack. This is different from commercial compilers which will create all local variables within a function right at the beginning of the function.
+So the compiler doesn't need to worry about registers getting corrupted when it calls a function: everything is pushed onto the stack.
