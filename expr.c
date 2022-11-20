@@ -3,7 +3,7 @@ int foo(int bar)
   return bar*bar;
 }
 
-int globalMass;
+int globalMass, charge=10;
 
 int putchar(int c);
 int strlen(int s);
@@ -23,15 +23,13 @@ int main()
   putchar('H');
   putchar('\n');
 
-  for (i=0;i<26;i=i+1)
+  for (i=0; i<26; ++i)
     putchar(65+i);
   
   putchar(foo(10));
   putchar('\n');
   
-  int a=10;
-  int b=1;
-  int c=2;
+  int a=10, b=1, c=2;
 
   globalMass=4;
   printf("globalMass=%d\n",globalMass);
@@ -40,11 +38,13 @@ int main()
   printf("cmd=%s %p %d\n",cmd,cmd,strlen(cmd));
   
   int disc=b*b-4*a*c;
-  if (disc>0) {
+  if (disc>0) 
+  {
     printf("+ve disc=%d %d\n",disc,bar());
     return disc;
   }
-  else {
+  else 
+  {
     int ret=disc*2;
     printf("-ve disc=%d\n",ret);
     return ret;
