@@ -3,8 +3,13 @@ Usage:
 jcc path/to/foo.c
 Creates foo.s in current directory and assembles/links to get foo.exe
 
+TODO:
+Allow arg without name in prototype eg int foo(int*) and int foo(void)
+ignore eg __attribute__((__cdecl__))
+
 Not needed to compile this compiler (and not done):
 More initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"} (currently only done for globals)
+Allow int x,y; in struct (currently must be on separate lines)
 Function protoypes (currently ignored but return value considered). Coercion.
 ternary operator ?:
 comma operator
@@ -13,16 +18,84 @@ switch, case, default, union, enum, typedef, goto
 auto, const, double, extern, float, long, register, short, (un)signed, static, volatile
 Floats with SSE
 short int (2 bytes on AX)
+concatenate multiple string literals
 
 Other calling conventions. Stack alignment (always push multiple of 4 bytes). (Application Binary Interface)
 Pre-processor?
 Linker?
 */
 
+/*
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+*/
+
+/*
+Taken from the above header files. We want to avoid headers as they have non-standard stuff
+*/
+
+#define NULL ((void*)0)
+#define errno (*_errno())
+#define SEEK_END 2
+
+typedef unsigned int size_t;
+
+typedef struct _iobuf
+{
+  char *_ptr;
+  int _cnt;
+  char *_base;
+  int _flag;
+  int _file;
+  int _charbuf;
+  int _bufsiz;
+  char *_tmpfname;
+} FILE;
+
+
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) FILE * fopen (const char *, const char *);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int fclose (FILE *);
+ 
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int fprintf (FILE *, const char *, ...);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int printf (const char *, ...);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int sprintf (char *, const char *, ...);
+
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) size_t fread (void *, size_t, size_t, FILE *);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) size_t fwrite (const void *, size_t, size_t, FILE *);
+
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int fseek (FILE *, long, int);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) long ftell (FILE *);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) void rewind (FILE *);
+
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int *_errno(void);
+
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) void *memcpy (void *, const void *, size_t);
+
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) char *strcat (char *, const char *);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int strcmp (const char *, const char *) __attribute__((__pure__));
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) char *strcpy (char *, const char *);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) size_t strlen (const char *) __attribute__((__pure__));
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) char *strstr (const char *, const char *) __attribute__((__pure__));
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) char *strtok (char *, const char *);
+
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) void *malloc (size_t) __attribute__((__malloc__));
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) void free (void *);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) void exit (int) __attribute__((__noreturn__));
+
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int isalnum(int);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int isalpha(int);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int isdigit(int);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int isspace(int);
+ 
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int system (const char *);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) long strtol (const char *, char **, int);
+
+
+/*
+End of std headers stuff
+*/
 
 char *tokNames[]={"<<=", ">>=",
 
@@ -1697,7 +1770,7 @@ struct Token* getTok(char *st, char **ed)
     char *p=st;
     while(*p!='\0')
     {
-      if (*p=='"')
+      if (*p == '"' && !(*(p - 1) == '\\' && *(p - 2) != '\\'))
       {
         int sz=p-st;
         tok->id=(char*) malloc(sz+1);
@@ -1719,7 +1792,7 @@ struct Token* getTok(char *st, char **ed)
     char *p=st;
     while(*p!='\0')
     {
-      if (*p=='\'')
+      if (*p == '\'' && !(*(p - 1) == '\\' && *(p - 2) != '\\'))
       {
         int sz=p-st;
         tok->id=(char*) malloc(sz+1);
@@ -1772,8 +1845,8 @@ struct Token* getTok(char *st, char **ed)
 	
         printf("Lexer: Unknown token: ");
         char *q;
-        for (q=st; q<=p; q++) putchar(*q);
-        putchar('\n');
+        for (q=st; q<=p; q++) printf("%c", *q);
+        printf("\n");
         exit(1);
       }
 

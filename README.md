@@ -1,5 +1,5 @@
 # jcc
-A simple C compiler written in C which outputs x86 assembly. So far it supports only a subset of the C89 language. This project is just an experiment and should not be used for anything serious!
+A simple C compiler written in C which outputs x86 assembly (32-bit). So far it supports only a subset of the C89 language. This project is just an experiment and should not be used for anything serious!
 
 I wrote this compiler based on the excellent tutorial by Nora Sandler: https://norasandler.com/2017/11/29/Write-a-Compiler.html
 
@@ -55,7 +55,7 @@ The compiler implements the following language features:
 * arrays, pointers and structs are fully supported.
 * All C operators are supported except for the comma operator (,) and the ternary operator (?:)
 * for, if, do, while fully supported
-* variable scope fully supported including local and global variables. New variables can be declaraed anywhere inside a block.
+* variable scope fully supported including local and global variables. New variables can be declared anywhere inside a block.
 * function calls supported using the cdecl calling convention only. Can call the std library no problem!
 
 Limitations include:
@@ -65,7 +65,7 @@ Limitations include:
 * No support for `switch, case, default, union, enum, typedef, goto`
 * No support for qualifiers `auto, const, extern, register, static, volatile`
 * Single initialisations like `int i=j+k;` are supported but more complex block initialisation is not
- fully implemented. However `int i[]={1,2,3}` and `char* names[]={"foo","bar","zap"}` are allowed for global variables only.
+ fully implemented. However `int i[]={1,2,3}` and `char* names[]={"foo","bar","zap"}` are allowed *for global variables only*.
 * Function pointers are not supported. Types may not include parentheses eg `struct Foo**[3][6]` is allowed but `int (*fp)()` is not.
 (note there is no limit to the number of array dimensions or pointer dereferences)
 * Function prototypes are parsed but only the return value is considered. No coercion is done when calling functions or on return values.
@@ -74,12 +74,11 @@ There's a long way to go but...
 
 **The compiler is now advanced enough to compile itself!**
 
-Note also that the compiler does not include a preprocessor so directives like `#include` are not supported. However, such includes would not be meaningful to the compiler anyway: the compiler ignores function prototypes (except for return values)
-and would not understand a lot of code in standard library headers. The above code will compile and 
-run fine even though `printf` is not declared (you could also write the prototype by hand). When calling a function, the compiler simply passes the 
+Before compiling the program first preprocesses the C code by calling gcc with `gcc -E`. However, including standard library headers won't work as the compiler is not complete (and the headers tend to have compiler-specific directives not part of the official language). In fact such headers are not really needed as the compiler ignores function prototypes (except for return values). The above code will compile and 
+run fine even though `printf` is not declared (you could also write the prototypes for printf and friends by hand). When calling a function, the compiler simply passes the 
 arguments through not checking or coercing types (or even the number of arguments).
 
-This code does not include a linker: the compiler's only function is to create an assembly language file (`.s`) which must be assembled into an object file (`.o`) then linked into an executable or library.
+This code does not include an assembler or linker: the compiler's only function is to create an assembly language file (`.s`) which must be assembled into an object file (`.o`) then linked into an executable or library.
 
 # How it works
 
@@ -159,12 +158,15 @@ struct Token
 {
   int type;
   char *id;
+  int lineno;
   struct Token *next;
 };
 ```
 The type could be an identifier (variable), an int literal, a C keyword such as `return` or one of many punctuation symbols such as `OPEN_BRACKET`. The `id` is defined only
 for identifiers and literals. The tokens are assembled into a linked list pointed to by global variable `tokenHead`. Function `getTok` is called repeatedly to generate these Tokens.
-The parser then takes these tokens and creates an Abstract Syntax Tree. The output from the parser, for the same example, is
+Lineno is the used for error output and is the line number from which the token was generated. (this is reset by preprocessor directives so refers to the line number in the original file)
+
+The parser then takes these tokens and creates an Abstract Syntax Tree (AST). The output from the parser, for the same example, is
 ```
 PROGRAM
    FUNCTION: 'fib' [int]
@@ -210,6 +212,7 @@ struct Node
   int type;
   char *id;
   struct Type varType;
+  int lineno;
   struct Node *child;
   struct Node *child2;
   struct Node *child3;
@@ -270,3 +273,15 @@ where `id` is the variable name, `level` is the scoping level with 0 being globa
 
 The compiler uses the machine stack to evaluate expressions pushing and poping values onto it to do calculations. Values from this "calculator stack" are popped off onto the `eax` and `ecx` registers to do calculations and these are the only registers used. When calling functions `jcc` uses only the `cdecl` calling convention (arguments pushed onto the stack right to left and `eax`, `ecx`, `edx` corrupted during the call: caller must preserve these. Return value put on eax [in fact the compiler doesn't use `edx`]). A stack frame is set up using `esp` and `ebp`. Note that local variables within inner scopes (eg in an if-block) are created on demand by pushing them onto the stack. This is different from commercial compilers which will create all local variables within a function right at the beginning of the function.
 So the compiler doesn't need to worry about registers getting corrupted when it calls a function: everything is pushed onto the stack.
+
+Once the AST has been prepared, the assembly language is written out using a single call to `writeAsm`. This function is recursive and has the prototype
+
+```
+struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
+```
+
+Each node has a type which is returned to the parent node. Eg if we add `'1'+2` then the addition node will call its two children which will create `mov al,'1'` (and pass back `char`) and `mov eax,2` (and pass back `int`) respectively. The addition node will then promote the char to int before adding the two and returning `int` to *its* superior node.
+
+The `lvalue` argument tells a node whether to return an lvalue (if lvalue=1) or an rvalue. The addition node above will always ask for rvalues, while an assignment node would ask for an lvalue from its left child and an rvalue from its right child.
+
+The "level" argument is the nesting level: 0 for global scope, 1 for function scope and higher for blocks. "loop" is the index of the current loop which is used by break and continue.
