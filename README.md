@@ -1,4 +1,3 @@
-barney's commit
 # jcc
 A simple C compiler written in C which outputs x86 assembly (32-bit). So far it supports only a subset of the C89 language. This project is just an experiment and should not be used for anything serious!
 
