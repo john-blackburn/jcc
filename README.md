@@ -284,4 +284,4 @@ Each node has a type which is returned to the parent node. Eg if we add `'1'+2` 
 
 The `lvalue` argument tells a node whether to return an lvalue (if lvalue=1) or an rvalue. The addition node above will always ask for rvalues, while an assignment node would ask for an lvalue from its left child and an rvalue from its right child.
 
-The "level" argument is the nesting level: 0 for global scope, 1 for function scope and higher for blocks. "loop" is the index of the current loop which is used by break and continue.
+The `level` argument is the nesting level: 0 for global scope, 1 for function scope and higher for blocks. `loop` is the index of the current loop which is used by break and continue.
