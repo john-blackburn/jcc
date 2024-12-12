@@ -1723,10 +1723,10 @@ struct Token* getTok(char *st, char **ed)
           memcpy(linestr, line1, len);
           linestr[len]='\0';
           if (linestr[len-1]=='\r') linestr[len-1]='\0';
-          printf("linestr=[%s]", linestr);
+//          printf("linestr=[%s]", linestr);
           
           lineno = strtol(strtok(linestr, " "), &endptr, 0);          
-          printf(" %d\n", lineno);
+//          printf(" %d\n", lineno);
       }
       else if (*st == '\n') 
       {
@@ -1860,7 +1860,6 @@ struct Token* getTok(char *st, char **ed)
     }
   }
 
-  printf("Nothing left\n");
   free(tok);
   return NULL;
 }
@@ -2749,7 +2748,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 
   else if (node->type==DECL)
   {
-       printf("decl '%s' [%s] %p\n", node->id, node->varType.data, node->child);
+    // printf("decl '%s' [%s] %p\n", node->id, node->varType.data, node->child);
     int size=sizeOf(node->varType, node);
     int paddedSize= size%4 == 0 ? size : (1+size/4)*4;
 
@@ -3281,7 +3280,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
         return varType;
     }
 
-    printf("var %s\n",varType.data);
+//    printf("var %s\n",varType.data);
     char *reg;    
     if (sizeOf(varType, node)==1)
         reg="al";
@@ -3543,6 +3542,8 @@ int main(int argc, char **argv)
     
     // unit tests!
 
+    printf("==== start of unit tests ===\n");
+
     struct Type t;
     strcpy(t.data, "int*");
     printf("sizeOf int* =%d, isPointer=%d Array=%d\n", sizeOf(t, NULL),isPointer(t), isArray(t));
@@ -3567,6 +3568,8 @@ int main(int argc, char **argv)
     
     struct Type s = removeArray(t);
     printf("After remove %s\n", s.data); 
+	
+	printf("==== end of unit tests ===\n");
 
   // ----------------------------------------------------------------------
   // Read command line args
@@ -3678,7 +3681,7 @@ int main(int argc, char **argv)
 
   sprintf(cmd, "gcc -E %s > %s", fname, iname);
 
-  printf("%s\n",cmd);
+  printf("SYSTEM: %s\n",cmd);
   system(cmd);
 
   // ----------------------------------------------------------------------
@@ -3785,11 +3788,11 @@ int main(int argc, char **argv)
   // ----------------------------------------------------------------------
 
   sprintf(cmd,"gcc -c %s",sname);
-  printf("%s\n",cmd);
+  printf("SYSTEM: %s\n",cmd);
   system(cmd);
 
   sprintf(cmd,"gcc -o %s %s",exename,oname);
-  printf("%s\n",cmd);
+  printf("SYSTEM: %s\n",cmd);
   system(cmd);
 
   return 0;
