@@ -5,7 +5,6 @@ Creates foo.s in current directory and assembles/links to get foo.exe
 
 TODO:
 Allow arg without name in prototype eg int foo(int*) and int foo(void)
-ignore eg __attribute__((__cdecl__))
 
 Not needed to compile this compiler (and not done):
 More initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"} (currently only done for globals)
@@ -14,7 +13,7 @@ Function protoypes (currently ignored but return value considered). Coercion.
 ternary operator ?:
 comma operator
 function pointers
-switch, case, default, union, enum, typedef, goto
+switch, case, default, union, goto
 auto, const, double, extern, float, long, register, short, (un)signed, static, volatile
 Floats with SSE
 short int (2 bytes on AX)
@@ -107,9 +106,9 @@ char *tokNames[]={"<<=", ">>=",
 		  "+", "-", "*", "/", "%", "&", "|", "^", "~",
 
 		  "return", "int", "char", "if", "else", "for", "while", "do", "break", "continue", 
-          "struct", "sizeof", "void"};
+          "struct", "sizeof", "void", "enum", "typedef"};
 
-int numToks=57;  // ie number of entries in tokNames
+int numToks=59;  // ie number of entries in tokNames
 
 #define LESSTHAN2_EQUAL 0
 #define GREATERTHAN2_EQUAL 1
@@ -168,56 +167,58 @@ int numToks=57;  // ie number of entries in tokNames
 #define STRUCT           54 // "struct"
 #define SIZEOF           55
 #define VOID_DECLARATION 56
+#define ENUM             57
+#define TYPEDEF          58
 
-#define INT_LITERAL 57      // eg 123
-#define IDENTIFIER 58       // eg main
-#define STRING_LITERAL 59   // "hello, world!\n"
-#define CHAR_LITERAL 60     // '\n'
+#define INT_LITERAL 59      // eg 123
+#define IDENTIFIER 60       // eg main
+#define STRING_LITERAL 61   // "hello, world!\n"
+#define CHAR_LITERAL 62     // '\n'
 
-#define FUNCTION 61         // AST only
-#define UNARY_MINUS 62
-#define UNARY_COMPLEMENT 63
-#define UNARY_NOT 64
-#define BINARY_PLUS 65
-#define BINARY_MINUS 66
-#define BINARY_TIMES 67
-#define BINARY_DIVIDE 68
-#define BINARY_AND 69
-#define BINARY_OR 70
-#define BINARY_EQUAL 71
-#define BINARY_NOT_EQUAL 72
-#define BINARY_LESS_THAN_OR_EQUAL 73
-#define BINARY_LESS_THAN 74
-#define BINARY_GREATER_THAN_OR_EQUAL 75
-#define BINARY_GREATER_THAN 76
-#define ASSIGNMENT 77
-#define VAR 78
-#define EXPR 79
-#define DECL 80
-#define BLOCK 81
-#define CALL 82
-#define ARG 83
-#define GLOBAL 84
-#define PROGRAM 85
-#define PROTOTYPE 86
-#define DEREF 87
-#define ADDRESS 88
-#define INDEX 89
-#define UNARY_PLUS 90
-#define BINARY_LEFT_SHIFT 91
-#define BINARY_RIGHT_SHIFT 92
-#define BINARY_BITWISE_AND 93
-#define BINARY_BITWISE_XOR 94
-#define BINARY_BITWISE_OR  95
-#define BINARY_MODULO 96
-#define INC 97
-#define ARROW 98
-#define DEC 99
-#define INC_AFTER 100
-#define DEC_AFTER 101
-#define CAST 102
-#define DECLGROUP 103
-#define GLOBALGROUP 104
+#define FUNCTION 63         // AST only from here...
+#define UNARY_MINUS 64
+#define UNARY_COMPLEMENT 65
+#define UNARY_NOT 66
+#define BINARY_PLUS 67
+#define BINARY_MINUS 68
+#define BINARY_TIMES 69
+#define BINARY_DIVIDE 70
+#define BINARY_AND 71
+#define BINARY_OR 72
+#define BINARY_EQUAL 73
+#define BINARY_NOT_EQUAL 74
+#define BINARY_LESS_THAN_OR_EQUAL 75
+#define BINARY_LESS_THAN 76
+#define BINARY_GREATER_THAN_OR_EQUAL 77
+#define BINARY_GREATER_THAN 78
+#define ASSIGNMENT 79
+#define VAR 80
+#define EXPR 81
+#define DECL 82
+#define BLOCK 83
+#define CALL 84
+#define ARG 85
+#define GLOBAL 86
+#define PROGRAM 87
+#define PROTOTYPE 88
+#define DEREF 89
+#define ADDRESS 90
+#define INDEX 91
+#define UNARY_PLUS 92
+#define BINARY_LEFT_SHIFT 93
+#define BINARY_RIGHT_SHIFT 94
+#define BINARY_BITWISE_AND 95
+#define BINARY_BITWISE_XOR 96
+#define BINARY_BITWISE_OR  97
+#define BINARY_MODULO 98
+#define INC 99
+#define ARROW 100
+#define DEC 101
+#define INC_AFTER 102
+#define DEC_AFTER 103
+#define CAST 104
+#define DECLGROUP 105
+#define GLOBALGROUP 106
 
 
 char *names[]={
@@ -278,13 +279,15 @@ char *names[]={
   "STRUCT",
   "SIZEOF",
   "VOID_DECLARATION",
+  "ENUM",
+  "TYPEDEF",
 
   "INT_LITERAL",      // eg 123
   "IDENTIFIER",       // eg main
   "STRING_LITERAL",           // "hello, world!"
   "CHAR_LITERAL",             // 'a'
 
-  "FUNCTION",         // AST only
+  "FUNCTION",         // AST only from here...
   "UNARY_MINUS",
   "UNARY_COMPLEMENT",
   "UNARY_NOT",
@@ -338,7 +341,7 @@ struct Token
   struct Token *next;
 };
 
-// A fixed length string
+// A fixed length string. Consider renaming this String and using it in place of char* id etc
 struct Type
 {
     char data[32];
@@ -369,16 +372,41 @@ struct Var
   struct Var *prev;
 };
 
+// typedef int Number;
+// typedef Number* PNumber;
+struct TypeDef
+{
+    char *name; // "Number" or "PNumber"
+    struct Type type; // "int" or "Number*"
+    struct TypeDef *prev;
+};
+
+//enum Color
+//{
+//   RED=3, BLACK
+//};
+struct EnumConst
+{
+    char *name; // "RED"
+    int value;  // 3
+    struct EnumConst *prev;
+};
+
 int g_offset;             // offset relative to ebp for local vars and args
 struct Var *varEnd;       // top of the stack where we store variable declarations
 struct Token *tokenHead;  // global for parsing
 int lineno;
 
+struct TypeDef *typeDefEnd = NULL;
+struct EnumConst *enumConstEnd = NULL;
+
 FILE* fps;
 
 // forward declarations
-struct Node* parse_decl(int type);
+struct Node *parse_decl(int type);
 struct Node *parse_exp(); 
+
+// ######################################################################
 
 void advance()
 {
@@ -462,6 +490,79 @@ int isProtoOrFunc()
     }  
     // Eg: int foo; vector<Point*>** p;  ==> it's a DECL
     return isproto;
+}
+
+// ######################################################################
+
+void addEnumConst(char *name, int value)
+{
+    struct EnumConst* p=enumConstEnd; // might be NULL
+    enumConstEnd = (struct EnumConst*)malloc(sizeof(struct EnumConst));
+    enumConstEnd->name=newStr(name);
+    enumConstEnd->value=value;
+    enumConstEnd->prev=p;
+}
+
+int isEnumConst(char *name)
+{
+    struct EnumConst* p=enumConstEnd;
+    while (p!=NULL)
+    {
+        if (strcmp(p->name, name)==0)
+            return 1;
+        p=p->prev;
+    }
+    return 0;
+}
+
+char* getEnumConst(char *name)
+{
+    char *svalue = (char*)malloc(10*sizeof(char));
+    
+    struct EnumConst* p=enumConstEnd;
+    while (p!=NULL)
+    {
+        if (strcmp(p->name, name)==0)
+        {
+            sprintf(svalue,"%d",p->value);
+            return svalue;
+        }
+        p=p->prev;
+    }
+    fail("cannot find enum constant (shouldn't happen)");
+}
+
+void addTypedef(char *name, struct Type type)
+{
+    struct TypeDef* p=typeDefEnd; // might be NULL
+    typeDefEnd = (struct TypeDef*)malloc(sizeof(struct TypeDef));
+    typeDefEnd->name=newStr(name);
+    typeDefEnd->type=type;
+    typeDefEnd->prev=p;
+}
+
+int isTypedef(char *name)
+{
+    struct TypeDef* p=typeDefEnd;
+    while (p!=NULL)
+    {
+        if (strcmp(p->name, name)==0)
+            return 1;
+        p=p->prev;
+    }
+    return 0;
+}
+
+struct Type getTypedef(char *name)
+{
+    struct TypeDef* p=typeDefEnd;
+    while (p!=NULL)
+    {
+        if (strcmp(p->name, name)==0)
+            return p->type;
+        p=p->prev;
+    }
+    fail("undefined typedef");
 }
 
 // ######################################################################
@@ -568,6 +669,18 @@ int countArgsAndLines()
 struct Node* parse_identifier()
 {
     struct Node *exp=(struct Node*)malloc(sizeof(struct Node));
+	
+    // if enum constant, set up INT_LITERAL with correct value
+	if (isEnumConst(tokenHead->id))
+	{
+		exp->type=INT_LITERAL;
+        exp->lineno=tokenHead->lineno;
+        exp->id=getEnumConst(tokenHead->id);
+        exp->child=NULL;
+        advance();
+		return exp;
+	}
+	
     exp->type=VAR;
     exp->lineno=tokenHead->lineno;
     exp->id=newStr(tokenHead->id);
@@ -1096,6 +1209,8 @@ struct Node* parse_exp()
 
 // int foo**[3][4];
 // struct Foo foo;
+// enum Colour c;
+// PNumber p;  << typedef
 // type can be DECL, GLOBAL, 
 // ARG, FUNCTION, PROTOTYPE (in which case don't advance past ;)
 // SIZEOF, CAST (don't read id or advance past ;)
@@ -1116,6 +1231,16 @@ struct Node* parse_decl(int type)
          advance();
          strcat(decl->varType.data, tokenHead->id);
     }
+	else if (getType()==ENUM)  // enum is just int
+	{
+        strcpy(decl->varType.data, "int");
+		advance();  // ignore enum type it's just an int
+	}
+    else
+    {
+        // must be typedef
+        decl->varType = getTypedef(tokenHead->id);
+    }
 
     advance();
     decl->type=type;
@@ -1130,11 +1255,13 @@ struct Node* parse_decl(int type)
     decl->id=NULL;
     if (type != SIZEOF && type != CAST)
     {
-        if (getType()!=IDENTIFIER)
-            fail("expecting identifier");
-        
-        decl->id=newStr(tokenHead->id);
-        advance();
+        if (getType()==IDENTIFIER)  // identifier optional for prototype args
+        {
+            decl->id=newStr(tokenHead->id);
+            advance();
+        }
+        else
+            decl->id=NULL;
     }
     
     while (getType()==OPEN_SQUARE)
@@ -1298,6 +1425,84 @@ struct Node* parse_decl_group(int type, int n)
     advance();    
     
     return group;
+}
+
+// ######################################################################
+// typedef Number* PNumber;
+struct Node* parse_typedef()
+{
+    advance();
+
+    struct Node* declNode = parse_decl(DECL);
+    declNode->type = TYPEDEF;
+    addTypedef(declNode->id, declNode->varType);
+    return declNode;
+}
+
+// ######################################################################
+// enum Colour {RED=0,BLACK};
+
+struct Node* parse_enum()
+{
+    struct Node *en=(struct Node*)malloc(sizeof(struct Node));
+    en->type=ENUM;
+    en->lineno=tokenHead->lineno;
+    
+    advance();
+    
+    if (getType()==IDENTIFIER) advance();
+    
+    if (getType()!=OPEN_BRACE)
+    {
+        fail("Expected { at beginning of enum");
+        exit(1);
+    }
+
+    advance();
+    
+    struct Token *p=tokenHead;
+    int n=1;
+    while(p->type!=CLOSE_BRACE)
+    {
+        if (p->type==COMMA) n++;
+        p=p->next;
+    }
+
+    printf("Found enum with %d entries\n", n);
+    
+    en->nlines=n;
+    en->line=(struct Node**)malloc(n*sizeof(struct Node*));
+
+    int i;
+    int ind=0;
+    for (i=0; i<n; i++)
+    {        
+        en->line[i]=parse_exp();
+
+        if (en->line[i]->type==ASSIGNMENT)  // RED=0
+        {
+            char *endptr = NULL;
+            ind = strtol(en->line[i]->child2->id, &endptr, 0); // 0
+            addEnumConst(en->line[i]->child->id, ind); // RED, 0
+        }
+        else  // BLACK
+            addEnumConst(en->line[i]->id, ind);
+
+        if (getType()==COMMA) advance();
+        ind++;
+    }
+    
+    if (getType()!=CLOSE_BRACE)
+        fail("Expeced } at end of enum");
+    
+    advance();
+
+    if (getType()!=SEMICOLON)
+        fail("Expeced ; at end of enum");
+    
+    advance();
+    
+    return en;    
 }
 
 // ######################################################################
@@ -1465,7 +1670,8 @@ struct Node* parse_statement()
       return parse_struct();
   }
 
-  else if (getType()==INT_DECLARATION || getType()==CHAR_DECLARATION || getType()==STRUCT || getType()==VOID_DECLARATION)
+  else if (getType()==INT_DECLARATION || getType()==CHAR_DECLARATION || getType()==STRUCT || getType()==ENUM || getType()==VOID_DECLARATION
+           || (getType()==IDENTIFIER && isTypedef(tokenHead->id)) )
   {
       int n=countDeclGroup();
       if (n>1)
@@ -1477,6 +1683,15 @@ struct Node* parse_statement()
   {
       advance();
       statement->type=BREAK;
+      statement->child=NULL;
+      
+      if (getType()!=SEMICOLON) fail("Expected ;");
+      advance();      
+  }
+  else if(getType()==CONTINUE)
+  {
+      advance();
+      statement->type=CONTINUE;
       statement->child=NULL;
       
       if (getType()!=SEMICOLON) fail("Expected ;");
@@ -1661,6 +1876,9 @@ struct Node* parse_program()
   // int foo=2;
   // struct Foo {int x; int y;};
   // struct Foo f;
+  // enum Colour {RED, BLACK};
+  // enum Colour c;
+  // typedef int Number;
 
   int i;
   for (i=0; i<n; i++)
@@ -1668,6 +1886,14 @@ struct Node* parse_program()
     if (getType()==STRUCT && tokenHead->next->next->type==OPEN_BRACE) // struct Foo {int x; int y;};
     {
         program->line[i]=parse_struct();
+    }
+    else if (getType()==ENUM && (tokenHead->next->next->type==OPEN_BRACE || tokenHead->next->type==OPEN_BRACE)) // enum Colour {RED, BLACK};
+    {
+        program->line[i]=parse_enum();
+    }
+    else if (getType()==TYPEDEF)
+    {
+        program->line[i]=parse_typedef();
     }
     else if (!isProtoOrFunc())   // int foo=2; struct Foo f;
     {
@@ -1696,6 +1922,9 @@ struct Node* parse_program()
 // Starting at st, read past white space and get next token.
 // Allocate and return a token struct. Return ed, pointer to where we got to
 // Return NULL if nothing left
+// Maintain lineno (global). If line begins with #, skip past it and pay attention to lineno (from preprocessor)
+// each token returned has a lineno
+
 struct Token* getTok(char *st, char **ed)
 {
   int i,j;
@@ -1860,6 +2089,7 @@ struct Token* getTok(char *st, char **ed)
     }
   }
 
+  printf("nothing left\n");
   free(tok);
   return NULL;
 }
@@ -1876,8 +2106,11 @@ void writeTree(struct Node *node, int indent)
 
   int nodetype=node->type;
 
-  if (nodetype==DECL || nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==ARG || nodetype==GLOBAL)
-    printf(": '%s' [%s]\n",node->id, node->varType.data);
+  if (nodetype==DECL || nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==ARG || nodetype==GLOBAL || nodetype==TYPEDEF)
+    if (node->id==NULL)
+        printf(": [%s]\n", node->varType.data);
+    else
+        printf(": '%s' [%s]\n",node->id, node->varType.data);
   else if (nodetype==INT_LITERAL || 
       nodetype==VAR || nodetype==CALL || 
       nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL || nodetype==STRUCT)
@@ -1950,7 +2183,7 @@ void writeTree(struct Node *node, int indent)
     writeTree(node->child2,indent+3);
   }
   else if (nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==BLOCK || nodetype==CALL || 
-           nodetype==PROGRAM || nodetype==STRUCT || nodetype==DECLGROUP || nodetype==GLOBALGROUP){
+           nodetype==PROGRAM || nodetype==STRUCT || nodetype==ENUM || nodetype==DECLGROUP || nodetype==GLOBALGROUP){
     int i;
     for (i=0; i < node->nlines; i++)
     {
@@ -1981,7 +2214,7 @@ void writeTree(struct Node *node, int indent)
   else if (nodetype==SIZEOF)
   {
   }
-  else if (nodetype==DECL || nodetype==GLOBAL)
+  else if (nodetype==DECL || nodetype==GLOBAL || nodetype==TYPEDEF)
   {
     if (node->child!=NULL) writeTree(node->child,indent+3);
     return;
@@ -2008,6 +2241,7 @@ void writeVars()
 }
 
 // ######################################################################
+// helper routines for writeAsm
 
 int endsWith(char* t, char c)
 {
@@ -2305,6 +2539,10 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     for (i=0; i<node->nlines; i++){
       writeAsm(node->line[i], level, 0, loop);
     }
+  }
+  
+  else if (node->type==ENUM || node->type==TYPEDEF)
+  {
   }
 
   /*
@@ -3569,6 +3807,21 @@ int main(int argc, char **argv)
     struct Type s = removeArray(t);
     printf("After remove %s\n", s.data); 
 	
+    addEnumConst("FOO",13);
+    addEnumConst("BAR",96);
+    printf("isEnumConst FOO=%d\n", isEnumConst("FOO"));
+    printf("getEnumConst FOO=%s\n", getEnumConst("FOO"));  // returns a char*
+    printf("isEnumConst BAR=%d\n", isEnumConst("BAR"));
+    printf("getEnumConst BAR=%s\n", getEnumConst("BAR"));
+    printf("isEnumConst foo=%d\n", isEnumConst("foo"));
+    
+    struct Type v;
+    strcpy(v.data,"int*");
+    
+    addTypedef("foo",v);
+    v=getTypedef("foo");
+    printf("getTypedef foo=%s\n",v.data);
+    
 	printf("==== end of unit tests ===\n");
 
   // ----------------------------------------------------------------------
@@ -3710,8 +3963,8 @@ int main(int argc, char **argv)
   // Get list of tokens starting at head
   // ----------------------------------------------------------------------
 
-//  printf("%s###\n",source);
-//  printf("source length=%d\n",strlen(source));
+  printf("%s###\n",source);
+  printf("source length=%d\n",strlen(source));
 
   lineno=1;
 
@@ -3721,11 +3974,25 @@ int main(int argc, char **argv)
   head=getTok(source,&ed);
   prev=head;
   st=ed;
+
+//  printf("head: %d %s %s\n", head->type, names[head->type], head->id);
   
   while(1)
   {
     tok=getTok(st,&ed);
     if (tok==NULL) break;
+//    printf("head: %d %s %s\n", tok->type, names[tok->type], tok->id);
+    if (tok->type==IDENTIFIER && strcmp(tok->id, "__attribute__") == 0)   // discard __attribute__((whatever))
+    {        
+        printf("found __attribute__\n");
+        st=ed;
+        for (i=1;i<=5;i++)
+        {
+            getTok(st, &ed);
+            st=ed;
+        }
+        continue;
+    }
 
     prev->next=tok;
     prev=tok;
@@ -3765,7 +4032,26 @@ int main(int argc, char **argv)
   // ----------------------------------------------------------------------
 
   if (dumpParse)
+  {
       writeTree(tree,0);
+
+      printf("EnumConst list:\n");      
+      struct EnumConst* p=enumConstEnd;      
+      while (p!=NULL)
+      {
+          printf("%s %d\n",p->name, p->value);
+          p=p->prev;
+      }
+
+      printf("TypeDef list:\n");      
+      struct TypeDef* q=typeDefEnd;      
+      while (q!=NULL)
+      {
+          printf("%s %s\n", q->name, q->type.data);
+          q=q->prev;
+      }
+
+  }
 
   if (parseOnly)
       return 0;
