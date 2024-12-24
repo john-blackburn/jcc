@@ -1,3 +1,9 @@
+// example showing function call, variable declaration (initialisation), var reference
+// if block, return, int literal, string literal, use of stdlib
+// we call printf despite no function prototype (no #include<stdio.h>)
+// jcc only reads return value of function prototype and even that is optional
+// Note we rely on the preprocessor to remove comments (like this) so jcc doesn't see them
+
 int fib(int n) 
 {
     if (n == 0 || n == 1) 

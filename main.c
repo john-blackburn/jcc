@@ -4,8 +4,6 @@ jcc path/to/foo.c
 Creates foo.s in current directory and assembles/links to get foo.exe
 
 TODO:
-Allow arg without name in prototype eg int foo(int*) and int foo(void)
-
 Not needed to compile this compiler (and not done):
 More initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"} (currently only done for globals)
 Allow int x,y; in struct (currently must be on separate lines)
@@ -14,8 +12,8 @@ ternary operator ?:
 comma operator
 function pointers
 switch, case, default, union, goto
-auto, const, double, extern, float, long, register, short, (un)signed, static, volatile
-Floats with SSE
+auto, const, double, extern, float, long, register, short, signed, static, unsigned, volatile
+Floats with x87 (need to do += etc, ++, --)
 short int (2 bytes on AX)
 concatenate multiple string literals
 
@@ -33,6 +31,7 @@ Linker?
 
 /*
 Taken from the above header files. We want to avoid headers as they have non-standard stuff
+Below is the minimum set of declarations
 */
 
 #define NULL ((void*)0)
@@ -91,6 +90,9 @@ __attribute__((__cdecl__)) __attribute__((__nothrow__)) int isspace(int);
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) int system (const char *);
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) long strtol (const char *, char **, int);
 
+ __attribute__((__cdecl__)) __attribute__((__nothrow__)) int fscanf (FILE *, const char *, ...);
+ __attribute__((__cdecl__)) __attribute__((__nothrow__)) int scanf (const char *, ...);
+ __attribute__((__cdecl__)) __attribute__((__nothrow__)) int sscanf (const char *, const char *, ...);
 
 /*
 End of std headers stuff
@@ -106,120 +108,129 @@ char *tokNames[]={"<<=", ">>=",
 		  "+", "-", "*", "/", "%", "&", "|", "^", "~",
 
 		  "return", "int", "char", "if", "else", "for", "while", "do", "break", "continue", 
-          "struct", "sizeof", "void", "enum", "typedef"};
+          "struct", "sizeof", "void", "enum", "typedef", "float"};
 
-int numToks=59;  // ie number of entries in tokNames
 
-#define LESSTHAN2_EQUAL 0
-#define GREATERTHAN2_EQUAL 1
-#define AMP2 2
-#define PIPE2 3
-#define EQUALS2 4
-#define EXCLAM_EQUAL 5
-#define LESSTHAN_EQUAL 6
-#define GREATERTHAN_EQUAL 7
-#define LESSTHAN2 8
-#define GREATERTHAN2 9
-#define PLUS2 10
-#define MINUS2 11
-#define MINUS_GREATERTHAN 12
-#define PLUS_EQUALS 13          // += ... ^= must be continuous numbers
-#define MINUS_EQUALS 14
-#define ASTERISK_EQUALS 15
-#define SLASH_EQUALS 16
-#define PERCENT_EQUALS 17
-#define AMP_EQUALS 18
-#define PIPE_EQUALS 19
-#define HAT_EQUALS 20
-#define LESSTHAN 21
-#define GREATERTHAN 22
-#define EXCLAM 23
-#define EQUALS 24
-#define COMMA 25
-#define SEMICOLON 26
-#define DOT3 27
-#define DOT 28
-#define OPEN_BRACKET 29
-#define CLOSE_BRACKET 30
-#define OPEN_BRACE 31
-#define CLOSE_BRACE 32 
-#define OPEN_SQUARE 33
-#define CLOSE_SQUARE 34 
-#define PLUS 35
-#define MINUS 36
-#define ASTERISK 37
-#define SLASH 38
-#define PERCENT 39
-#define AMP 40
-#define PIPE 41
-#define HAT 42
-#define TILDE 43
-#define RETURN 44           // "return"
-#define INT_DECLARATION  45 // "int"
-#define CHAR_DECLARATION 46 // "char"
-#define IF               47 // "if"
-#define ELSE             48 // "else"
-#define FOR              49 // "for"
-#define WHILE            50 // "while"
-#define DO               51 // "do"
-#define BREAK            52 // "break"
-#define CONTINUE         53 // "continue"
-#define STRUCT           54 // "struct"
-#define SIZEOF           55
-#define VOID_DECLARATION 56
-#define ENUM             57
-#define TYPEDEF          58
+// NB tokNames, the next enum and names must all correspond. Punctuation tokens
+// must come first with 3 char punctuation, then 2 char, then 1 char. (eg && before &)
+// Also, += ... ^= must be continuous sequence (+, -, *, /, &, |, ^), search "ops" to see why.
 
-#define INT_LITERAL 59      // eg 123
-#define IDENTIFIER 60       // eg main
-#define STRING_LITERAL 61   // "hello, world!\n"
-#define CHAR_LITERAL 62     // '\n'
+int numToks=60;  // ie number of entries in tokNames
 
-#define FUNCTION 63         // AST only from here...
-#define UNARY_MINUS 64
-#define UNARY_COMPLEMENT 65
-#define UNARY_NOT 66
-#define BINARY_PLUS 67
-#define BINARY_MINUS 68
-#define BINARY_TIMES 69
-#define BINARY_DIVIDE 70
-#define BINARY_AND 71
-#define BINARY_OR 72
-#define BINARY_EQUAL 73
-#define BINARY_NOT_EQUAL 74
-#define BINARY_LESS_THAN_OR_EQUAL 75
-#define BINARY_LESS_THAN 76
-#define BINARY_GREATER_THAN_OR_EQUAL 77
-#define BINARY_GREATER_THAN 78
-#define ASSIGNMENT 79
-#define VAR 80
-#define EXPR 81
-#define DECL 82
-#define BLOCK 83
-#define CALL 84
-#define ARG 85
-#define GLOBAL 86
-#define PROGRAM 87
-#define PROTOTYPE 88
-#define DEREF 89
-#define ADDRESS 90
-#define INDEX 91
-#define UNARY_PLUS 92
-#define BINARY_LEFT_SHIFT 93
-#define BINARY_RIGHT_SHIFT 94
-#define BINARY_BITWISE_AND 95
-#define BINARY_BITWISE_XOR 96
-#define BINARY_BITWISE_OR  97
-#define BINARY_MODULO 98
-#define INC 99
-#define ARROW 100
-#define DEC 101
-#define INC_AFTER 102
-#define DEC_AFTER 103
-#define CAST 104
-#define DECLGROUP 105
-#define GLOBALGROUP 106
+enum
+{
+ LESSTHAN2_EQUAL,
+ GREATERTHAN2_EQUAL,
+ AMP2,
+ PIPE2,
+ EQUALS2,
+ EXCLAM_EQUAL,
+ LESSTHAN_EQUAL,
+ GREATERTHAN_EQUAL,
+ LESSTHAN2,
+ GREATERTHAN2,
+ PLUS2,
+ MINUS2,
+ MINUS_GREATERTHAN,
+ PLUS_EQUALS,          // += ... ^= must be continuous numbers
+ MINUS_EQUALS,
+ ASTERISK_EQUALS,
+ SLASH_EQUALS,
+ PERCENT_EQUALS,
+ AMP_EQUALS,
+ PIPE_EQUALS,
+ HAT_EQUALS,
+ LESSTHAN,
+ GREATERTHAN,
+ EXCLAM,
+ EQUALS,
+ COMMA,
+ SEMICOLON,
+ DOT3,
+ DOT,
+ OPEN_BRACKET,
+ CLOSE_BRACKET,
+ OPEN_BRACE,
+ CLOSE_BRACE, 
+ OPEN_SQUARE,
+ CLOSE_SQUARE, 
+ PLUS,
+ MINUS,
+ ASTERISK,
+ SLASH,
+ PERCENT,
+ AMP,
+ PIPE,
+ HAT,
+ TILDE,
+ RETURN,           // "return" NB all puntuation chars must come before RETURN
+ INT_DECLARATION , // "int"
+ CHAR_DECLARATION, // "char"
+ IF,               // "if"
+ ELSE,             // "else"
+ FOR,               // "for"
+ WHILE,             // "while"
+ DO,                // "do"
+ BREAK,             // "break"
+ CONTINUE,          // "continue"
+ STRUCT,            // "struct"
+ SIZEOF,
+ VOID_DECLARATION,
+ ENUM,
+ TYPEDEF,
+ FLOAT_DECLARATION,
 
+ INT_LITERAL,      // eg,3
+ IDENTIFIER,       // eg main
+ STRING_LITERAL,   // "hello, world!\n"
+ CHAR_LITERAL,     // '\n'
+ FLOAT_LITERAL,    // 123.456
+
+ FUNCTION,         // AST only from here...
+ UNARY_MINUS,
+ UNARY_COMPLEMENT,
+ UNARY_NOT,
+ BINARY_PLUS,
+ BINARY_MINUS,
+ BINARY_TIMES,
+ BINARY_DIVIDE,
+ BINARY_AND,
+ BINARY_OR,
+ BINARY_EQUAL,
+ BINARY_NOT_EQUAL,
+ BINARY_LESS_THAN_OR_EQUAL,
+ BINARY_LESS_THAN,
+ BINARY_GREATER_THAN_OR_EQUAL,
+ BINARY_GREATER_THAN,
+ ASSIGNMENT,
+ VAR,
+ EXPR,
+ DECL,
+ BLOCK,
+ CALL,
+ ARG,
+ GLOBAL,
+ PROGRAM,
+ PROTOTYPE,
+ DEREF,
+ ADDRESS,
+ INDEX,
+ UNARY_PLUS,
+ BINARY_LEFT_SHIFT,
+ BINARY_RIGHT_SHIFT,
+ BINARY_BITWISE_AND,
+ BINARY_BITWISE_XOR,
+ BINARY_BITWISE_OR ,
+ BINARY_MODULO,
+ INC,
+ ARROW,
+ DEC,
+ INC_AFTER,
+ DEC_AFTER,
+ CAST,
+ DECLGROUP,
+ GLOBALGROUP
+};
 
 char *names[]={
   "LESSTHAN2_EQUAL",
@@ -281,11 +292,13 @@ char *names[]={
   "VOID_DECLARATION",
   "ENUM",
   "TYPEDEF",
+  "FLOAT_DECLARATION",
 
   "INT_LITERAL",      // eg 123
   "IDENTIFIER",       // eg main
   "STRING_LITERAL",           // "hello, world!"
   "CHAR_LITERAL",             // 'a'
+  "FLOAT_LITERAL",
 
   "FUNCTION",         // AST only from here...
   "UNARY_MINUS",
@@ -332,6 +345,14 @@ char *names[]={
   "DECLGROUP",
   "GLOBALGROUP"
 };
+
+union F2U 
+{
+    float f;
+    unsigned int u;
+};
+
+union F2U f2u;  // to convert eg 123.456 to IEEE format
 
 struct Token
 {
@@ -754,7 +775,7 @@ struct Node* parse_index()
 
 int isTypeDec(int type)
 {
-    return type==INT_DECLARATION || type==CHAR_DECLARATION || type==VOID_DECLARATION || type==STRUCT;
+    return type==FLOAT_DECLARATION || INT_DECLARATION || type==CHAR_DECLARATION || type==VOID_DECLARATION || type==STRUCT;
 }
 
 // ######################################################################
@@ -801,6 +822,14 @@ struct Node* parse_factor()
   else if (type==CHAR_LITERAL){                // 'c'
     exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=CHAR_LITERAL;
+    exp->lineno=tokenHead->lineno;
+    exp->id=newStr(tokenHead->id);
+    exp->child=NULL;
+    advance();
+  }
+  else if (type==FLOAT_LITERAL){                // 123.456
+    exp=(struct Node*)malloc(sizeof(struct Node));
+    exp->type=FLOAT_LITERAL;
     exp->lineno=tokenHead->lineno;
     exp->id=newStr(tokenHead->id);
     exp->child=NULL;
@@ -1225,6 +1254,8 @@ struct Node* parse_decl(int type)
         strcpy(decl->varType.data, "char");
     else if (getType()==VOID_DECLARATION)
         strcpy(decl->varType.data, "void");
+    else if (getType()==FLOAT_DECLARATION)
+        strcpy(decl->varType.data, "float");
     else if (getType()==STRUCT)
     {
          strcpy(decl->varType.data, "struct ");
@@ -1355,6 +1386,8 @@ struct Node* parse_decl_group(int type, int n)
     
     if (getType()==INT_DECLARATION)
         strcpy(baseType, "int");
+    else if (getType()==FLOAT_DECLARATION)
+        strcpy(baseType, "float");
     else if (getType()==CHAR_DECLARATION)
         strcpy(baseType, "char");
     else if (getType()==VOID_DECLARATION)
@@ -1670,7 +1703,7 @@ struct Node* parse_statement()
       return parse_struct();
   }
 
-  else if (getType()==INT_DECLARATION || getType()==CHAR_DECLARATION || getType()==STRUCT || getType()==ENUM || getType()==VOID_DECLARATION
+  else if (getType() == FLOAT_DECLARATION || getType()==INT_DECLARATION || getType()==CHAR_DECLARATION || getType()==STRUCT || getType()==ENUM || getType()==VOID_DECLARATION
            || (getType()==IDENTIFIER && isTypedef(tokenHead->id)) )
   {
       int n=countDeclGroup();
@@ -2041,11 +2074,12 @@ struct Token* getTok(char *st, char **ed)
   {
     int idOK=isalpha(*st) || *st=='_';
     int literalOK=isdigit(*st);
+    int floatOK=isdigit(*st) || *st=='.' || *st=='e';
     char *p=st;
 
     while(*p!='\0')
     {
-      if (!isalnum(*p) && *p != '_')
+      if (!isalnum(*p) && *p != '_' && *p!='.')
       {   // punctuation, space, 0
 	
         if (idOK)
@@ -2071,6 +2105,19 @@ struct Token* getTok(char *st, char **ed)
           tok->lineno = lineno;
           return tok;
         }
+
+        if (floatOK)
+        {
+          *ed=p;
+          tok->type=FLOAT_LITERAL;
+          int sz=*ed-st;
+          tok->id=(char*) malloc(sz+1);
+          memcpy(tok->id,st,sz);
+          tok->id[sz]='\0';
+          tok->lineno = lineno;
+          return tok;
+        }
+
 	
         printf("Lexer: Unknown token: ");
         char *q;
@@ -2084,6 +2131,9 @@ struct Token* getTok(char *st, char **ed)
       
       if (!isdigit(*p))
         literalOK=0;
+    
+      if (!isdigit(*p) && *p!='.' && *p!='e')
+          floatOK=0;
 
       p++;
     }
@@ -2111,7 +2161,7 @@ void writeTree(struct Node *node, int indent)
         printf(": [%s]\n", node->varType.data);
     else
         printf(": '%s' [%s]\n",node->id, node->varType.data);
-  else if (nodetype==INT_LITERAL || 
+  else if (nodetype==INT_LITERAL || nodetype==FLOAT_LITERAL ||
       nodetype==VAR || nodetype==CALL || 
       nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL || nodetype==STRUCT)
     printf(": '%s'\n",node->id);
@@ -2190,7 +2240,7 @@ void writeTree(struct Node *node, int indent)
       writeTree(node->line[i],indent+3);
     }
   }
-  else if (nodetype==INT_LITERAL){
+  else if (nodetype==INT_LITERAL || nodetype==FLOAT_LITERAL){
     return;
   }
   else if (nodetype==VAR){
@@ -2243,12 +2293,14 @@ void writeVars()
 // ######################################################################
 // helper routines for writeAsm
 
+// t="foo", c='o', return true
 int endsWith(char* t, char c)
 {
     int l=strlen(t);
     return t[l-1]==c;
 }
 
+// t="foo", s="oo", return true
 int startsWith(char *t, char *s)
 {
     if (strlen(s) > strlen(t)) return 0;
@@ -2262,7 +2314,8 @@ int startsWith(char *t, char *s)
     return 1;
 }
 
-// int*[3][6] -> open={4,7} close={6,8}, return 2
+// 0123456789
+// int*[3][6] -> open={4,7} close={6,9}, return 2 (dimension of array or 0)
 int getArray(char* t, int open[], int close[])
 {
     int l=strlen(t);
@@ -2340,7 +2393,7 @@ int sizeOf(struct Type t, struct Node* node)
     
     if (endsWith(s.data, '*'))
         return 4*nElem;
-    else if (strcmp(s.data, "int") == 0)
+    else if (strcmp(s.data, "int") == 0 || strcmp(s.data, "float")==0)
         return 4*nElem;
     else if (strcmp(s.data, "char") == 0)
         return nElem;
@@ -2456,11 +2509,49 @@ int isChar(struct Type t)
     return strcmp(t.data,"char")==0;
 }
 
+int isFloat(struct Type t)
+{
+    return strcmp(t.data,"float")==0;
+}
+
 struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct Node* node)
 {
     struct Type varType;
 
-    if (isChar(type1) && isInt(type2))
+    if (isFloat(type1) && isFloat(type2))
+    {
+        fprintf(fps,"push ecx\n");
+        fprintf(fps,"push eax\n");
+        fprintf(fps,"call _f%s\n",op);
+        fprintf(fps,"add esp,8\n");
+        strcpy(varType.data,"float");
+    }
+    else if (isFloat(type1) && isInt(type2))
+    {
+        fprintf(fps,"push eax\n"); // the float
+        fprintf(fps,"push ecx\n");  // function arg, the int
+        fprintf(fps,"call _int2float\n"); // result in eax now float
+        fprintf(fps,"add esp,4\n");
+        fprintf(fps,"mov ecx,eax\n");
+        fprintf(fps,"pop eax\n");  // orig eax
+        fprintf(fps,"push ecx\n");
+        fprintf(fps,"push eax\n");
+        fprintf(fps,"call _f%s\n",op);
+        fprintf(fps,"add esp,8\n");
+        strcpy(varType.data,"float");
+    }
+    else if (isInt(type1) && isFloat(type2))
+    {
+        fprintf(fps,"push eax\n");  // function arg, the int
+        fprintf(fps,"call _int2float\n"); // result in eax now float
+        fprintf(fps,"add esp,4\n");
+        fprintf(fps,"push ecx\n");
+        fprintf(fps,"push eax\n");
+        fprintf(fps,"call _f%s\n",op);
+        fprintf(fps,"add esp,8\n");
+        strcpy(varType.data,"float");
+    }
+    else if (isChar(type1) && isInt(type2))
     {
         fprintf(fps,"movzx eax,al\n");
         fprintf(fps,"%s eax,ecx\n", op);
@@ -2579,6 +2670,12 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
         fprintf(fps,"_%s:\n",node->id);
         fprintf(fps,".long %s\n",node->child->id);
     }
+    else if (node->child->type==FLOAT_LITERAL)
+    {
+        fprintf(fps,".globl _%s\n",node->id);
+        fprintf(fps,"_%s:\n",node->id);
+        fprintf(fps,".float %s\n",node->child->id);
+    }
     else if (node->child->type==STRING_LITERAL)
     {
         fprintf(fps,"%s_string:\n",node->id);
@@ -2604,6 +2701,16 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
             for (i=0;i<node->child->nlines;i++)
             {
                 fprintf(fps,".long %s\n", node->child->line[i]->id);
+            }
+        }
+        else if (isFloat(type1))
+        {
+            fprintf(fps,".globl _%s\n",node->id);
+            fprintf(fps,"_%s:\n",node->id);
+            int i;
+            for (i=0;i<node->child->nlines;i++)
+            {
+                fprintf(fps,".float %s\n", node->child->line[i]->id);
             }
         }
         else if (strcmp(type1.data,"char*")==0) // char*
@@ -3164,7 +3271,8 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     }
 
     // OK if both are integer types or both are pointers. Else fail
-    if ((isInt(type1) || isChar(type1)) && (isInt(type2) || isChar(type2)))
+    if (   (isInt(type1) || isChar(type1) || isFloat(type1)) 
+        && (isInt(type2) || isChar(type2) || isFloat(type2)) )
     {
     }
     else if (isPointer(type1) && isPointer(type2))
@@ -3176,19 +3284,35 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
         exit(1);
     }
     
-    if (sizeOf(type1, node)==1)   // LHS = char
+    if (isChar(type1))   // LHS = char
     {
-        if (sizeOf(type2, node)==4)   // narrow int to char
+        if (isInt(type2))   // narrow int to char
         {
             printf("Cannot narrow int to char\n");
             exit(1);
         }
         fprintf(fps,"mov [ecx],al\n");
     }
-    else // LHS=int
+    else if (isInt(type1)) // LHS=int
     {
-        if (sizeOf(type2, node)==1)  // RHS = char so widen
+        if (isFloat(type2))  // narrow float to int
+        {
+            fprintf(fps,"push eax\n");
+            fprintf(fps,"call _float2int\n");
+            fprintf(fps,"add esp,4\n");
+        }
+        else if (isChar(type2))  // RHS = char so widen
             fprintf(fps,"movzx eax,al\n");
+        fprintf(fps,"mov [ecx],eax\n");
+    }
+    else if (isFloat(type1)) // LHS=float
+    {
+        if (isInt(type2))  // widen int to float
+        {
+            fprintf(fps,"push eax\n");
+            fprintf(fps,"call _int2float\n");
+            fprintf(fps,"add esp,4\n");
+        }
         fprintf(fps,"mov [ecx],eax\n");
     }
     varType=type1;
@@ -3312,9 +3436,15 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
       {
           // pointer to pointer
       }
-      else if (isChar(type1) && isInt(varType))  // widen
+      else if (isChar(type1) && isInt(varType))  // widen char -> int
       {
           fprintf(fps,"movzx eax,al\n");
+      }
+      else if (isInt(type1) && isFloat(varType))  // widen int -> float
+      {
+          fprintf(fps,"push eax\n");
+          fprintf(fps,"call _int2float\n");
+          fprintf(fps,"add esp,4\n");
       }
       else if (isInt(type1) && isChar(varType))  // narrow
       {
@@ -3331,8 +3461,14 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   
   else if (node->type==UNARY_MINUS){
     type1 = writeAsm(node->child,level,0, loop);
-    if (sizeOf(type1, node)==1)
+    if (isChar(type1))
         fprintf(fps,"neg al\n");
+    else if (isFloat(type1))
+    {
+        fprintf(fps,"push eax\n");
+        fprintf(fps,"call _fneg\n");
+        fprintf(fps,"add esp,4\n");
+    }
     else
         fprintf(fps,"neg eax\n");
         
@@ -3435,6 +3571,15 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   else if (node->type==INT_LITERAL){
     fprintf(fps,"mov eax,%s\n",node->id);
     strcpy(varType.data,"int");
+  }
+  else if (node->type==FLOAT_LITERAL)
+  {
+      float f;
+      sscanf(node->id, "%f", &f);
+      f2u.f=f;
+      
+    fprintf(fps,"mov eax,0x%0x # %f\n",f2u.u, f);
+    strcpy(varType.data,"float");
   }
   else if (node->type==STRING_LITERAL){
     int label = ++s_label;
@@ -4009,7 +4154,7 @@ int main(int argc, char **argv)
       while(tok!=NULL)
       {
         printf("%s [%d]",names[tok->type], tok->lineno);
-        if (tok->type==IDENTIFIER || tok->type==INT_LITERAL || tok->type==STRING_LITERAL || tok->type == CHAR_LITERAL)
+        if (tok->type==IDENTIFIER || tok->type==INT_LITERAL || tok->type==FLOAT_LITERAL || tok->type==STRING_LITERAL || tok->type == CHAR_LITERAL)
           printf(": '%s'\n",tok->id);
         else 
           printf("\n");
@@ -4077,7 +4222,7 @@ int main(int argc, char **argv)
   printf("SYSTEM: %s\n",cmd);
   system(cmd);
 
-  sprintf(cmd,"gcc -o %s %s",exename,oname);
+  sprintf(cmd,"gcc -o %s %s floatlib.o",exename,oname);
   printf("SYSTEM: %s\n",cmd);
   system(cmd);
 

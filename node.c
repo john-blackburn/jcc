@@ -1,4 +1,4 @@
-void* malloc(int size);
+void* malloc(int);
 char *strcpy(char *s1, char *s2);
 
 int numToks=56;

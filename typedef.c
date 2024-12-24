@@ -20,9 +20,9 @@ typedef struct _iobuf FILE;
 int main()
 {
     Number n;
-	PNumber p;
+    PNumber p;
     PNumber *q;
-	FILE foo;
-	size_t index=2;
-	return index;
+    FILE foo;
+    size_t index=2;
+    return index;
 }
