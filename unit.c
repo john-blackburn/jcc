@@ -196,4 +196,6 @@ int main(int argc, char **argv)
 
     strcpy(t.data, "char*[2][3]");
     printf("sizeOf char*[2][3] =%d isPointer=%d\n", sizeOf(t), isPointer(t));
+    
+    return 0;
 }

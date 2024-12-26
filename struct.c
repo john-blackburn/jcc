@@ -27,7 +27,7 @@ int main()
     p[1].y=22;
     
     pp=&q;
-    pp->y = 3 + pp->x;
+    pp->y = 3 + pp->x; // 13
     
-    return p[1].y+q.y+test(pp,20);
+    return p[1].y+q.y+test(pp,20); // 22+13+10*20 = 235
 }

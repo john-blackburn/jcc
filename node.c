@@ -1,3 +1,10 @@
+/*
+Correct output
+10 int**[3]
+1+p[2]=2
+names=foo, BAr
+*/
+
 void* malloc(int);
 char *strcpy(char *s1, char *s2);
 
@@ -46,5 +53,5 @@ int main()
     j = j*i++;
     
     i = ++j;
-    return i+j;
+    return i+j; // 1202
 }

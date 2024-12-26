@@ -12,7 +12,7 @@ ternary operator ?:
 comma operator
 function pointers
 switch, case, default, union, goto
-auto, const, double, extern, float, long, register, short, signed, static, unsigned, volatile
+auto, const, double, extern, long, register, short, signed, static, unsigned, volatile
 Floats with x87 (need to do += etc, ++, --)
 short int (2 bytes on AX)
 concatenate multiple string literals
@@ -22,17 +22,15 @@ Pre-processor?
 Linker?
 */
 
-/*
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
-*/
 
 /*
 Taken from the above header files. We want to avoid headers as they have non-standard stuff
 Below is the minimum set of declarations
-*/
+
 
 #define NULL ((void*)0)
 #define errno (*_errno())
@@ -94,7 +92,6 @@ __attribute__((__cdecl__)) __attribute__((__nothrow__)) long strtol (const char 
  __attribute__((__cdecl__)) __attribute__((__nothrow__)) int scanf (const char *, ...);
  __attribute__((__cdecl__)) __attribute__((__nothrow__)) int sscanf (const char *, const char *, ...);
 
-/*
 End of std headers stuff
 */
 
@@ -457,6 +454,7 @@ void fail(char *err)
         printf("Parse Error: %s got %s [lineno: %d]\n",err, names[getType()], tokenHead->lineno);
     else       
         printf("Parse Error: %s got %s (%s) [lineno: %d]\n",err, names[getType()], tokenHead->id, tokenHead->lineno);
+    
     exit(1);
 }
 
@@ -775,7 +773,7 @@ struct Node* parse_index()
 
 int isTypeDec(int type)
 {
-    return type==FLOAT_DECLARATION || INT_DECLARATION || type==CHAR_DECLARATION || type==VOID_DECLARATION || type==STRUCT;
+    return type==FLOAT_DECLARATION || type==INT_DECLARATION || type==CHAR_DECLARATION || type==VOID_DECLARATION || type==STRUCT;
 }
 
 // ######################################################################
@@ -1270,6 +1268,7 @@ struct Node* parse_decl(int type)
     else
     {
         // must be typedef
+        printf("parse_decl: %s\n",names[type]);
         decl->varType = getTypedef(tokenHead->id);
     }
 
@@ -2074,13 +2073,13 @@ struct Token* getTok(char *st, char **ed)
   {
     int idOK=isalpha(*st) || *st=='_';
     int literalOK=isdigit(*st);
-    int floatOK=isdigit(*st) || *st=='.' || *st=='e';
+    int floatOK=isdigit(*st);
     char *p=st;
 
     while(*p!='\0')
     {
-      if (!isalnum(*p) && *p != '_' && *p!='.')
-      {   // punctuation, space, 0
+      if (!isalnum(*p) && *p != '_' && !(floatOK && *p=='.')) // end of literal or identifier
+      {   // found punctuation, space, \0 or . which is not in a float
 	
         if (idOK)
         {
@@ -2769,6 +2768,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 
     g_offset = 0;
 
+    // create arguments as local variables (data is on stack but lets point to it)
     int i=0;
     int tot=8;
     while(node->line[i]->type==ARG)
@@ -2792,6 +2792,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     
     writeVars();
 
+    // declare function name globally and setup stack frame
     fprintf(fps,".globl _%s\n",node->id);
     fprintf(fps,"_%s:\n",node->id);
 
@@ -2816,6 +2817,14 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 
     fprintf(fps,"# ** End of function **\n");
     writeVars();
+    
+    // cdecl convention: if returning float, return it on st(0)
+    
+    if (isFloat(node->varType))
+    {
+        fprintf(fps,"mov [float_temp],eax\n");
+        fprintf(fps,"FLD dword ptr [float_temp]\n");
+    }
 
     fprintf(fps,"mov esp,ebp\n");
     fprintf(fps,"pop ebp\n");
@@ -2968,15 +2977,22 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   
   /*
   RETURN
-  Cast to return value to int (for now)
+  We don't know what the return type ought to be so can't do coercion
+  if thing being returned is float, push it onto the st(0)
   */
 
   else if (node->type==RETURN){
     type1 = writeAsm(node->child,level,0, loop);
     
     // Coerce return to int for now...
-    if (sizeOf(type1, node)==1)
-        fprintf(fps,"movzx eax,al\n");
+//    if (sizeOf(type1, node)==1)
+//        fprintf(fps,"movzx eax,al\n");
+
+    if (isFloat(type1))
+    {
+        fprintf(fps,"mov [float_temp],eax\n");
+        fprintf(fps,"FLD dword ptr [float_temp]\n");
+    }
 
     fprintf(fps,"mov esp,ebp\n");
     fprintf(fps,"pop ebp\n");
@@ -3051,6 +3067,14 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
         }
         p=p->prev;
     }
+
+    // if function returns float get return value from st(0) into eax    
+    if (strcmp(varType.data,"float")==0)    
+    {
+        fprintf(fps,"FSTP dword ptr [float_temp]\n");
+        fprintf(fps,"mov eax,[float_temp]\n");
+    }
+    
   }
   
   /*
@@ -3303,8 +3327,14 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
         }
         else if (isChar(type2))  // RHS = char so widen
             fprintf(fps,"movzx eax,al\n");
+
         fprintf(fps,"mov [ecx],eax\n");
     }
+    else if (isPointer(type1))
+    {
+        if (!isPointer(type2)) asmFail("Pointer must be assigned to another pointer", node);
+        fprintf(fps,"mov [ecx],eax\n");        
+    }    
     else if (isFloat(type1)) // LHS=float
     {
         if (isInt(type2))  // widen int to float
@@ -3314,6 +3344,10 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
             fprintf(fps,"add esp,4\n");
         }
         fprintf(fps,"mov [ecx],eax\n");
+    }
+    else
+    {
+        asmFail("unknown assignment type", node);
     }
     varType=type1;
   }
@@ -3920,54 +3954,56 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 
 int main(int argc, char **argv)
 {
-
     int i;
-    
-    // unit tests!
 
-    printf("==== start of unit tests ===\n");
+    if (0)
+    {
+                // unit tests!
 
-    struct Type t;
-    strcpy(t.data, "int*");
-    printf("sizeOf int* =%d, isPointer=%d Array=%d\n", sizeOf(t, NULL),isPointer(t), isArray(t));
+        printf("==== start of unit tests ===\n");
 
-    strcpy(t.data, "int");
-    printf("sizeOf int =%d, isPointer=%d Array=%d\n", sizeOf(t, NULL),isPointer(t), isArray(t));
-    
-    strcpy(t.data, "char");
-    printf("sizeOf char =%d isPointer=%d Array=%d\n", sizeOf(t, NULL), isPointer(t), isArray(t));
+        struct Type t;
+        strcpy(t.data, "int*");
+        printf("sizeOf int* =%d, isPointer=%d Array=%d\n", sizeOf(t, NULL),isPointer(t), isArray(t));
 
-    strcpy(t.data, "char*");
-    printf("sizeOf char* =%d isPointer=%d Array=%d\n", sizeOf(t, NULL), isPointer(t), isArray(t));
+        strcpy(t.data, "int");
+        printf("sizeOf int =%d, isPointer=%d Array=%d\n", sizeOf(t, NULL),isPointer(t), isArray(t));
+        
+        strcpy(t.data, "char");
+        printf("sizeOf char =%d isPointer=%d Array=%d\n", sizeOf(t, NULL), isPointer(t), isArray(t));
 
-    strcpy(t.data, "char*[2][3]");
-    printf("sizeOf char*[2][3] =%d isPointer=%d is Array=%d\n", sizeOf(t, NULL), isPointer(t), isArray(t));
-    
-    int open[10], close[10];
-    int n = getArray(t.data, open, close);
+        strcpy(t.data, "char*");
+        printf("sizeOf char* =%d isPointer=%d Array=%d\n", sizeOf(t, NULL), isPointer(t), isArray(t));
 
-    for (i=0;i<n;i++)
-        printf("o=%d c=%d\n",open[i],close[i]);
-    
-    struct Type s = removeArray(t);
-    printf("After remove %s\n", s.data); 
-	
-    addEnumConst("FOO",13);
-    addEnumConst("BAR",96);
-    printf("isEnumConst FOO=%d\n", isEnumConst("FOO"));
-    printf("getEnumConst FOO=%s\n", getEnumConst("FOO"));  // returns a char*
-    printf("isEnumConst BAR=%d\n", isEnumConst("BAR"));
-    printf("getEnumConst BAR=%s\n", getEnumConst("BAR"));
-    printf("isEnumConst foo=%d\n", isEnumConst("foo"));
-    
-    struct Type v;
-    strcpy(v.data,"int*");
-    
-    addTypedef("foo",v);
-    v=getTypedef("foo");
-    printf("getTypedef foo=%s\n",v.data);
-    
-	printf("==== end of unit tests ===\n");
+        strcpy(t.data, "char*[2][3]");
+        printf("sizeOf char*[2][3] =%d isPointer=%d is Array=%d\n", sizeOf(t, NULL), isPointer(t), isArray(t));
+        
+        int open[10], close[10];
+        int n = getArray(t.data, open, close);
+
+        for (i=0;i<n;i++)
+            printf("o=%d c=%d\n",open[i],close[i]);
+        
+        struct Type s = removeArray(t);
+        printf("After remove %s\n", s.data); 
+        
+        addEnumConst("FOO",13);
+        addEnumConst("BAR",96);
+        printf("isEnumConst FOO=%d\n", isEnumConst("FOO"));
+        printf("getEnumConst FOO=%s\n", getEnumConst("FOO"));  // returns a char*
+        printf("isEnumConst BAR=%d\n", isEnumConst("BAR"));
+        printf("getEnumConst BAR=%s\n", getEnumConst("BAR"));
+        printf("isEnumConst foo=%d\n", isEnumConst("foo"));
+        
+        struct Type v;
+        strcpy(v.data,"int*");
+        
+        addTypedef("foo",v);
+        v=getTypedef("foo");
+        printf("getTypedef foo=%s\n",v.data);
+        
+        printf("==== end of unit tests ===\n");
+    }
 
   // ----------------------------------------------------------------------
   // Read command line args

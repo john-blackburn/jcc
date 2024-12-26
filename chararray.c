@@ -17,5 +17,5 @@ int main()
     printf("%s: %s\n", array, p);
     printf("%c\n",108);
 
-    return array[2];    
+    return (int)array[2];    
 }
