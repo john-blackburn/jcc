@@ -11,9 +11,9 @@ Function protoypes (currently ignored but return value considered). Coercion.
 ternary operator ?:
 comma operator
 function pointers
+doubles
 switch, case, default, union, goto
-auto, const, double, extern, long, register, short, signed, static, unsigned, volatile
-Floats with x87 (need to do += etc, ++, --)
+auto, const, EXTERN, long, register, short, signed, STATIC, unsigned, volatile
 short int (2 bytes on AX)
 concatenate multiple string literals
 
@@ -2822,8 +2822,8 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     
     if (isFloat(node->varType))
     {
-        fprintf(fps,"mov [float_temp],eax\n");
-        fprintf(fps,"FLD dword ptr [float_temp]\n");
+        fprintf(fps,"mov [_float_temp],eax\n");
+        fprintf(fps,"FLD dword ptr [_float_temp]\n");
     }
 
     fprintf(fps,"mov esp,ebp\n");
@@ -2990,8 +2990,8 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 
     if (isFloat(type1))
     {
-        fprintf(fps,"mov [float_temp],eax\n");
-        fprintf(fps,"FLD dword ptr [float_temp]\n");
+        fprintf(fps,"mov [_float_temp],eax\n");
+        fprintf(fps,"FLD dword ptr [_float_temp]\n");
     }
 
     fprintf(fps,"mov esp,ebp\n");
@@ -3071,8 +3071,8 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     // if function returns float get return value from st(0) into eax    
     if (strcmp(varType.data,"float")==0)    
     {
-        fprintf(fps,"FSTP dword ptr [float_temp]\n");
-        fprintf(fps,"mov eax,[float_temp]\n");
+        fprintf(fps,"FSTP dword ptr [_float_temp]\n");
+        fprintf(fps,"mov eax,[_float_temp]\n");
     }
     
   }
@@ -3271,10 +3271,10 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 
   else if (node->type==ASSIGNMENT)
   {
-    type1 = writeAsm(node->child,level,1,loop);    // lvalue requested for LHS
+    type1 = writeAsm(node->child,level,1,loop);    // lvalue requested for LHS -> ecx
     fprintf(fps,"push eax\n");
  
-    type2 = writeAsm(node->child2,level,0, loop);  // value to be assigned
+    type2 = writeAsm(node->child2,level,0, loop);  // value to be assigned -> eax
     fprintf(fps,"pop ecx\n");
     
     if (isStruct(type1) && isStruct(type2))
@@ -3367,45 +3367,82 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 
   else if (node->type >= PLUS_EQUALS && node->type <= HAT_EQUALS)
   {
-    type1 = writeAsm(node->child,level,1,loop);    // lvalue requested for LHS
+    type2 = writeAsm(node->child2,level,0, loop);  // value to be added -> ecx
     fprintf(fps,"push eax\n");
  
-    type2 = writeAsm(node->child2,level,0, loop);  // value to be assigned
+    type1 = writeAsm(node->child,level,1,loop);    // lvalue requested for LHS -> eax
     fprintf(fps,"pop ecx\n");
+    
+    fprintf(fps,"push eax\n"); // push the lvalue
+    fprintf(fps,"mov eax,[eax]\n"); // get the actual value
     
     char* ops[]={"add","sub","imul","idiv","idiv","and","or","xor"};
     char* op;
 
+    printf("types=%s %s\n", type1.data,type2.data);
+
     op = ops[node->type - PLUS_EQUALS];
+
+    varType = writeBinOp(op, type1, type2, node);
+
+    if (node->type == PERCENT_EQUALS)
+        fprintf(fps,"mov ecx,edx\n");
+    else
+        fprintf(fps,"mov ecx,eax\n");  // result in ecx
+
+    fprintf(fps,"pop eax\n");      // eax = lvalue
         
-    if (sizeOf(type1, node)==1)   // LHS = char
+    if (isChar(type1))   // LHS = char
     {
-        if (sizeOf(type2, node)==4)   // narrow int to char
+        if (isInt(varType))   // narrow int to char
         {
             printf("Cannot narrow int to char\n");
             exit(1);
         }
-//        fprintf(fps,"%s [ecx],al\n",op);
-//        fprintf(fps,"mov al,[ecx]\n");
 
-        fprintf(fps,"mov dl,[ecx]\n");
-        fprintf(fps,"%s dl,al\n",op);
-        fprintf(fps,"mov [ecx],dl\n");
-        fprintf(fps,"mov al,dl\n");
+        fprintf(fps,"mov [eax],cl\n");
+        fprintf(fps,"mov al,cl\n");
     }
-    else // LHS=int
+    else if (isInt(type1)) // LHS=int, pointer, float
     {
-        if (sizeOf(type2, node)==1)  // RHS = char so widen
-            fprintf(fps,"movzx eax,al\n");
+        if (isFloat(varType))  // narrow float to int
+        {
+            fprintf(fps,"push eax\n");
+            fprintf(fps,"push ecx\n");
+            fprintf(fps,"call _float2int\n");
+            fprintf(fps,"add esp,4\n");
+            fprintf(fps,"mov ecx, eax\n");
+            fprintf(fps,"pop eax\n");
+        }
+        else if (isChar(varType))  // RHS = char so widen
+            fprintf(fps,"movzx ecx,cl\n");
 
-// Idea how to do it if we can't do eg add [ecx],eax:
-        fprintf(fps,"mov edx,[ecx]\n");
-        fprintf(fps,"%s edx,eax\n",op);
-        fprintf(fps,"mov [ecx],edx\n");
-        fprintf(fps,"mov eax,edx\n");
-
-//          fprintf(fps,"%s [ecx],eax\n",op);
-//          fprintf(fps,"mov eax,[ecx]\n");
+        fprintf(fps,"mov [eax],ecx\n");
+        fprintf(fps,"mov eax,ecx\n");
+    }
+    else if (isPointer(type1))
+    {
+        if (!isPointer(varType)) asmFail("Pointer must be assigned to another pointer", node);
+        fprintf(fps,"mov [eax],ecx\n");        
+        fprintf(fps,"mov eax,ecx\n");        
+    }    
+    else if (isFloat(type1)) // LHS=float
+    {
+        if (isInt(varType))  // widen int to float
+        {
+            fprintf(fps,"push eax\n");
+            fprintf(fps,"push ecx\n");
+            fprintf(fps,"call _int2float\n");
+            fprintf(fps,"add esp,4\n");
+            fprintf(fps,"mov ecx, eax\n");
+            fprintf(fps,"pop eax\n");
+        }
+        fprintf(fps,"mov [eax],ecx\n");
+        fprintf(fps,"mov eax,ecx\n");
+    }
+    else
+    {
+        asmFail("unknown assignment arithmetic type", node);
     }
     varType=type1;
   }
@@ -3515,62 +3552,70 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   else if (node->type==INC)
   {
     varType = writeAsm(node->child,level,1,loop);
-    if (sizeOf(varType, node)==1)
+    if (isChar(varType))
     {
         fprintf(fps,"inc byte ptr [eax]\n");
         fprintf(fps,"mov al,[eax]\n");
     }
-    else
+    else if (isInt(varType))
     {
         fprintf(fps,"inc dword ptr [eax]\n");
         fprintf(fps,"mov eax,[eax]\n");
     }
+    else
+        asmFail("INC only for int or char",node);
   }
   else if (node->type==DEC)
   {
     varType = writeAsm(node->child,level,1,loop);
-    if (sizeOf(varType, node)==1)
+    if (isChar(varType))
     {
         fprintf(fps,"dec byte ptr [eax]\n");
         fprintf(fps,"mov al,[eax]\n");
     }
-    else
+    else if (isInt(varType))
     {
         fprintf(fps,"dec dword ptr [eax]\n");
         fprintf(fps,"mov eax,[eax]\n");
     }
+    else
+        asmFail("DEC only for int or char",node);
   }
   else if (node->type==INC_AFTER)
   {
     varType = writeAsm(node->child,level,1,loop);
-    if (sizeOf(varType, node)==1)
+    if (isChar(varType))
     {
         fprintf(fps,"mov cl,[eax]\n");
         fprintf(fps,"inc byte ptr [eax]\n");
         fprintf(fps,"mov al,cl\n");
     }
-    else
+    else if (isInt(varType))
     {
         fprintf(fps,"mov ecx,[eax]\n");   // store old value
         fprintf(fps,"inc dword ptr [eax]\n");  // increase
         fprintf(fps,"mov eax,ecx\n");          // return old value
     }
+    else
+        asmFail("INC_AFTER only for int or char",node);
   }
   else if (node->type==DEC_AFTER)
   {
     varType = writeAsm(node->child,level,1,loop);
-    if (sizeOf(varType, node)==1)
+    if (isChar(varType))
     {
         fprintf(fps,"mov cl,[eax]\n");
         fprintf(fps,"dec byte ptr [eax]\n");
         fprintf(fps,"mov al,cl\n"); 
     }
-    else
+    else if (isInt(varType))
     {
         fprintf(fps,"mov ecx,[eax]\n");
         fprintf(fps,"dec dword ptr [eax]\n");
         fprintf(fps,"mov eax,ecx\n");
     }
+    else
+        asmFail("DEC_AFTER only for int or char",node);
   }
   else if (node->type==UNARY_COMPLEMENT){
     type1 = writeAsm(node->child,level,0, loop);
@@ -3661,6 +3706,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
         p=p->prev;
     }
     if (found==0) 
+        
     {
         printf("Variable %s\n",node->id); 
         asmFail("Refer to undeclared variable", node);

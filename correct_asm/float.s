@@ -8,7 +8,40 @@ _pi:
 # pi 0 0 [float] 0
 # ======================
 # ======================
+# x 1 8 [float] 1
+# square 0 0 [float] 0
+# pi 0 0 [float] 0
+# ======================
+.globl _square
+_square:
+push ebp
+mov ebp,esp
+mov eax,[ebp+8] # x
+push eax
+mov eax,[ebp+8] # x
+pop ecx
+push ecx
+push eax
+call _fimul
+add esp,8
+mov [_float_temp],eax
+FLD dword ptr [_float_temp]
+mov esp,ebp
+pop ebp
+ret
+# ** End of function **
+# ======================
+# square 0 0 [float] 0
+# pi 0 0 [float] 0
+# ======================
+mov [_float_temp],eax
+FLD dword ptr [_float_temp]
+mov esp,ebp
+pop ebp
+ret
+# ======================
 # main 0 0 [int] 0
+# square 0 0 [float] 0
 # pi 0 0 [float] 0
 # ======================
 .globl _main
@@ -19,6 +52,7 @@ push eax # declare a (level 1)
 # ======================
 # a 1 -4 [float] 0
 # main 0 0 [int] 0
+# square 0 0 [float] 0
 # pi 0 0 [float] 0
 # ======================
 mov eax,1
@@ -27,6 +61,7 @@ push eax # declare i (level 1)
 # i 1 -8 [int] 0
 # a 1 -4 [float] 0
 # main 0 0 [int] 0
+# square 0 0 [float] 0
 # pi 0 0 [float] 0
 # ======================
 lea eax,[ebp-4] # a
@@ -46,12 +81,12 @@ mov eax, offset _string1
 push eax
 call _printf
 add esp,12
-lea eax,[ebp-4] # a
-push eax
 mov eax,2
 push eax
-mov eax,[ebp-4] # a
+lea eax,[ebp-4] # a
 pop ecx
+push eax
+mov eax,[eax]
 push eax
 push ecx
 call _int2float
@@ -62,8 +97,10 @@ push ecx
 push eax
 call _fadd
 add esp,8
-pop ecx
-mov [ecx],eax
+mov ecx,eax
+pop eax
+mov [eax],ecx
+mov eax,ecx
 mov eax,0x3fc00000 # 1.500000
 push eax
 mov eax,[ebp-4] # a
@@ -109,8 +146,16 @@ push eax # declare b (level 1)
 # i 1 -8 [int] 0
 # a 1 -4 [float] 0
 # main 0 0 [int] 0
+# square 0 0 [float] 0
 # pi 0 0 [float] 0
 # ======================
+mov eax,[ebp-12] # b
+push eax
+call _square
+add esp,4
+FSTP dword ptr [_float_temp]
+mov eax,[_float_temp]
+push eax
 mov eax,[ebp-8] # i
 push eax
 call _int2float
@@ -122,12 +167,12 @@ mov eax,[ebp-12] # b
 push eax
 .data
 _string3:
-.asciz "b=%0x, i=%d, i(converted)=%0x\n"
+.asciz "b=%0x, i=%d, i(converted)=%0x, sq=%0x\n"
 .text
 mov eax, offset _string3
 push eax
 call _printf
-add esp,16
+add esp,20
 lea eax,[ebp-8] # i
 push eax
 mov eax,[ebp-4] # a
@@ -157,6 +202,7 @@ ret
 # ** End of function **
 # ======================
 # main 0 0 [int] 0
+# square 0 0 [float] 0
 # pi 0 0 [float] 0
 # ======================
 mov esp,ebp

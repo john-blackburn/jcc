@@ -1,5 +1,11 @@
 .intel_syntax noprefix
 
+.data
+.globl _float_temp
+_float_temp:
+.float 0.0
+.text
+
 .globl _fneg
 _fneg:
    push ebp
@@ -51,8 +57,8 @@ _fsub:
 
    ret
 
-.globl _fmul
-_fmul:
+.globl _fimul
+_fimul:
    push ebp
    mov ebp,esp
 
@@ -69,8 +75,8 @@ _fmul:
 
    ret
 
-.globl _fdiv
-_fdiv:
+.globl _fidiv
+_fidiv:
    push ebp
    mov ebp,esp
 
