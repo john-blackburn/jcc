@@ -13,13 +13,12 @@ comma operator
 function pointers
 doubles
 switch, case, default, union, goto
-auto, const, EXTERN, long, register, short, signed, STATIC, unsigned, volatile
+auto, const, EXTERN, long, register, short, SIGNED, STATIC, UNSIGNED, volatile
 short int (2 bytes on AX)
 concatenate multiple string literals
 
 Other calling conventions. Stack alignment (always push multiple of 4 bytes). (Application Binary Interface)
-Pre-processor?
-Linker?
+64 bit
 */
 
 #include <stdio.h>
@@ -2522,7 +2521,8 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
         fprintf(fps,"push ecx\n");
         fprintf(fps,"push eax\n");
         fprintf(fps,"call _f%s\n",op);
-        fprintf(fps,"add esp,8\n");
+        fprintf(fps,"pop ecx\n");  // don't use add esp as this messes up the flags
+        fprintf(fps,"pop ecx\n");
         strcpy(varType.data,"float");
     }
     else if (isFloat(type1) && isInt(type2))
@@ -2536,7 +2536,8 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
         fprintf(fps,"push ecx\n");
         fprintf(fps,"push eax\n");
         fprintf(fps,"call _f%s\n",op);
-        fprintf(fps,"add esp,8\n");
+        fprintf(fps,"pop ecx\n");
+        fprintf(fps,"pop ecx\n");
         strcpy(varType.data,"float");
     }
     else if (isInt(type1) && isFloat(type2))
@@ -2547,7 +2548,8 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
         fprintf(fps,"push ecx\n");
         fprintf(fps,"push eax\n");
         fprintf(fps,"call _f%s\n",op);
-        fprintf(fps,"add esp,8\n");
+        fprintf(fps,"pop ecx\n");
+        fprintf(fps,"pop ecx\n");
         strcpy(varType.data,"float");
     }
     else if (isChar(type1) && isInt(type2))
@@ -2830,6 +2832,11 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     fprintf(fps,"pop ebp\n");
     fprintf(fps,"ret\n");
   }
+  
+  /*
+  PROTOTYPE
+  */
+  
   else if (node->type==PROTOTYPE)
   {
     struct Var *oldVarEnd=varEnd;  // put name of function on vars stack
@@ -3199,7 +3206,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   }    
 
   /*
-  DOT eg p.x; type1=struct Point
+  DOT and ARROW eg p.x; type1=struct Point
   */
   
   else if (node->type==DOT || node->type==ARROW)
@@ -3353,7 +3360,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   }
   
   /*
-  PLUS_EQUALS (+=) etc
+  PLUS_EQUALS (+=) etc: += -= *= /= %= &= |= ^=
 
 #define PLUS_EQUALS 13
 #define MINUS_EQUALS 14
@@ -3447,6 +3454,10 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     varType=type1;
   }
 
+  /* 
+  <<= and >>=
+  */
+
   else if (node->type == LESSTHAN2_EQUAL || node->type == GREATERTHAN2_EQUAL)
   {
   }
@@ -3483,9 +3494,9 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
       type1 = writeAsm(node->child,level,1,loop); // request lvalue
       varType = addPointer(type1);
   }
-  
-  /*
-  Unary operations, MINUS, COMPLEMENT, NOT
+
+  /* 
+  SIZEOF  
   */
   
   else if (node->type==SIZEOF)
@@ -3493,6 +3504,10 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
       fprintf(fps,"mov eax,%d\n",sizeOf(node->varType, node));
       strcpy(varType.data,"int");
   }
+  
+  /*
+  CAST eg (int)7.0
+  */
   
   else if (node->type==CAST)
   {
@@ -3529,6 +3544,10 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
           exit(1);
       }
   }
+
+  /*
+  Unary operations, MINUS, PLUS, ++, --, COMPLEMENT(~), NOT(!)
+  */
   
   else if (node->type==UNARY_MINUS){
     type1 = writeAsm(node->child,level,0, loop);
@@ -3768,7 +3787,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   }
   
   /*
-  Binary ops. 
+  Binary ops. + - * / % & | ^
   If both char, result is char
   If both int, result int
   If char, int, promote to int
@@ -3871,6 +3890,11 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 
     varType = writeBinOp("shr", type1, type2, node);
   }
+  
+  /*
+  relational operators < > <= >= == !=
+  */
+  
   else if (
 	   nodetype==BINARY_LESS_THAN ||
 	   nodetype==BINARY_LESS_THAN_OR_EQUAL ||
@@ -3890,14 +3914,34 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 
     fprintf(fps,"mov eax, 0\n");      //zero out EAX (doesn't change FLAGS)
 
-    if (nodetype==BINARY_LESS_THAN)      
-      fprintf(fps,"setl al\n");
+    if (nodetype==BINARY_LESS_THAN)
+    {        
+        if (isFloat(varType))          
+            fprintf(fps,"setb al\n");
+        else
+            fprintf(fps,"setl al\n");
+    }
     else if (nodetype==BINARY_LESS_THAN_OR_EQUAL)
-      fprintf(fps,"setle al\n");
+    {
+        if (isFloat(varType))
+            fprintf(fps,"setbe al\n");
+        else
+            fprintf(fps,"setle al\n");
+    }
     else if (nodetype==BINARY_GREATER_THAN)
-      fprintf(fps,"setg al\n");
+    {
+        if (isFloat(varType))
+            fprintf(fps,"seta al\n");
+        else
+            fprintf(fps,"setg al\n");
+    }
     else if (nodetype==BINARY_GREATER_THAN_OR_EQUAL)
-      fprintf(fps,"setge al\n");
+    {
+        if (isFloat(varType))
+            fprintf(fps,"setae al\n");
+        else
+            fprintf(fps,"setge al\n");
+    }
     else if (nodetype==BINARY_EQUAL)
       fprintf(fps,"sete al\n");
     else
@@ -3905,6 +3949,11 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   
     strcpy(varType.data,"int");
   }
+  
+  /*
+  logical AND OR: && ||
+  */
+  
   else if (nodetype==BINARY_OR){
     // 0 || 0 = 0
     // 0 || 1 = 1

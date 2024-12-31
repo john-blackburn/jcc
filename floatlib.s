@@ -93,6 +93,23 @@ _fidiv:
 
    ret
 
+.globl _fcmp
+_fcmp:
+
+   push ebp
+   mov ebp,esp
+
+   FLD dword ptr [ebp+12]  # b: st(0)=b
+   FLD dword ptr [ebp+8]   # a: st(0)=a st(1)=b
+
+   FCOMIP st(0),st(1)
+   
+   FSTP st(0)  # remove other from stack
+
+   mov esp,ebp
+   pop ebp
+
+   ret
 
 .globl _int2float
 _int2float:

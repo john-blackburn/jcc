@@ -4,6 +4,11 @@
 // instead we write out as hex integers and check value using
 // https://www.h-schmidt.net/FloatConverter/IEEE754.html
 
+//#include <stdio.h>
+//#include <math.h>
+
+float sinf(float); // external, from math.h (c99 or later)
+
 float pi=3.1415;
 
 float square(float x)
@@ -25,6 +30,32 @@ int main()
     
     float b=-3.0;
     printf("b=%0x, i=%d, i(converted)=%0x, sq=%0x\n", b, i, (float)i, square(b));  // -3.0 (c0400000) 1 3f800000 sq=41100000
+    
+    // a=7.0, b=-3.0
+    
+    if (a>b)
+        printf("a>b\n");
+
+    if (a>=b)
+        printf("a>=b\n");
+
+    if (a<b)
+        printf("a<b\n");
+
+    if (a<=b)
+        printf("a<=b\n");
+
+    if (b>a)
+        printf("b>a\n");
+
+    if (b>=a)
+        printf("b>=a\n");
+
+    if (b<a)
+        printf("b<a\n");
+
+    if (b<=a)
+        printf("b<=a, sinf(a)=%0x\n", sinf(a));
     
     i=3+a; // promote to 3.0, add to get 10.0, demote to 10
     return i+1; // 11
