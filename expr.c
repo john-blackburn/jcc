@@ -3,7 +3,7 @@ int foo(int bar)
   return bar*bar;
 }
 
-int globalMass, charge=10;
+static int globalMass, charge=10;  // global statics
 
 int putchar(int c);
 int strlen(int s);
@@ -26,10 +26,10 @@ int main()
   for (i=0; i<26; ++i)
     putchar(65+i);
   
-  putchar(foo(10));
+  putchar(foo(10));  // d
   putchar('\n');
   
-  int a=10, b=1, c=2;
+  static int a=10, b=1, c=2;  // local static
 
   globalMass=4;
   printf("globalMass=%d\n",globalMass);
@@ -46,7 +46,7 @@ int main()
   else 
   {
     int ret=disc*2;
-    printf("-ve disc=%d\n",ret);
+    printf("-ve disc=%d %d\n",ret,bar());
     return ret;
   }
 }

@@ -7,15 +7,18 @@ TODO:
 Not needed to compile this compiler (and not done):
 More initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"} (currently only done for globals)
 Allow int x,y; in struct (currently must be on separate lines)
-Function protoypes (currently ignored but return value considered). Coercion.
+Function protoypes (currently ignored but return value considered). Coercion. (won't do)
 ternary operator ?:
-comma operator
-function pointers
-doubles
+comma operator (won't do)
+function pointers (won't do)
+doubles (won't do)
 switch, case, default, union, goto
-auto, const, EXTERN, long, register, short, SIGNED, STATIC, UNSIGNED, volatile
-short int (2 bytes on AX)
+const, long, register, short, volatile (parsed but ignored, won't do)
+short int (2 bytes on AX) (won't do)
 concatenate multiple string literals
+CAST with qualifiers?
+static int s=0; need to change name to s+s_label since might have multiple functions with static int s
+(in GLOBAL and VAR sections of writeasm)
 
 Other calling conventions. Stack alignment (always push multiple of 4 bytes). (Application Binary Interface)
 64 bit
@@ -104,14 +107,15 @@ char *tokNames[]={"<<=", ">>=",
 		  "+", "-", "*", "/", "%", "&", "|", "^", "~",
 
 		  "return", "int", "char", "if", "else", "for", "while", "do", "break", "continue", 
-          "struct", "sizeof", "void", "enum", "typedef", "float"};
+          "struct", "sizeof", "void", "enum", "typedef", "float", "const", "extern", "long", "register",
+          "short", "static", "unsigned", "volatile"};
 
 
 // NB tokNames, the next enum and names must all correspond. Punctuation tokens
 // must come first with 3 char punctuation, then 2 char, then 1 char. (eg && before &)
 // Also, += ... ^= must be continuous sequence (+, -, *, /, &, |, ^), search "ops" to see why.
 
-int numToks=60;  // ie number of entries in tokNames
+int numToks=68;  // ie number of entries in tokNames
 
 enum
 {
@@ -175,6 +179,14 @@ enum
  ENUM,
  TYPEDEF,
  FLOAT_DECLARATION,
+ CONST,            // qualifiers must remain in sequence
+ EXTERN,
+ LONG,
+ REGISTER,
+ SHORT,
+ STATIC,
+ UNSIGNED,
+ VOLATILE,
 
  INT_LITERAL,      // eg,3
  IDENTIFIER,       // eg main
@@ -289,6 +301,14 @@ char *names[]={
   "ENUM",
   "TYPEDEF",
   "FLOAT_DECLARATION",
+  "CONST",
+  "EXTERN",
+  "LONG",
+  "REGISTER",
+  "SHORT",
+  "STATIC",
+  "UNSIGNED",
+  "VOLATILE",
 
   "INT_LITERAL",      // eg 123
   "IDENTIFIER",       // eg main
@@ -348,7 +368,7 @@ union F2U
     unsigned int u;
 };
 
-union F2U f2u;  // to convert eg 123.456 to IEEE format
+union F2U f2u;  // to convert eg 123.456 to IEEE-754 (4 byte float) format
 
 struct Token
 {
@@ -361,7 +381,15 @@ struct Token
 // A fixed length string. Consider renaming this String and using it in place of char* id etc
 struct Type
 {
-    char data[32];
+    char data[32];  // eg int*[3]
+    int isConst;
+    int isExtern;
+    int isLong;
+    int isRegister;
+    int isShort;
+    int isStatic;
+    int isUnsigned;
+    int isVolatile;
 };
 
 struct Node
@@ -1233,6 +1261,62 @@ struct Node* parse_exp()
 
 // ######################################################################
 
+// new variable type with no qualifiers
+struct Type newVartype()
+{
+    struct Type vt;
+    vt.isConst=0;
+    vt.isExtern=0;
+    vt.isLong=0;
+    vt.isRegister=0;
+    vt.isShort=0;
+    vt.isStatic=0;
+    vt.isUnsigned=0;
+    vt.isVolatile=0;
+    
+    return vt;
+}
+
+/*
+given a set of qualifiers, quals, find as many of these as
+possible in the Token sequence until we come to some other Token.
+Insert them into varType
+Advance tokenHead
+*/
+
+struct Type getQualifiersAndAdvance()
+{
+
+    struct Type vt=newVartype();
+        
+    while (1)
+    {
+        int type = getType();
+        printf("type=%s\n",names[type]);
+        
+        if (type==CONST)
+            vt.isConst=1;
+        else if (type==EXTERN)
+            vt.isExtern=1;
+        else if (type==LONG)
+            vt.isLong=1;
+        else if (type==REGISTER)
+            vt.isRegister=1;
+        else if (type==SHORT)
+            vt.isShort=1;
+        else if (type==STATIC)
+            vt.isStatic=1;
+        else if (type==UNSIGNED)
+            vt.isUnsigned=1;
+        else if (type==VOLATILE)
+            vt.isVolatile=1;
+        else
+            return vt;  // didn't find any
+        
+        advance();
+    }
+}
+
 // int foo**[3][4];
 // struct Foo foo;
 // enum Colour c;
@@ -1244,6 +1328,8 @@ struct Node* parse_exp()
 struct Node* parse_decl(int type)
 {
   struct Node *decl=(struct Node*)malloc(sizeof(struct Node));
+
+    decl->varType = getQualifiersAndAdvance();
 
     if (getType()==INT_DECLARATION)
         strcpy(decl->varType.data, "int");
@@ -1380,21 +1466,21 @@ struct Node* parse_decl_group(int type, int n)
     group->type=type;
     group->lineno=tokenHead->lineno;
 
-    char baseType[64];
+    struct Type baseType=getQualifiersAndAdvance();
     
     if (getType()==INT_DECLARATION)
-        strcpy(baseType, "int");
+        strcpy(baseType.data, "int");
     else if (getType()==FLOAT_DECLARATION)
-        strcpy(baseType, "float");
+        strcpy(baseType.data, "float");
     else if (getType()==CHAR_DECLARATION)
-        strcpy(baseType, "char");
+        strcpy(baseType.data, "char");
     else if (getType()==VOID_DECLARATION)
-        strcpy(baseType, "void");
+        strcpy(baseType.data, "void");
     else if (getType()==STRUCT)
     {
-         strcpy(baseType, "struct ");
+         strcpy(baseType.data, "struct ");
          advance();
-         strcat(baseType, tokenHead->id);
+         strcat(baseType.data, tokenHead->id);
     }
     
     advance();
@@ -1414,7 +1500,7 @@ struct Node* parse_decl_group(int type, int n)
         struct Node *decl=(struct Node*)malloc(sizeof(struct Node));
         decl->type=subtype;
         decl->lineno=tokenHead->lineno;
-        strcpy(decl->varType.data, baseType);
+        decl->varType = baseType;
         
         while (getType()==ASTERISK)
         {
@@ -1702,6 +1788,7 @@ struct Node* parse_statement()
   }
 
   else if (getType() == FLOAT_DECLARATION || getType()==INT_DECLARATION || getType()==CHAR_DECLARATION || getType()==STRUCT || getType()==ENUM || getType()==VOID_DECLARATION
+           || (getType()>=CONST && getType()<=VOLATILE)
            || (getType()==IDENTIFIER && isTypedef(tokenHead->id)) )
   {
       int n=countDeclGroup();
@@ -2155,10 +2242,23 @@ void writeTree(struct Node *node, int indent)
   int nodetype=node->type;
 
   if (nodetype==DECL || nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==ARG || nodetype==GLOBAL || nodetype==TYPEDEF)
+  {
     if (node->id==NULL)
-        printf(": [%s]\n", node->varType.data);
+        printf(": [%s]", node->varType.data);
     else
-        printf(": '%s' [%s]\n",node->id, node->varType.data);
+        printf(": '%s' [%s]",node->id, node->varType.data);
+    
+    if (node->varType.isConst) printf(" CONST,");
+    if (node->varType.isExtern) printf(" EXTERN,");
+    if (node->varType.isLong) printf(" LONG,");
+    if (node->varType.isRegister) printf(" REGISTER,");
+    if (node->varType.isShort) printf(" SHORT,");
+    if (node->varType.isStatic) printf(" STATIC,");
+    if (node->varType.isUnsigned) printf(" UNSIGNED,");
+    if (node->varType.isVolatile) printf(" VOLATILE,");
+
+    printf("\n");
+  }
   else if (nodetype==INT_LITERAL || nodetype==FLOAT_LITERAL ||
       nodetype==VAR || nodetype==CALL || 
       nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL || nodetype==STRUCT)
@@ -2279,13 +2379,14 @@ void writeVars()
 {
   struct Var *p=varEnd;
 
-  fprintf(fps,"# ======================\n");
+  fprintf(fps,"# =========================================\n");
   while(p!=NULL)
   {
-    fprintf(fps,"# %s %d %d [%s] %d\n", p->id, p->level, p->offset, p->varType.data, p->isArg);
+    fprintf(fps,"# %s l=%d o=%d [%s] %s %s\n", p->id, p->level, p->offset, p->varType.data, 
+        (p->isArg) ? "ARG" : "", (p->varType.isExtern) ? "EXT" : "");
     p=p->prev;
   }  
-  fprintf(fps,"# ======================\n");
+  fprintf(fps,"# =========================================\n");
 }
 
 // ######################################################################
@@ -2514,7 +2615,10 @@ int isFloat(struct Type t)
 
 struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct Node* node)
 {
-    struct Type varType;
+    if (type1.isUnsigned+type2.isUnsigned == 1)
+        asmFail("Binary operation between signed and unsigned",node);
+    
+    struct Type varType=newVartype();
 
     if (isFloat(type1) && isFloat(type2))
     {
@@ -2523,7 +2627,8 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
         fprintf(fps,"call _f%s\n",op);
         fprintf(fps,"pop ecx\n");  // don't use add esp as this messes up the flags
         fprintf(fps,"pop ecx\n");
-        strcpy(varType.data,"float");
+        varType=type1;
+//        strcpy(varType.data,"float");
     }
     else if (isFloat(type1) && isInt(type2))
     {
@@ -2538,7 +2643,8 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
         fprintf(fps,"call _f%s\n",op);
         fprintf(fps,"pop ecx\n");
         fprintf(fps,"pop ecx\n");
-        strcpy(varType.data,"float");
+        varType=type1;
+//        strcpy(varType.data,"float");
     }
     else if (isInt(type1) && isFloat(type2))
     {
@@ -2550,29 +2656,34 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
         fprintf(fps,"call _f%s\n",op);
         fprintf(fps,"pop ecx\n");
         fprintf(fps,"pop ecx\n");
-        strcpy(varType.data,"float");
+        varType=type2;
+//        strcpy(varType.data,"float");
     }
     else if (isChar(type1) && isInt(type2))
     {
         fprintf(fps,"movzx eax,al\n");
         fprintf(fps,"%s eax,ecx\n", op);
-        strcpy(varType.data,"int");
+        varType=type2;
+//        strcpy(varType.data,"int");
     }
     else if (isInt(type1) && isChar(type2))
     {
         fprintf(fps,"movzx ecx,cl\n");
         fprintf(fps,"%s eax,ecx\n", op);
-        strcpy(varType.data,"int");
+        varType=type1;
+//        strcpy(varType.data,"int");
     }
     else if (isChar(type1) && isChar(type2))
     {
         fprintf(fps,"%s al,cl\n", op);
-        strcpy(varType.data,"char");
+//        strcpy(varType.data,"char");
+        varType=type1;
     }
     else if (isInt(type1) && isInt(type2))
     {
         fprintf(fps,"%s eax,ecx\n", op);
-        strcpy(varType.data,"int");
+        varType=type1;
+//        strcpy(varType.data,"int");
     }
     else if (strstr("add,sub", op)!=0 && isPointer(type1) && isInt(type2))
     {
@@ -2618,7 +2729,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 {
   static int s_label=0;
   int nodetype=node->type;
-  struct Type varType, type1, type2;
+  struct Type varType=newVartype(), type1=newVartype(), type2=newVartype();
   int i;
   
   /*
@@ -2651,96 +2762,99 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   
   /*
   GLOBAL
-  Create data section with new global variable
+  Create data section with new global variable (also for local static)
   Add it to the variable stack
   */
   
-  else if (node->type==GLOBAL)
+  else if (node->type==GLOBAL || (node->type==DECL && node->varType.isStatic))
   {
-    fprintf(fps,".data\n");
+    if (!node->varType.isExtern)
+    {
+        fprintf(fps,".data\n");
 
-    if (node->child==NULL)
-    {
-        fprintf(fps,".globl _%s\n",node->id);
-        fprintf(fps,"_%s:\n",node->id);
-        fprintf(fps,".long 0\n");
-    }
-    else if (node->child->type==INT_LITERAL)
-    {
-        fprintf(fps,".globl _%s\n",node->id);
-        fprintf(fps,"_%s:\n",node->id);
-        fprintf(fps,".long %s\n",node->child->id);
-    }
-    else if (node->child->type==FLOAT_LITERAL)
-    {
-        fprintf(fps,".globl _%s\n",node->id);
-        fprintf(fps,"_%s:\n",node->id);
-        fprintf(fps,".float %s\n",node->child->id);
-    }
-    else if (node->child->type==STRING_LITERAL)
-    {
-        fprintf(fps,"%s_string:\n",node->id);
-        fprintf(fps,".asciz \"%s\"\n", node->child->id);
-        fprintf(fps,".globl _%s\n",node->id);
-        fprintf(fps,"_%s:\n",node->id);
-        fprintf(fps,".long %s_string\n",node->id);
-    }
-    else if (node->child->type==BLOCK)
-    {
-        if (!isArray(node->varType))
+        if (node->child==NULL)
         {
-            asmFail("Block init must be to array", node);
+            if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
+            fprintf(fps,"_%s:\n",node->id);
+            fprintf(fps,".long 0\n");
+        }
+        else if (node->child->type==INT_LITERAL)
+        {
+            if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
+            fprintf(fps,"_%s:\n",node->id);
+            fprintf(fps,".long %s\n",node->child->id);
+        }
+        else if (node->child->type==FLOAT_LITERAL)
+        {
+            if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
+            fprintf(fps,"_%s:\n",node->id);
+            fprintf(fps,".float %s\n",node->child->id);
+        }
+        else if (node->child->type==STRING_LITERAL)
+        {
+            fprintf(fps,"%s_string:\n",node->id);
+            fprintf(fps,".asciz \"%s\"\n", node->child->id);
+            if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
+            fprintf(fps,"_%s:\n",node->id);
+            fprintf(fps,".long %s_string\n",node->id);
+        }
+        else if (node->child->type==BLOCK)
+        {
+            if (!isArray(node->varType))
+            {
+                asmFail("Block init must be to array", node);
+            }
+            
+            type1=removeArray(node->varType);
+            printf("type1=%s\n",type1.data);
+            if (isInt(type1))
+            {
+                if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
+                fprintf(fps,"_%s:\n",node->id);
+                int i;
+                for (i=0;i<node->child->nlines;i++)
+                {
+                    fprintf(fps,".long %s\n", node->child->line[i]->id);
+                }
+            }
+            else if (isFloat(type1))
+            {
+                if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
+                fprintf(fps,"_%s:\n",node->id);
+                int i;
+                for (i=0;i<node->child->nlines;i++)
+                {
+                    fprintf(fps,".float %s\n", node->child->line[i]->id);
+                }
+            }
+            else if (strcmp(type1.data,"char*")==0) // char*
+            {
+                int i;
+                for (i=0; i < node->child->nlines; i++)
+                {
+                    fprintf(fps,"%s_string%d:\n",node->id,i);
+                    fprintf(fps,".asciz \"%s\"\n", node->child->line[i]->id);
+                }            
+                if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
+                fprintf(fps,"_%s:\n",node->id);
+                for (i=0;i<node->child->nlines;i++)
+                {
+                    fprintf(fps,".long %s_string%d\n",node->id,i);
+                }
+            }
+            else
+                asmFail("Only int[] and char*[] supported for block init", node);
         }
         
-        type1=removeArray(node->varType);
-        printf("type1=%s\n",type1.data);
-        if (isInt(type1))
-        {
-            fprintf(fps,".globl _%s\n",node->id);
-            fprintf(fps,"_%s:\n",node->id);
-            int i;
-            for (i=0;i<node->child->nlines;i++)
-            {
-                fprintf(fps,".long %s\n", node->child->line[i]->id);
-            }
-        }
-        else if (isFloat(type1))
-        {
-            fprintf(fps,".globl _%s\n",node->id);
-            fprintf(fps,"_%s:\n",node->id);
-            int i;
-            for (i=0;i<node->child->nlines;i++)
-            {
-                fprintf(fps,".float %s\n", node->child->line[i]->id);
-            }
-        }
-        else if (strcmp(type1.data,"char*")==0) // char*
-        {
-            int i;
-            for (i=0; i < node->child->nlines; i++)
-            {
-                fprintf(fps,"%s_string%d:\n",node->id,i);
-                fprintf(fps,".asciz \"%s\"\n", node->child->line[i]->id);
-            }            
-            fprintf(fps,".globl _%s\n",node->id);
-            fprintf(fps,"_%s:\n",node->id);
-            for (i=0;i<node->child->nlines;i++)
-            {
-                fprintf(fps,".long %s_string%d\n",node->id,i);
-            }
-        }
-        else
-            asmFail("Only int[] and char*[] supported for block init", node);
+        fprintf(fps,".text\n");
     }
-    
-    fprintf(fps,".text\n");
 
     struct Var *oldVarEnd=varEnd;  // might be NULL
     varEnd=malloc(sizeof(struct Var));
     varEnd->offset=0;
     varEnd->id=newStr(node->id);
     varEnd->varType=node->varType;
-    varEnd->level=0;
+    varEnd->level=level;
     varEnd->isArg=0;
     varEnd->prev=oldVarEnd;
     writeVars();
@@ -3532,6 +3646,12 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
           fprintf(fps,"call _int2float\n");
           fprintf(fps,"add esp,4\n");
       }
+      else if (isFloat(type1) && isInt(varType))  // widen int -> float
+      {
+          fprintf(fps,"push eax\n");
+          fprintf(fps,"call _float2int\n");
+          fprintf(fps,"add esp,4\n");
+      }
       else if (isInt(type1) && isChar(varType))  // narrow
       {
       }
@@ -3540,8 +3660,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
       }
       else
       {
-          printf("Illegal cast!\n");
-          exit(1);
+          asmFail("Illegal cast!", node);
       }
   }
 
@@ -3668,7 +3787,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   
   else if (node->type==INT_LITERAL){
     fprintf(fps,"mov eax,%s\n",node->id);
-    strcpy(varType.data,"int");
+    strcpy(varType.data,"int");    
   }
   else if (node->type==FLOAT_LITERAL)
   {
@@ -3907,6 +4026,11 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     fprintf(fps,"push eax\n");       // save value of e1 on the stack
     type1 = writeAsm(node->child,level,0, loop);
     fprintf(fps,"pop ecx\n");         // pop e1 from the stack into ecx - e2 is already in eax
+    
+    if (type1.isUnsigned + type2.isUnsigned == 1)
+    {
+        asmFail("Comparison of signed and unsigned integer", node);
+    }
 
     varType = writeBinOp("cmp", type1, type2, node);
 
@@ -3916,26 +4040,26 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 
     if (nodetype==BINARY_LESS_THAN)
     {        
-        if (isFloat(varType))          
+        if (isFloat(varType) || varType.isUnsigned)
             fprintf(fps,"setb al\n");
         else
             fprintf(fps,"setl al\n");
     }
     else if (nodetype==BINARY_LESS_THAN_OR_EQUAL)
     {
-        if (isFloat(varType))
+        if (isFloat(varType) || varType.isUnsigned)
             fprintf(fps,"setbe al\n");
         else
             fprintf(fps,"setle al\n");
     }
-    else if (nodetype==BINARY_GREATER_THAN)
+    else if (nodetype==BINARY_GREATER_THAN || varType.isUnsigned)
     {
         if (isFloat(varType))
             fprintf(fps,"seta al\n");
         else
             fprintf(fps,"setg al\n");
     }
-    else if (nodetype==BINARY_GREATER_THAN_OR_EQUAL)
+    else if (nodetype==BINARY_GREATER_THAN_OR_EQUAL || varType.isUnsigned)
     {
         if (isFloat(varType))
             fprintf(fps,"setae al\n");
@@ -4106,6 +4230,7 @@ int main(int argc, char **argv)
 
     const char* usage = "Usage:\n"
         "jcc [options] foo.c\n"
+        "-c: compile only\n"
         "-dumpLex: dump lex tokens to stdout\n"
         "-dumpParse: dump Abstract Syntax Tree to stdout\n"
         "-lexOnly: lex input file but do not parse or create function calls (no output file)\n"
@@ -4115,6 +4240,8 @@ int main(int argc, char **argv)
   int dumpParse=0;
   int lexOnly=0;
   int parseOnly=0;
+  int compileOnly=0;
+  
   char* fname = NULL;
   
   if (argc == 1)
@@ -4133,6 +4260,8 @@ int main(int argc, char **argv)
           lexOnly=1;
       else if (strcmp(argv[i],"-parseOnly")==0)
           parseOnly=1;
+      else if (strcmp(argv[i],"-c")==0)
+          compileOnly=1;
       else
           fname=argv[i];
   }
@@ -4346,12 +4475,18 @@ int main(int argc, char **argv)
 //  exit(1);
 
   // ----------------------------------------------------------------------
-  // Assemble generated ASM code and link into EXE
+  // Assemble generated ASM code into .o file
   // ----------------------------------------------------------------------
 
   sprintf(cmd,"gcc -c %s",sname);
   printf("SYSTEM: %s\n",cmd);
   system(cmd);
+  
+  if (compileOnly) return 0;
+
+  // ----------------------------------------------------------------------
+  // if not -c also link to .exe
+  // ----------------------------------------------------------------------
 
   sprintf(cmd,"gcc -o %s %s floatlib.o",exename,oname);
   printf("SYSTEM: %s\n",cmd);

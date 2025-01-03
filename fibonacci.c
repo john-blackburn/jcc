@@ -16,9 +16,9 @@ int fib(int n)
     }
 }
 
-__attribute__((foo)) int main() 
+int main() 
 {
-    int n = 10;
+    const int n = 10;
     printf("The %d-th Fibonacci number is %d\n",n,fib(n));
     return 0;
 }
