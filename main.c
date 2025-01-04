@@ -12,8 +12,8 @@ ternary operator ?:
 comma operator (won't do)
 function pointers (won't do)
 doubles (won't do)
-switch, case, default, union, goto
-const, long, register, short, volatile (parsed but ignored, won't do)
+union
+const, long, register, short, volatile (parsed but ignored: won't do)
 short int (2 bytes on AX) (won't do)
 concatenate multiple string literals
 CAST with qualifiers?
@@ -104,18 +104,18 @@ char *tokNames[]={"<<=", ">>=",
 		  "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=",
 
 		  "<", ">", "!", "=", ",", ";", "...", ".", "(",  ")", "{", "}", "[", "]",
-		  "+", "-", "*", "/", "%", "&", "|", "^", "~",
+		  "+", "-", "*", "/", "%", "&", "|", "^", "~", ":",
 
 		  "return", "int", "char", "if", "else", "for", "while", "do", "break", "continue", 
           "struct", "sizeof", "void", "enum", "typedef", "float", "const", "extern", "long", "register",
-          "short", "static", "unsigned", "volatile"};
+          "short", "static", "unsigned", "volatile", "goto", "switch", "case", "default"};
 
 
 // NB tokNames, the next enum and names must all correspond. Punctuation tokens
 // must come first with 3 char punctuation, then 2 char, then 1 char. (eg && before &)
 // Also, += ... ^= must be continuous sequence (+, -, *, /, &, |, ^), search "ops" to see why.
 
-int numToks=68;  // ie number of entries in tokNames
+int numToks=73;  // ie number of entries in tokNames
 
 enum
 {
@@ -163,6 +163,7 @@ enum
  PIPE,
  HAT,
  TILDE,
+ COLON,
  RETURN,           // "return" NB all puntuation chars must come before RETURN
  INT_DECLARATION , // "int"
  CHAR_DECLARATION, // "char"
@@ -187,6 +188,10 @@ enum
  STATIC,
  UNSIGNED,
  VOLATILE,
+ GOTO,
+ SWITCH,
+ CASE,
+ DEFAULT,
 
  INT_LITERAL,      // eg,3
  IDENTIFIER,       // eg main
@@ -237,7 +242,8 @@ enum
  DEC_AFTER,
  CAST,
  DECLGROUP,
- GLOBALGROUP
+ GLOBALGROUP,
+ LABEL
 };
 
 char *names[]={
@@ -285,6 +291,7 @@ char *names[]={
   "PIPE",
   "HAT",
   "TILDE",
+  "COLON",
   "RETURN",           // "return"
   "INT_DECLARATION",  // "int"
   "CHAR_DECLARATION", // "char"
@@ -309,6 +316,10 @@ char *names[]={
   "STATIC",
   "UNSIGNED",
   "VOLATILE",
+  "GOTO",
+  "SWITCH",
+  "CASE",
+  "DEFAULT",
 
   "INT_LITERAL",      // eg 123
   "IDENTIFIER",       // eg main
@@ -359,7 +370,8 @@ char *names[]={
   "DEC_AFTER",
   "CAST",
   "DECLGROUP",
-  "GLOBALGROUP"
+  "GLOBALGROUP",
+  "LABEL"
 };
 
 union F2U 
@@ -682,12 +694,13 @@ int countLines(struct Token *p)
       if (nlevel<0) break;
     }
 
-    if (p->type==SEMICOLON && nlevel==0)
+    if ((p->type==SEMICOLON || p->type==COLON) && nlevel==0)
       nlines++;
 
     if (p->type==ELSE && nlevel==0) nlines--;
     if (p->type==DO && nlevel==0) nlines--;
     if (p->type==FOR && nlevel==0) nlines-=2;
+    // one less for ?
     p=p->next;
   }
   return nlines;
@@ -1716,6 +1729,21 @@ struct Node* parse_statement()
 
     statement->child2=parse_statement();
   }
+  else if (getType()==SWITCH)
+  {
+    statement->type=SWITCH;
+    advance();
+    
+    if (getType()!=OPEN_BRACKET) fail("Expected ( in SWITCH");
+    advance();
+
+    statement->child=parse_exp();
+
+    if (getType()!=CLOSE_BRACKET) fail("Expected ) in SWITCH");
+    advance();
+
+    statement->child2=parse_statement();
+  }
   else if (getType()==FOR){
     statement->type=FOR;
     advance();
@@ -1787,9 +1815,55 @@ struct Node* parse_statement()
       return parse_struct();
   }
 
+  else if (getType()==GOTO)
+  {
+      printf("goto\n");
+      statement->type=GOTO;
+      advance();
+      statement->id=tokenHead->id;
+      statement->child=NULL;
+      advance();
+      if (getType()!=SEMICOLON) fail("Expected ;");
+      advance();      
+  }
+  
+  else if (getType()==IDENTIFIER && tokenHead->next->type==COLON)  // LABEL foo:
+  {
+      statement->type=LABEL;
+      statement->id = tokenHead->id;
+      statement->child=NULL;
+      advance();
+      advance();
+  }
+  else if (getType()==CASE)
+  {
+      statement->type=CASE;
+      advance();
+      statement->id=tokenHead->id;
+
+      if (tokenHead->type==CHAR_LITERAL) 
+          strcpy(statement->varType.data,"char");
+      else if (tokenHead->type==INT_LITERAL)
+          strcpy(statement->varType.data,"int");
+      else
+          fail("CASE constant must be char or int");
+      
+      statement->child=NULL;
+      advance();
+      if (getType()!=COLON) fail("Expected : in CASE");
+      advance();
+  }
+  else if (getType()==DEFAULT)
+  {
+      statement->type=DEFAULT;
+      statement->child=NULL;
+      advance();
+      if (getType()!=COLON) fail("Expected : after DEFAULT");
+      advance();
+  }
   else if (getType() == FLOAT_DECLARATION || getType()==INT_DECLARATION || getType()==CHAR_DECLARATION || getType()==STRUCT || getType()==ENUM || getType()==VOID_DECLARATION
-           || (getType()>=CONST && getType()<=VOLATILE)
-           || (getType()==IDENTIFIER && isTypedef(tokenHead->id)) )
+           || (getType()>=CONST && getType()<=VOLATILE) // qualifiers like const, etc
+           || (getType()==IDENTIFIER && isTypedef(tokenHead->id)) ) // typedef
   {
       int n=countDeclGroup();
       if (n>1)
@@ -2241,7 +2315,8 @@ void writeTree(struct Node *node, int indent)
 
   int nodetype=node->type;
 
-  if (nodetype==DECL || nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==ARG || nodetype==GLOBAL || nodetype==TYPEDEF)
+  if (nodetype==DECL || nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==ARG 
+   || nodetype==GLOBAL || nodetype==TYPEDEF || nodetype==CASE)
   {
     if (node->id==NULL)
         printf(": [%s]", node->varType.data);
@@ -2261,12 +2336,14 @@ void writeTree(struct Node *node, int indent)
   }
   else if (nodetype==INT_LITERAL || nodetype==FLOAT_LITERAL ||
       nodetype==VAR || nodetype==CALL || 
-      nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL || nodetype==STRUCT)
+      nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL || nodetype==STRUCT || nodetype==LABEL || nodetype==GOTO)
     printf(": '%s'\n",node->id);
   else if (nodetype==SIZEOF || nodetype==CAST)
     printf(": [%s]\n",node->varType.data);
   else 
     printf("\n");
+
+  // children if any...
 
   if (nodetype==ASSIGNMENT || (nodetype >= PLUS_EQUALS && nodetype <= HAT_EQUALS))
   {
@@ -2279,6 +2356,10 @@ void writeTree(struct Node *node, int indent)
       writeTree(node->child2,indent+3);
   }
   else if (nodetype==WHILE){
+    writeTree(node->child,indent+3);
+    writeTree(node->child2,indent+3);    
+  }
+  else if (nodetype==SWITCH){
     writeTree(node->child,indent+3);
     writeTree(node->child2,indent+3);    
   }
@@ -2330,7 +2411,7 @@ void writeTree(struct Node *node, int indent)
     writeTree(node->child,indent+3);
     writeTree(node->child2,indent+3);
   }
-  else if (nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==BLOCK || nodetype==CALL || 
+  else if (nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==BLOCK || nodetype==CALL ||
            nodetype==PROGRAM || nodetype==STRUCT || nodetype==ENUM || nodetype==DECLGROUP || nodetype==GLOBALGROUP){
     int i;
     for (i=0; i < node->nlines; i++)
@@ -2338,26 +2419,26 @@ void writeTree(struct Node *node, int indent)
       writeTree(node->line[i],indent+3);
     }
   }
-  else if (nodetype==INT_LITERAL || nodetype==FLOAT_LITERAL){
-    return;
+  else if (nodetype==INT_LITERAL || nodetype==FLOAT_LITERAL || nodetype==CASE)
+  {
   }
-  else if (nodetype==VAR){
-    return;
+  else if (nodetype==VAR)
+  {
   }
-  else if (nodetype==ARG){
-    return;
+  else if (nodetype==ARG)
+  {
   }
-  else if (nodetype==STRING_LITERAL){
-    return;
+  else if (nodetype==STRING_LITERAL)
+  {
   }
-  else if (nodetype==CHAR_LITERAL){
-    return;
+  else if (nodetype==CHAR_LITERAL)
+  {
   }
-  else if (nodetype==PROTOTYPE){
-    return;    
+  else if (nodetype==PROTOTYPE)
+  {
   }
-  else if (nodetype==BREAK){
-      return;
+  else if (nodetype==BREAK || nodetype==CONTINUE || nodetype==LABEL || nodetype==GOTO || nodetype==DEFAULT)
+  {
   }
   else if (nodetype==SIZEOF)
   {
@@ -2365,9 +2446,9 @@ void writeTree(struct Node *node, int indent)
   else if (nodetype==DECL || nodetype==GLOBAL || nodetype==TYPEDEF)
   {
     if (node->child!=NULL) writeTree(node->child,indent+3);
-    return;
   }
-  else{
+  else
+  {
     printf("Internal compiler error: illegal nodetype (writeTree). Got %d\n",nodetype);
     exit(1);
   }
@@ -3039,10 +3120,46 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   }
 
   /*
+  SWITCH
+  */
+
+  else if (node->type==SWITCH)
+  {
+    int label = ++s_label;
+
+    writeAsm(node->child,level,0, loop);
+
+    int defaultFound=0;
+    for (i=0; i<node->child2->nlines; i++)
+    {
+        if (node->child2->line[i]->type==CASE)
+        {
+            if (isInt(node->child2->line[i]->varType))
+                fprintf(fps,"cmp eax,%s\n",node->child2->line[i]->id);
+            else
+                fprintf(fps,"cmp al,'%s'\n",node->child2->line[i]->id);
+                
+            fprintf(fps,"je _case%s%d\n",node->child2->line[i]->id, label);
+        }
+        if (node->child2->line[i]->type==DEFAULT)
+            defaultFound=1;
+    }
+    
+    if (defaultFound)
+        fprintf(fps,"jmp _default%d\n", label);
+    else
+        fprintf(fps,"jmp _end%d\n", label);
+        
+    writeAsm(node->child2,level,0, label);  // body
+    fprintf(fps,"_end%d:\n",label);
+  }
+
+  /*
   DO
   */
 
-  else if (node->type==DO){
+  else if (node->type==DO)
+  {
     int label = ++s_label;
 
     fprintf(fps,"_cont%d:\n",label);
@@ -3094,6 +3211,30 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   else if (node->type==CONTINUE)
   {
       fprintf(fps, "jmp _cont%d\n", loop);
+  }
+  
+  /*
+  LABEL and GOTO
+  */
+  
+  else if (node->type==LABEL)
+  {
+      fprintf(fps,"_%s:\n",node->id);
+  }
+
+  else if (node->type==GOTO)
+  {
+      fprintf(fps,"jmp _%s\n",node->id);
+  }
+  
+  else if (node->type==CASE)
+  {
+      fprintf(fps,"_case%s%d:\n",node->id, loop);
+  }
+
+  else if (node->type==DEFAULT)
+  {
+      fprintf(fps,"_default%d:\n", loop);
   }
   
   /*

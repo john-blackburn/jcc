@@ -1,7 +1,7 @@
 int main()
 {
-    char c='A';
-    int i;
+    char c='A'; // also try 'B'
+    int i=0;
     
     if (c=='A') 
         goto a1;
@@ -11,21 +11,21 @@ int main()
 a1: i=1;
     
 agn:if (c=='A') goto skp;
-    c='B';
+    c='C';
     
     skp:
     switch(c)
     {
     case 'A':
-        i=5;
+        i+=7;
         break;
     case 'B':
-        i=6;
+        i+=6;
         break;
     default:
-        i=7;
+        i+=5;
         break;
     }
     
-    return i;
+    return i;  // 8
 }
