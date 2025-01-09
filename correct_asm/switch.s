@@ -58,13 +58,18 @@ mov al,'C'
 pop ecx
 mov [ecx],al
 _skp:
+_cont3:
+_start3:
+mov eax,1
+cmp eax, 0
+je _end3
 mov al,[ebp-4] # c
 cmp al,'A'
-je _caseA3
+je _caseA4
 cmp al,'B'
-je _caseB3
-jmp _default3
-_caseA3:
+je _caseB4
+jmp _default4
+_caseA4:
 mov eax,7
 push eax
 lea eax,[ebp-8] # i
@@ -76,8 +81,8 @@ mov ecx,eax
 pop eax
 mov [eax],ecx
 mov eax,ecx
-jmp _end3
-_caseB3:
+jmp _end4
+_caseB4:
 mov eax,6
 push eax
 lea eax,[ebp-8] # i
@@ -89,8 +94,8 @@ mov ecx,eax
 pop eax
 mov [eax],ecx
 mov eax,ecx
-jmp _end3
-_default3:
+jmp _end4
+_default4:
 mov eax,5
 push eax
 lea eax,[ebp-8] # i
@@ -102,7 +107,7 @@ mov ecx,eax
 pop eax
 mov [eax],ecx
 mov eax,ecx
-jmp _end3
+jmp _end4
 add esp,0
 # ** End of block **
 # =========================================
@@ -110,6 +115,26 @@ add esp,0
 # c l=1 o=-4 [char]  
 # main l=0 o=0 [int]  
 # =========================================
+_end4:
+mov eax,20
+push eax
+mov eax,[ebp-8] # i
+pop ecx
+cmp eax,ecx
+mov eax, 0
+setg al
+cmp eax, 0
+je _end5
+jmp _end3
+_end5:
+add esp,0
+# ** End of block **
+# =========================================
+# i l=1 o=-8 [int]  
+# c l=1 o=-4 [char]  
+# main l=0 o=0 [int]  
+# =========================================
+jmp _start3
 _end3:
 mov eax,[ebp-8] # i
 mov esp,ebp

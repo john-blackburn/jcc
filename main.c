@@ -8,14 +8,13 @@ Not needed to compile this compiler (and not done):
 More initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"} (currently only done for globals)
 Allow int x,y; in struct (currently must be on separate lines)
 Function protoypes (currently ignored but return value considered). Coercion. (won't do)
-ternary operator ?:
+TERNARY OPERATOR ?:
+UNION
 comma operator (won't do)
 function pointers (won't do)
-doubles (won't do)
-union
+double (won't do)
 const, long, register, short, volatile (parsed but ignored: won't do)
 short int (2 bytes on AX) (won't do)
-concatenate multiple string literals
 CAST with qualifiers?
 static int s=0; need to change name to s+s_label since might have multiple functions with static int s
 (in GLOBAL and VAR sections of writeasm)
@@ -1334,6 +1333,9 @@ struct Type getQualifiersAndAdvance()
 // struct Foo foo;
 // enum Colour c;
 // PNumber p;  << typedef
+// int foo(int a) << FUNCTION: get "int foo", ARG get "int a"
+// (unsigned int)x << CAST
+// sizeof (int)
 // type can be DECL, GLOBAL, 
 // ARG, FUNCTION, PROTOTYPE (in which case don't advance past ;)
 // SIZEOF, CAST (don't read id or advance past ;)
@@ -1472,6 +1474,7 @@ int countDeclGroup()
 
 // ######################################################################
 // int i=1, *j[3];
+// type can be DECLGROUP or GLOBALGROUP
 
 struct Node* parse_decl_group(int type, int n)
 {
@@ -1504,8 +1507,10 @@ struct Node* parse_decl_group(int type, int n)
     int subtype;
     if (type==DECLGROUP)
         subtype=DECL;
-    else
+    else if (type==GLOBALGROUP)
         subtype=GLOBAL;
+    else
+        fail("unexpected DECLGROUP type");
    
     int i;
     for (i=0;i<n;i++)
@@ -4369,7 +4374,7 @@ int main(int argc, char **argv)
   // Read command line args
   // ----------------------------------------------------------------------
 
-    const char* usage = "Usage:\n"
+    const char* usage =
         "jcc [options] foo.c\n"
         "-c: compile only\n"
         "-dumpLex: dump lex tokens to stdout\n"
@@ -4387,7 +4392,7 @@ int main(int argc, char **argv)
   
   if (argc == 1)
   {
-    printf("Usage: %s\n",usage);
+    printf("Usage:\n%s\n",usage);
     exit(0);
   }
   
@@ -4515,7 +4520,7 @@ int main(int argc, char **argv)
   lineno=1;
 
   char *st, *ed;
-  struct Token *head, *prev, *tok;
+  struct Token *head, *prev, *tok, *stringStart, *p;
   
   head=getTok(source,&ed);
   prev=head;
@@ -4527,7 +4532,7 @@ int main(int argc, char **argv)
   {
     tok=getTok(st,&ed);
     if (tok==NULL) break;
-//    printf("head: %d %s %s\n", tok->type, names[tok->type], tok->id);
+            
     if (tok->type==IDENTIFIER && strcmp(tok->id, "__attribute__") == 0)   // discard __attribute__((whatever))
     {        
         printf("found __attribute__\n");
@@ -4543,6 +4548,52 @@ int main(int argc, char **argv)
     prev->next=tok;
     prev=tok;
     st=ed;
+  }
+  
+  free(source);
+
+  // ----------------------------------------------------------------------
+  // concatenate multiple string literals
+  // ----------------------------------------------------------------------
+
+  int inString=0;
+  tok=head;
+  while(tok!=NULL)
+  {
+
+    if (tok->type==STRING_LITERAL && !inString)
+    {
+        stringStart=tok;
+        inString=1;
+    }
+
+    if (inString && tok->type!=STRING_LITERAL)
+    {
+        inString=0;
+        p=stringStart;
+        int len=0, n=0;
+        while(p!=tok)
+        {
+            printf("%s %s %d\n", names[p->type], p->id, strlen(p->id));
+            n++;
+            len+=strlen(p->id);
+            p=p->next;
+        }
+        printf("multistring %d %d\n",n,len);
+        if (n>1)
+        {
+            stringStart->id = realloc(stringStart->id, len+1);
+            p=stringStart->next;
+            while(p!=tok)
+            {
+                strcat(stringStart->id,p->id);
+                // could free the Token here
+                p=p->next;
+            }
+            stringStart->next=tok;
+        }
+    }            
+    tok=tok->next;
   }
 
   // ----------------------------------------------------------------------

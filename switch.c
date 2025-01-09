@@ -12,20 +12,25 @@ a1: i=1;
     
 agn:if (c=='A') goto skp;
     c='C';
-    
+
     skp:
-    switch(c)
-    {
-    case 'A':
-        i+=7;
-        break;
-    case 'B':
-        i+=6;
-        break;
-    default:
-        i+=5;
-        break;
+
+    while(1)
+    {    
+        switch(c)
+        {
+        case 'A':
+            i+=7;
+            break;
+        case 'B':
+            i+=6;
+            break;
+        default:
+            i+=5;
+            break;
+        }
+        if (i>20) break;
     }
     
-    return i;  // 8
+    return i;  // 22
 }
