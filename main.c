@@ -2919,7 +2919,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     }
   }
   
-  else if (node->type==ENUM || node->type==TYPEDEF)
+  else if (node->type==ENUM || node->type==TYPEDEF || node->type==TYPEDEFGROUP)
   {
   }
 
