@@ -1,6 +1,6 @@
 typedef int size_t;
 
-typedef int Number;
+typedef int Number, *QNumber;
 typedef Number* PNumber;
 
 struct _iobuf
@@ -22,7 +22,7 @@ int main()
     Number n;
     PNumber p;
     PNumber *q;
-    FILE foo;
+    FILE *fp;
     size_t index=2;
     return index;
 }

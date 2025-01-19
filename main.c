@@ -6,18 +6,19 @@ Creates foo.s in current directory and assembles/links to get foo.exe
 TODO:
 Not needed to compile this compiler (and not done):
 More initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"} (currently only done for globals)
-Allow int x,y; in struct (currently must be on separate lines)
 Function protoypes (currently ignored but return value considered). Coercion. (won't do)
 TERNARY OPERATOR ?:
-UNION
-comma operator (won't do)
-function pointers (won't do)
-double (won't do)
-const, long, register, short, volatile (parsed but ignored: won't do)
-short int (2 bytes on AX) (won't do)
-CAST with qualifiers?
+comma operator (WON'T DO)
+function pointers (WON'T DO)
+double (WON'T DO) but at least parse
+const, long, register, short, volatile (parsed but ignored: WON'T DO)
+short int (2 bytes on AX) (WON'T DO)
+bit fields (WON'T DO)
+define and use struct in one line: struct [opt] {int x; int y;} u; DECL or DECLGROUP not STRUCT
+struct, typedef and prototype in function body
 static int s=0; need to change name to s+s_label since might have multiple functions with static int s
 (in GLOBAL and VAR sections of writeasm)
+inline for GNU C (don't compile inline functions)
 
 Other calling conventions. Stack alignment (always push multiple of 4 bytes). (Application Binary Interface)
 64 bit
@@ -107,14 +108,14 @@ char *tokNames[]={"<<=", ">>=",
 
 		  "return", "int", "char", "if", "else", "for", "while", "do", "break", "continue", 
           "struct", "sizeof", "void", "enum", "typedef", "float", "const", "extern", "long", "register",
-          "short", "static", "unsigned", "volatile", "goto", "switch", "case", "default"};
+          "short", "static", "unsigned", "volatile", "goto", "switch", "case", "default", "union"};
 
 
 // NB tokNames, the next enum and names must all correspond. Punctuation tokens
 // must come first with 3 char punctuation, then 2 char, then 1 char. (eg && before &)
 // Also, += ... ^= must be continuous sequence (+, -, *, /, &, |, ^), search "ops" to see why.
 
-int numToks=73;  // ie number of entries in tokNames
+int numToks=74;  // ie number of entries in tokNames
 
 enum
 {
@@ -191,6 +192,7 @@ enum
  SWITCH,
  CASE,
  DEFAULT,
+ UNION,
 
  INT_LITERAL,      // eg,3
  IDENTIFIER,       // eg main
@@ -242,6 +244,7 @@ enum
  CAST,
  DECLGROUP,
  GLOBALGROUP,
+ TYPEDEFGROUP,
  LABEL
 };
 
@@ -319,6 +322,7 @@ char *names[]={
   "SWITCH",
   "CASE",
   "DEFAULT",
+  "UNION",
 
   "INT_LITERAL",      // eg 123
   "IDENTIFIER",       // eg main
@@ -370,6 +374,7 @@ char *names[]={
   "CAST",
   "DECLGROUP",
   "GLOBALGROUP",
+  "TYPEDEFGROUP",
   "LABEL"
 };
 
@@ -520,6 +525,16 @@ char* newStrStruct(char *from)
   strcat(to,from);
   return to;
 }
+
+char* newStrUnion(char *from)
+{
+  int len=strlen(from+6);
+  char* to=(char*)malloc(len+1);
+  strcpy(to,"union ");
+  strcat(to,from);
+  return to;
+}
+
 
 int isProtoOrFunc()
 {
@@ -810,9 +825,11 @@ struct Node* parse_index()
   return factor;
 }
 
-int isTypeDec(int type)
+int isTypeDec(struct Token *tok)
 {
-    return type==FLOAT_DECLARATION || type==INT_DECLARATION || type==CHAR_DECLARATION || type==VOID_DECLARATION || type==STRUCT;
+    int type = tok->type;
+    return type==FLOAT_DECLARATION || type==INT_DECLARATION || type==CHAR_DECLARATION ||
+           type==VOID_DECLARATION || type==STRUCT || type==UNION || (type==IDENTIFIER && isTypedef(tok->id));
 }
 
 // ######################################################################
@@ -823,7 +840,7 @@ struct Node* parse_factor()
   struct Node *exp;
   int type=getType();
 
-  if (type==OPEN_BRACKET && isTypeDec(tokenHead->next->type))
+  if (type==OPEN_BRACKET && isTypeDec(tokenHead->next))
   {
       // (int*)(p+1)
       advance();
@@ -1296,9 +1313,8 @@ Insert them into varType
 Advance tokenHead
 */
 
-struct Type getQualifiersAndAdvance()
+struct Type getBaseType()
 {
-
     struct Type vt=newVartype();
         
     while (1)
@@ -1323,90 +1339,97 @@ struct Type getQualifiersAndAdvance()
         else if (type==VOLATILE)
             vt.isVolatile=1;
         else
-            return vt;  // didn't find any
+            break;  // no more
         
         advance();
     }
-}
 
-// int foo**[3][4];
-// struct Foo foo;
-// enum Colour c;
-// PNumber p;  << typedef
-// int foo(int a) << FUNCTION: get "int foo", ARG get "int a"
-// (unsigned int)x << CAST
-// sizeof (int)
-// type can be DECL, GLOBAL, 
-// ARG, FUNCTION, PROTOTYPE (in which case don't advance past ;)
-// SIZEOF, CAST (don't read id or advance past ;)
-
-struct Node* parse_decl(int type)
-{
-  struct Node *decl=(struct Node*)malloc(sizeof(struct Node));
-
-    decl->varType = getQualifiersAndAdvance();
-
-    if (getType()==INT_DECLARATION)
-        strcpy(decl->varType.data, "int");
-    else if (getType()==CHAR_DECLARATION)
-        strcpy(decl->varType.data, "char");
-    else if (getType()==VOID_DECLARATION)
-        strcpy(decl->varType.data, "void");
-    else if (getType()==FLOAT_DECLARATION)
-        strcpy(decl->varType.data, "float");
-    else if (getType()==STRUCT)
+    // case where int is possibly ommited: short, short int, long, unsigned, long double etc
+    if (vt.isUnsigned || vt.isLong || vt.isShort)
     {
-         strcpy(decl->varType.data, "struct ");
-         advance();
-         strcat(decl->varType.data, tokenHead->id);
-    }
-	else if (getType()==ENUM)  // enum is just int
-	{
-        strcpy(decl->varType.data, "int");
-		advance();  // ignore enum type it's just an int
-	}
-    else
-    {
-        // must be typedef
-        printf("parse_decl: %s\n",names[type]);
-        decl->varType = getTypedef(tokenHead->id);
-    }
-
-    advance();
-    decl->type=type;
-    decl->lineno=tokenHead->lineno;
-
-    while (getType()==ASTERISK)
-    {
-        strcat(decl->varType.data,"*");
-        advance();
-    }        
-
-    decl->id=NULL;
-    if (type != SIZEOF && type != CAST)
-    {
-        if (getType()==IDENTIFIER)  // identifier optional for prototype args
+        if (getType()==INT_DECLARATION)
         {
-            decl->id=newStr(tokenHead->id);
+            strcpy(vt.data, "int");
             advance();
         }
+        else if (getType()==CHAR_DECLARATION)
+        {
+            strcpy(vt.data, "char");
+            advance();
+        }
+        else if (getType()==FLOAT_DECLARATION)
+        {
+            strcpy(vt.data, "float");
+            advance();
+        }
+        else // must be int but "int" ommitted, don't advance
+            strcpy(vt.data, "int");
+    }
+    else // general case, no relevant qualifiers. "int" must be specified if variable is an int
+    {
+        if (getType()==INT_DECLARATION)
+            strcpy(vt.data, "int");
+        else if (getType()==CHAR_DECLARATION)
+            strcpy(vt.data, "char");
+        else if (getType()==VOID_DECLARATION)
+            strcpy(vt.data, "void");
+        else if (getType()==FLOAT_DECLARATION)
+            strcpy(vt.data, "float");
+        else if (getType()==STRUCT)
+        {
+             strcpy(vt.data, "struct ");
+             advance();
+             strcat(vt.data, tokenHead->id);
+        }
+        else if (getType()==UNION)
+        {
+             strcpy(vt.data, "union ");
+             advance();
+             strcat(vt.data, tokenHead->id);
+        }
+        else if (getType()==ENUM)  // enum is just int
+        {
+            strcpy(vt.data, "int");
+            advance();  // ignore enum type it's just an int
+        }
         else
-            decl->id=NULL;
+        {
+            // must be typedef
+            vt = getTypedef(tokenHead->id); // will fail if not found
+        }
+
+        advance();
     }
     
+    return vt;
+}
+
+void addPointerDecn(char *data)
+{
+    while (getType()==ASTERISK)
+    {
+        strcat(data,"*");
+        advance();
+    }        
+}
+
+void addArrayDecn(char *data)
+{
     while (getType()==OPEN_SQUARE)
     {
-        strcat(decl->varType.data,"[");
+        strcat(data,"[");
         advance();
         while(getType()!=CLOSE_SQUARE)
         {            
-            strcat(decl->varType.data,tokenHead->id);
+            strcat(data,tokenHead->id);
             advance();
         }
-        strcat(decl->varType.data,"]");
+        strcat(data,"]");
         advance();
     }
-
+}
+void addInit(struct Node *decl)
+{
     if (getType()==EQUALS){
       advance();
       if (getType()==OPEN_BRACE)
@@ -1437,6 +1460,45 @@ struct Node* parse_decl(int type)
     }
     else
       decl->child=NULL;
+}
+
+// const int **foo[3][4];
+// struct Foo foo;
+// enum Colour c;
+// PNumber p;  << typedef
+// int foo(int a) << FUNCTION: get "int foo", ARG get "int a"
+// (unsigned int)x << CAST
+// sizeof (int)
+// type can be DECL, GLOBAL, 
+// ARG, FUNCTION, PROTOTYPE (in which case don't advance past ;)
+// SIZEOF, CAST (don't read id or advance past ;)
+
+struct Node* parse_decl(int type)
+{
+  struct Node *decl=(struct Node*)malloc(sizeof(struct Node));
+
+    decl->type=type;
+    decl->lineno=tokenHead->lineno;
+
+    decl->varType = getBaseType(); // unsigned int
+    
+    addPointerDecn(decl->varType.data); // unsigned int **
+
+    decl->id=NULL;
+    if (type != SIZEOF && type != CAST)
+    {
+        if (getType()==IDENTIFIER)  // identifier optional for prototype args
+        {
+            decl->id=newStr(tokenHead->id);  // foo
+            advance();
+        }
+        else
+            decl->id=NULL;
+    }
+
+    addArrayDecn(decl->varType.data);    // unsigned int **[3][4]
+    
+    addInit(decl);
 
     if (type == DECL || type == GLOBAL)
     {
@@ -1449,7 +1511,6 @@ struct Node* parse_decl(int type)
 
 // ######################################################################
 // count number of items in an init group eg int i=1, *j[3], k[]={1,2,3};
-// TODO: allow block init like z={1,2,3}
 int countDeclGroup()
 {
   struct Token *p=tokenHead;
@@ -1473,7 +1534,7 @@ int countDeclGroup()
 }
 
 // ######################################################################
-// int i=1, *j[3];
+// unsigned int i=1, *j[3];
 // type can be DECLGROUP or GLOBALGROUP
 
 struct Node* parse_decl_group(int type, int n)
@@ -1482,25 +1543,8 @@ struct Node* parse_decl_group(int type, int n)
     group->type=type;
     group->lineno=tokenHead->lineno;
 
-    struct Type baseType=getQualifiersAndAdvance();
-    
-    if (getType()==INT_DECLARATION)
-        strcpy(baseType.data, "int");
-    else if (getType()==FLOAT_DECLARATION)
-        strcpy(baseType.data, "float");
-    else if (getType()==CHAR_DECLARATION)
-        strcpy(baseType.data, "char");
-    else if (getType()==VOID_DECLARATION)
-        strcpy(baseType.data, "void");
-    else if (getType()==STRUCT)
-    {
-         strcpy(baseType.data, "struct ");
-         advance();
-         strcat(baseType.data, tokenHead->id);
-    }
-    
-    advance();
-
+    struct Type baseType=getBaseType(); // unsigned int
+        
     group->nlines = n;
     group->line=(struct Node**)malloc(n*sizeof(struct Node*));
 
@@ -1519,36 +1563,15 @@ struct Node* parse_decl_group(int type, int n)
         decl->type=subtype;
         decl->lineno=tokenHead->lineno;
         decl->varType = baseType;
-        
-        while (getType()==ASTERISK)
-        {
-            strcat(decl->varType.data,"*");
-            advance();
-        }        
-        
-        decl->id=newStr(tokenHead->id);
+
+        addPointerDecn(decl->varType.data);  // unsigned int*
+                
+        decl->id=newStr(tokenHead->id);  // j
         advance();
 
-        while (getType()==OPEN_SQUARE)
-        {
-            strcat(decl->varType.data,"[");
-            advance();
-            while(getType()!=CLOSE_SQUARE)
-            {            
-                strcat(decl->varType.data,tokenHead->id);
-                advance();
-            }
-            strcat(decl->varType.data,"]");
-            advance();
-        }
+        addArrayDecn(decl->varType.data);  // unsigned int*[3]
 
-        if (getType()==EQUALS)
-        {
-          advance();
-          decl->child=parse_exp();
-        }
-        else
-          decl->child=NULL;
+        addInit(decl);
       
         group->line[i]=decl;
         
@@ -1568,9 +1591,24 @@ struct Node* parse_typedef()
 {
     advance();
 
-    struct Node* declNode = parse_decl(DECL);
-    declNode->type = TYPEDEF;
-    addTypedef(declNode->id, declNode->varType);
+    struct Node* declNode;
+    int n=countDeclGroup();
+    int i;
+
+    if (n>1)
+    {
+       declNode = parse_decl_group(DECLGROUP,n);
+       declNode->type = TYPEDEFGROUP;
+       for (i=0;i<n;i++)
+           addTypedef(declNode->line[i]->id, declNode->line[i]->varType);
+    }
+    else
+    {
+        declNode = parse_decl(DECL);
+        declNode->type=TYPEDEF;
+        addTypedef(declNode->id, declNode->varType);
+    }
+        
     return declNode;
 }
 
@@ -1641,12 +1679,12 @@ struct Node* parse_enum()
 }
 
 // ######################################################################
-// struct Foo {int x; int y;};
+// struct/union Foo {int x; int y;};
 
 struct Node* parse_struct()
 {
     struct Node *str=(struct Node*)malloc(sizeof(struct Node));
-    str->type=STRUCT;
+    str->type=tokenHead->type;
     str->lineno=tokenHead->lineno;
 
     advance();
@@ -1670,8 +1708,12 @@ struct Node* parse_struct()
     
     int i;
     for (i=0; i<n; i++)
-    {        
-        str->line[i]=parse_decl(DECL);
+    {   
+        int n=countDeclGroup();
+        if (n>1)
+            str->line[i]=parse_decl_group(DECLGROUP,n);
+        else
+            str->line[i]=parse_decl(DECL);
     }
 
     if (getType()!=CLOSE_BRACE)
@@ -1815,7 +1857,7 @@ struct Node* parse_statement()
     if (getType()!=SEMICOLON) fail("Expected ;");
     advance();
   }
-  else if(getType()==STRUCT && tokenHead->next->next->type==OPEN_BRACE)  // struct Foo{int x; int y;};
+  else if((getType()==STRUCT || getType()==UNION) && tokenHead->next->next->type==OPEN_BRACE)  // struct/union Foo{int x; int y;};
   {
       return parse_struct();
   }
@@ -1866,7 +1908,8 @@ struct Node* parse_statement()
       if (getType()!=COLON) fail("Expected : after DEFAULT");
       advance();
   }
-  else if (getType() == FLOAT_DECLARATION || getType()==INT_DECLARATION || getType()==CHAR_DECLARATION || getType()==STRUCT || getType()==ENUM || getType()==VOID_DECLARATION
+  else if (getType() == FLOAT_DECLARATION || getType()==INT_DECLARATION || getType()==CHAR_DECLARATION 
+        || getType()==STRUCT || getType()==UNION || getType()==ENUM || getType()==VOID_DECLARATION
            || (getType()>=CONST && getType()<=VOLATILE) // qualifiers like const, etc
            || (getType()==IDENTIFIER && isTypedef(tokenHead->id)) ) // typedef
   {
@@ -2080,7 +2123,7 @@ struct Node* parse_program()
   int i;
   for (i=0; i<n; i++)
   {
-    if (getType()==STRUCT && tokenHead->next->next->type==OPEN_BRACE) // struct Foo {int x; int y;};
+    if ((getType()==STRUCT || getType()==UNION) && tokenHead->next->next->type==OPEN_BRACE) // struct/union Foo {int x; int y;};
     {
         program->line[i]=parse_struct();
     }
@@ -2310,6 +2353,19 @@ struct Token* getTok(char *st, char **ed)
 
 // ######################################################################
 
+void writeQuals(struct Type varType, FILE *fp)
+{
+    if (varType.isConst) fprintf(fp," CONST");
+    if (varType.isExtern) fprintf(fp," EXTERN");
+    if (varType.isLong) fprintf(fp," LONG");
+    if (varType.isRegister) fprintf(fp," REGISTER");
+    if (varType.isShort) fprintf(fp," SHORT");
+    if (varType.isStatic) fprintf(fp," STATIC");
+    if (varType.isUnsigned) fprintf(fp," UNSIGNED");
+    if (varType.isVolatile) fprintf(fp," VOLATILE");
+    fprintf(fp,"\n");
+}
+
 void writeTree(struct Node *node, int indent)
 {
   int i;
@@ -2327,21 +2383,12 @@ void writeTree(struct Node *node, int indent)
         printf(": [%s]", node->varType.data);
     else
         printf(": '%s' [%s]",node->id, node->varType.data);
-    
-    if (node->varType.isConst) printf(" CONST,");
-    if (node->varType.isExtern) printf(" EXTERN,");
-    if (node->varType.isLong) printf(" LONG,");
-    if (node->varType.isRegister) printf(" REGISTER,");
-    if (node->varType.isShort) printf(" SHORT,");
-    if (node->varType.isStatic) printf(" STATIC,");
-    if (node->varType.isUnsigned) printf(" UNSIGNED,");
-    if (node->varType.isVolatile) printf(" VOLATILE,");
 
-    printf("\n");
+    writeQuals(node->varType, stdout);    
   }
   else if (nodetype==INT_LITERAL || nodetype==FLOAT_LITERAL ||
       nodetype==VAR || nodetype==CALL || 
-      nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL || nodetype==STRUCT || nodetype==LABEL || nodetype==GOTO)
+      nodetype==STRING_LITERAL || nodetype==CHAR_LITERAL || nodetype==STRUCT || nodetype==UNION || nodetype==LABEL || nodetype==GOTO)
     printf(": '%s'\n",node->id);
   else if (nodetype==SIZEOF || nodetype==CAST)
     printf(": [%s]\n",node->varType.data);
@@ -2417,7 +2464,9 @@ void writeTree(struct Node *node, int indent)
     writeTree(node->child2,indent+3);
   }
   else if (nodetype==FUNCTION || nodetype==PROTOTYPE || nodetype==BLOCK || nodetype==CALL ||
-           nodetype==PROGRAM || nodetype==STRUCT || nodetype==ENUM || nodetype==DECLGROUP || nodetype==GLOBALGROUP){
+           nodetype==PROGRAM || nodetype==STRUCT || nodetype==UNION || nodetype==ENUM 
+           || nodetype==DECLGROUP || nodetype==GLOBALGROUP || nodetype==TYPEDEFGROUP)
+  {
     int i;
     for (i=0; i < node->nlines; i++)
     {
@@ -2468,8 +2517,9 @@ void writeVars()
   fprintf(fps,"# =========================================\n");
   while(p!=NULL)
   {
-    fprintf(fps,"# %s l=%d o=%d [%s] %s %s\n", p->id, p->level, p->offset, p->varType.data, 
-        (p->isArg) ? "ARG" : "", (p->varType.isExtern) ? "EXT" : "");
+    fprintf(fps,"# %s l=%d o=%d [%s] %s", p->id, p->level, p->offset, p->varType.data, 
+        (p->isArg) ? "ARG" : "");
+    writeQuals(p->varType,fps);
     p=p->prev;
   }  
   fprintf(fps,"# =========================================\n");
@@ -2535,7 +2585,7 @@ int sizeOf(struct Type t, struct Node* node)
     
     if (strlen(t.data)==0) return 0;  // For Structs put on the stack (no type)
     
-    int i, n;
+    int i, j, n;
     int open[10], close[10];
     
     n = getArray(t.data, open, close);
@@ -2582,11 +2632,12 @@ int sizeOf(struct Type t, struct Node* node)
         return 4*nElem;
     else if (strcmp(s.data, "char") == 0)
         return nElem;
-    else if (startsWith(s.data, "struct"))
+    else if (startsWith(s.data, "struct") || startsWith(s.data, "union"))
     {
         struct Var *p=varEnd;
         struct Node* structNode;
         int found=0;
+        int sz;
         while(p!=NULL)
         {
             if (strcmp(s.data, p->id) == 0)
@@ -2603,10 +2654,30 @@ int sizeOf(struct Type t, struct Node* node)
             exit(1);
         }
 
+        // TODO make this double loop since line[i] is DECLGROUP
         int tot=0;
         for (i=0; i < structNode->nlines; i++)
         {
-            tot += sizeOf(structNode->line[i]->varType, node);
+            if (structNode->line[i]->type==DECL)
+            {
+                sz = sizeOf(structNode->line[i]->varType, node);
+                if (startsWith(s.data,"struct"))
+                    tot += sz;
+                else
+                    tot = (sz > tot) ? sz : tot;
+            }
+            else // DECLGROUP
+            {
+                for (j=0;j<structNode->line[i]->nlines;j++)
+                {
+                    sz = sizeOf(structNode->line[i]->line[j]->varType, node);
+                    if (startsWith(s.data,"struct"))
+                        tot += sz;
+                    else
+                        tot = (sz > tot) ? sz : tot;                    
+                }
+            }
+                
         }    
         return nElem*tot;
     }
@@ -2634,6 +2705,16 @@ int isArray(struct Type t)
 int isStruct(struct Type t)
 {
     return startsWith(t.data, "struct") && !isArray(t) && !isPointer(t);
+}
+
+int isUnion(struct Type t)
+{
+    return startsWith(t.data, "union") && !isArray(t) && !isPointer(t);
+}
+
+int isStructOrUnion(struct Type t)
+{
+    return isStruct(t) || isUnion(t);
 }
 
 // int** -> int*
@@ -2698,6 +2779,14 @@ int isFloat(struct Type t)
 {
     return strcmp(t.data,"float")==0;
 }
+
+
+// not void*. Should only occur for empty arg list int foo(void){}
+int isVoid(struct Type t)
+{
+    return strcmp(t.data,"void")==0;
+}
+
 
 struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct Node* node)
 {
@@ -2975,6 +3064,8 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     int tot=8;
     while(node->line[i]->type==ARG)
     {
+      if (isVoid(node->line[i]->varType)) {i++; break;}
+      if (node->line[i]->id==NULL) asmFail("argument name must be defined for function",node);
       oldVarEnd=varEnd;  // might be NULL
       varEnd=malloc(sizeof(struct Var));
       varEnd->offset=tot;
@@ -3348,12 +3439,12 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   STRUCT. shove it on varEnd with the variables and give a pointer to its position in the tree
   */
 
-  else if (node->type==STRUCT)
+  else if (node->type==STRUCT  || node->type == UNION)
   {
     struct Var *oldVarEnd=varEnd;  // might be NULL
     varEnd=malloc(sizeof(struct Var));
     varEnd->offset=0;
-    varEnd->id=newStrStruct(node->id);  // eg "struct Point"
+    varEnd->id=(node->type==STRUCT) ? newStrStruct(node->id) : newStrUnion(node->id);  // eg "struct Point"
     varEnd->varType.data[0]='\0';       // no type. sizeOf this will be 0
     varEnd->level=level;
     varEnd->isArg=0;
@@ -3399,7 +3490,8 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     else
         fprintf(fps,"sub esp,%d # declare %s (level %d)\n",paddedSize,node->id,level);
 
-    if (isStruct(type1))
+    // struct init TODO: fix this, type1 might not be defined
+    if (node->child!=NULL && isStructOrUnion(type1))
     {
         // memcpy(esp,eax,sizeOf(type1));
         fprintf(fps,"mov ecx,esp\n");
@@ -3453,7 +3545,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     fprintf(fps,"imul ecx,%d\n",sizeOf(varType, node));
     fprintf(fps,"add eax,ecx\n");
 
-    if (lvalue==0 && !isStruct(varType) && !isArray(varType))
+    if (lvalue==0 && !isStructOrUnion(varType) && !isArray(varType))
     {
         if (lvalue==0)
         {
@@ -3496,33 +3588,55 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     }
     if (found==0) 
     {
-        printf("Unknown struct %s\n",type1.data);
+        printf("Unknown struct/union %s\n",type1.data);
         exit(1);
     }
 
     int tot=0;
     found=0;
-    int i;
+    int i, j;
     for (i=0; i < structNode->nlines; i++)
     {
-        if (strcmp(field, structNode->line[i]->id)==0)
+        // TODO: double loop since lines[i] might be DECLGROUP
+        if (structNode->line[i]->type==DECL)  // line[i] is DECL
         {
-            varType = structNode->line[i]->varType;
-            found=1;
-            break;
+            if (strcmp(field, structNode->line[i]->id)==0)
+            {
+                varType = structNode->line[i]->varType;
+                found=1;
+                break;
+            }
+            tot += sizeOf(structNode->line[i]->varType, node);
         }
-        tot += sizeOf(structNode->line[i]->varType, node);
-    }    
-    if (found==0)
+        else  // line[i] is a DECLGROUP
+        {
+            for (j=0; j<structNode->line[i]->nlines; j++)
+            {
+                if (strcmp(field, structNode->line[i]->line[j]->id)==0)
+                {
+                    varType = structNode->line[i]->line[j]->varType;
+                    found=1;                
+                    goto ed;
+                }
+                tot += sizeOf(structNode->line[i]->line[j]->varType, node);
+            }            
+        }
+    }
+    
+ed: if (found==0)
     {
-        printf("Struct %s has no field %s\n", type1.data, field);
+        printf("Struct/union %s has no field %s\n", type1.data, field);
         exit(1);
     }
 
-    fprintf(fps,"mov ecx,%d\n",tot);
-    fprintf(fps,"add eax,ecx\n");
+    // add offset struct only
+    if (isStruct(type1))
+    {
+        fprintf(fps,"mov ecx,%d\n",tot);
+        fprintf(fps,"add eax,ecx\n");
+    }
 
-    if (lvalue==0 && !isStruct(varType) && !isArray(varType))
+    if (lvalue==0 && !isStructOrUnion(varType) && !isArray(varType))
     {
         if (sizeOf(varType, node)==1)
             fprintf(fps,"mov al,[eax]\n");
@@ -3544,7 +3658,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     type2 = writeAsm(node->child2,level,0, loop);  // value to be assigned -> eax
     fprintf(fps,"pop ecx\n");
     
-    if (isStruct(type1) && isStruct(type2))
+    if (isStructOrUnion(type1) && isStructOrUnion(type2))
     {
         if (strcmp(type1.data, type2.data)!=0)
         {
@@ -3792,7 +3906,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
           fprintf(fps,"call _int2float\n");
           fprintf(fps,"add esp,4\n");
       }
-      else if (isFloat(type1) && isInt(varType))  // widen int -> float
+      else if (isFloat(type1) && isInt(varType))  // widen float -> int
       {
           fprintf(fps,"push eax\n");
           fprintf(fps,"call _float2int\n");
@@ -4017,7 +4131,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     }
 
     // Special case for structs. Always give address
-    if (isStruct(varType) && !isPointer(varType))
+    if (isStructOrUnion(varType) && !isPointer(varType))
     {
         if (offset==0)
             fprintf(fps,"mov eax,offset _%s\n",node->id);
@@ -4308,7 +4422,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   }
   else
   {
-    printf("Internal compiler error: illegal nodetype (writeAsm). Got %d\n",nodetype);
+    printf("Internal compiler error: illegal nodetype (writeAsm). Got %d %s\n",nodetype, names[nodetype]);
     exit(1);
   }
 

@@ -29,7 +29,7 @@ int main()
     printf("result: %0x %0x %0x\n", a+3.5, a+pi, a-1.5); // 10.5 (41280000), 10.1415 (41224396), 5.5 (40b00000)
     
     float b=-3.0;
-    printf("b=%0x, i=%d, i(converted)=%0x, sq=%0x\n", b, i, (float)i, square(b));  // -3.0 (c0400000) 1 3f800000 sq=41100000
+    printf("b=%0x, i=%d, i(converted)=%0x, sq=%0x\n", b, i, (float)(float)i, square(b));  // -3.0 (c0400000) 1 3f800000 sq=41100000
     
     // a=7.0, b=-3.0
     
