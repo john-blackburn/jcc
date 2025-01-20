@@ -3,7 +3,7 @@ typedef int size_t;
 typedef int Number, *QNumber;
 typedef Number* PNumber;
 
-struct _iobuf
+typedef struct _iobuf
 {
   char *_ptr;
   int _cnt;
@@ -13,16 +13,21 @@ struct _iobuf
   int _charbuf;
   int _bufsiz;
   char *_tmpfname;
-};
+} FILE;
 
-typedef struct _iobuf FILE;
+//typedef struct _iobuf FILE;
+
+void *malloc(size_t);
 
 int main()
 {
-    Number n;
-    PNumber p;
+    printf("sizeof FILE=%d\n", sizeof (FILE));
+    Number n,m;
+    PNumber p, *z;
     PNumber *q;
-    FILE *fp;
+    QNumber *k;
+    FILE *fp = (FILE*)malloc(sizeof (FILE));
+    fp->_flag=9;
     size_t index=2;
-    return index;
+    return index + fp->_flag;
 }

@@ -6,7 +6,7 @@ Creates foo.s in current directory and assembles/links to get foo.exe
 TODO:
 Not needed to compile this compiler (and not done):
 More initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"} (currently only done for globals)
-Function protoypes (currently ignored but return value considered). Coercion. (won't do)
+Function protoypes (currently ignored but return value considered). Coercion. (WON'T DO)
 TERNARY OPERATOR ?:
 comma operator (WON'T DO)
 function pointers (WON'T DO)
@@ -14,7 +14,6 @@ double (WON'T DO) but at least parse
 const, long, register, short, volatile (parsed but ignored: WON'T DO)
 short int (2 bytes on AX) (WON'T DO)
 bit fields (WON'T DO)
-define and use struct in one line: struct [opt] {int x; int y;} u; DECL or DECLGROUP not STRUCT
 struct, typedef and prototype in function body
 static int s=0; need to change name to s+s_label since might have multiple functions with static int s
 (in GLOBAL and VAR sections of writeasm)
@@ -543,7 +542,7 @@ int isProtoOrFunc()
     while (p->type != SEMICOLON)
     {
         if (p->type == EQUALS)       // Eg: int foo=1; Eg: int foo=static_cast<int>(1.0); ==> it's a DECL
-        {                            // but StreamContainer_ &operator=(StreamContainer_ &&) = default; ==> PROTO
+        {
             isproto = 0;
             break;
         }
@@ -553,14 +552,14 @@ int isProtoOrFunc()
             break;
         }
         else if (p->type == OPEN_BRACKET)   // Eg: int foo(int x=1); Eg int foo(int x){} ==> It's a PROTO
-        {                                               // but not if masked by <...> eg MyArray<float, sizeof(int)> ma; ==> DECL
+        {
             isproto = 1;                             
             break;
         }
 
         p = p->next;
     }  
-    // Eg: int foo; vector<Point*>** p;  ==> it's a DECL
+    // Eg: int foo; struct vector** p;  ==> it's a DECL
     return isproto;
 }
 
@@ -691,6 +690,7 @@ int countInit()
 
 // ######################################################################
 
+// count lines in a block, eg function body or for loop body
 int countLines(struct Token *p)
 {
   if (p==NULL) p=tokenHead;   // start on tokenHead unless specified otherwise
@@ -825,11 +825,17 @@ struct Node* parse_index()
   return factor;
 }
 
+// is this start of a type declaration?
+// (could still be a function or proto)
+// NB if testing for DECL, need to rule out possible definition struct {}; union{}; enum{};
 int isTypeDec(struct Token *tok)
 {
     int type = tok->type;
-    return type==FLOAT_DECLARATION || type==INT_DECLARATION || type==CHAR_DECLARATION ||
-           type==VOID_DECLARATION || type==STRUCT || type==UNION || (type==IDENTIFIER && isTypedef(tok->id));
+    
+    return type == FLOAT_DECLARATION || type==INT_DECLARATION || type==CHAR_DECLARATION 
+        || type==STRUCT || type==UNION || type==ENUM || type==VOID_DECLARATION
+           || (type>=CONST && type<=VOLATILE) // qualifiers like const, etc
+           || (type==IDENTIFIER && isTypedef(tok->id)); // typedef
 }
 
 // ######################################################################
@@ -846,7 +852,7 @@ struct Node* parse_factor()
       advance();
       exp=parse_decl(CAST);
 
-      if (getType()!=CLOSE_BRACKET) fail("Expected )");
+      if (getType()!=CLOSE_BRACKET) fail("Expected ) in cast");
       advance();
 
       exp->child=parse_exp();
@@ -854,7 +860,7 @@ struct Node* parse_factor()
   else if (type==OPEN_BRACKET){
     advance();
     exp=parse_exp();
-    if (getType() != CLOSE_BRACKET) fail("Expected )");
+    if (getType() != CLOSE_BRACKET) fail("Expected ) at end of expression");
     advance();
   }
   else if (type==INT_LITERAL){
@@ -905,7 +911,7 @@ struct Node* parse_factor()
       if (i<nlines-1 && getType()!=COMMA) fail("expected ,");
       if (i<nlines-1) advance();
     }
-    if (getType()!=CLOSE_BRACKET) fail("expected )");
+    if (getType()!=CLOSE_BRACKET) fail("expected ) in CALL");
     advance();
   }
   else if (type==AMP)        // &a
@@ -974,16 +980,24 @@ struct Node* parse_factor()
   else if (type==SIZEOF)
   {
       advance();
+      int brk=0;
       if (getType()==OPEN_BRACKET)
+      {
+          brk=1;
           advance();
+      }
       
-      if (getType()==IDENTIFIER)
-          exp=parse_identifier();
+      if (0) // getType()==IDENTIFIER)
+          exp=parse_identifier();  // TODO fix this!
       else
           exp=parse_decl(SIZEOF);
 
-      if (getType()==CLOSE_BRACKET)
-          advance();
+      if (brk)
+      {
+        if (getType()!=CLOSE_BRACKET)
+            fail("expected ) in sizeof");
+        advance();
+      }
   }
   else
     fail("Expected literal or unary operator");
@@ -1517,7 +1531,7 @@ int countDeclGroup()
 
   int nInit=1;
   int level=0;
-  while(p->type!=SEMICOLON)
+  while(!(p->type==SEMICOLON && level==0))
   {
       if (p->type==OPEN_BRACE)
           level++;
@@ -1535,7 +1549,12 @@ int countDeclGroup()
 
 // ######################################################################
 // unsigned int i=1, *j[3];
+// struct Foo f;
+// struct Foo {} f;
 // type can be DECLGROUP or GLOBALGROUP
+
+int isStructOrUnion(struct Type t);
+struct Node* parse_struct();
 
 struct Node* parse_decl_group(int type, int n)
 {
@@ -1543,21 +1562,37 @@ struct Node* parse_decl_group(int type, int n)
     group->type=type;
     group->lineno=tokenHead->lineno;
 
-    struct Type baseType=getBaseType(); // unsigned int
-        
-    group->nlines = n;
-    group->line=(struct Node**)malloc(n*sizeof(struct Node*));
+    struct Token* tok = tokenHead;
+    struct Type baseType=getBaseType(); // unsigned int; struct Foo
 
-    int subtype;
+    int subtype, st;
     if (type==DECLGROUP)
         subtype=DECL;
     else if (type==GLOBALGROUP)
         subtype=GLOBAL;
     else
         fail("unexpected DECLGROUP type");
+        
+    if (tok->type==STRUCT && tokenHead->type==OPEN_BRACE)
+    {
+        tokenHead=tok; // rewind
+        st=1;
+        n++;
+        printf("basetype is struct %d %d\n", st, n);
+    }
+    else
+        st=0;
+        
+    printf("found declgroup with %d entries\n", n);    
+        
+    group->nlines = n;
+    group->line=(struct Node**)malloc(n*sizeof(struct Node*));
+
+    if (st==1)
+        group->line[0]=parse_struct();
    
     int i;
-    for (i=0;i<n;i++)
+    for (i=st;i<n;i++)
     {
         struct Node *decl=(struct Node*)malloc(sizeof(struct Node));
         decl->type=subtype;
@@ -1595,12 +1630,14 @@ struct Node* parse_typedef()
     int n=countDeclGroup();
     int i;
 
-    if (n>1)
+    if (1)
     {
        declNode = parse_decl_group(DECLGROUP,n);
        declNode->type = TYPEDEFGROUP;
-       for (i=0;i<n;i++)
-           addTypedef(declNode->line[i]->id, declNode->line[i]->varType);
+       for (i=0;i<declNode->nlines;i++)
+           // ignore struct in typedef struct Foo {int x,y;} z;
+           if (declNode->line[i]->type != STRUCT)
+             addTypedef(declNode->line[i]->id, declNode->line[i]->varType);
     }
     else
     {
@@ -1680,6 +1717,32 @@ struct Node* parse_enum()
 
 // ######################################################################
 // struct/union Foo {int x; int y;};
+// doesn't advance past final ;
+
+int countStructLines()
+{
+  struct Token *p=tokenHead;
+
+  int n=0;
+  int level=0;
+  while(1)
+  {
+      if (p->type==OPEN_BRACE)
+          level++;
+      
+      if (p->type==CLOSE_BRACE)
+      {
+          level--;
+          if (level<0) break;
+      }
+            
+    if (p->type==SEMICOLON && level==0)
+      n++;
+
+    p=p->next;
+  }
+  return n;
+}
 
 struct Node* parse_struct()
 {
@@ -1695,12 +1758,11 @@ struct Node* parse_struct()
     if (getType()!=OPEN_BRACE)
     {
         fail("Expected { at beginning of struct");
-        exit(1);
     }
 
     advance();
 
-    int n=countLines(NULL);
+    int n=countStructLines();
     printf("Found struct with %d lines\n", n);
 
     str->nlines=n;
@@ -1709,9 +1771,9 @@ struct Node* parse_struct()
     int i;
     for (i=0; i<n; i++)
     {   
-        int n=countDeclGroup();
-        if (n>1)
-            str->line[i]=parse_decl_group(DECLGROUP,n);
+        int m=countDeclGroup();
+        if (1)
+            str->line[i]=parse_decl_group(DECLGROUP,m);
         else
             str->line[i]=parse_decl(DECL);
     }
@@ -1723,18 +1785,46 @@ struct Node* parse_struct()
     }
     advance();
     
-    if (getType()!=SEMICOLON)
-    {
-        fail("Expected ; at end of struct");
-        exit(1);
-    }
-    advance();    
-
+    // don't advance over semi-colon as parse_decl_group may call this function
+    
     return str;
 }
     
 // ######################################################################
 
+// struct Foo {}; -> true
+// struct Foo f; -> false
+// struct Foo {} f; -> false
+int isStructDef(struct Token* tok)
+{
+    if (tok->type==STRUCT)
+    {
+        tok=tok->next;
+        if (tok->type == IDENTIFIER) tok=tok->next;
+        if (tok->type == OPEN_BRACE)
+        {
+            tok=tok->next; // after the {
+
+            int nlevel=0;
+            while(1)
+            {
+                if (tok->type==OPEN_BRACE){
+                  nlevel++;
+                }
+
+                if (tok->type==CLOSE_BRACE){
+                  nlevel--;
+                  if (nlevel<0) break;
+                }
+
+                tok=tok->next;
+            }
+            if (tok->next->type==SEMICOLON) return 1;
+        }
+    }
+    return 0;
+}
+    
 // return 2;
 struct Node* parse_statement()
 {
@@ -1857,9 +1947,10 @@ struct Node* parse_statement()
     if (getType()!=SEMICOLON) fail("Expected ;");
     advance();
   }
-  else if((getType()==STRUCT || getType()==UNION) && tokenHead->next->next->type==OPEN_BRACE)  // struct/union Foo{int x; int y;};
+  else if(isStructDef(tokenHead))  // struct/union Foo{int x; int y;};
   {
-      return parse_struct();
+      statement = parse_struct();
+      advance();
   }
 
   else if (getType()==GOTO)
@@ -1908,13 +1999,10 @@ struct Node* parse_statement()
       if (getType()!=COLON) fail("Expected : after DEFAULT");
       advance();
   }
-  else if (getType() == FLOAT_DECLARATION || getType()==INT_DECLARATION || getType()==CHAR_DECLARATION 
-        || getType()==STRUCT || getType()==UNION || getType()==ENUM || getType()==VOID_DECLARATION
-           || (getType()>=CONST && getType()<=VOLATILE) // qualifiers like const, etc
-           || (getType()==IDENTIFIER && isTypedef(tokenHead->id)) ) // typedef
+  else if (isTypeDec(tokenHead))  // int x; struct Foo f; (already ruled out struct Foo {};)
   {
       int n=countDeclGroup();
-      if (n>1)
+      if (1)
           return parse_decl_group(DECLGROUP,n);
       else
           return parse_decl(DECL);
@@ -1925,7 +2013,7 @@ struct Node* parse_statement()
       statement->type=BREAK;
       statement->child=NULL;
       
-      if (getType()!=SEMICOLON) fail("Expected ;");
+      if (getType()!=SEMICOLON) fail("Expected ; after BREAK");
       advance();      
   }
   else if(getType()==CONTINUE)
@@ -1934,14 +2022,15 @@ struct Node* parse_statement()
       statement->type=CONTINUE;
       statement->child=NULL;
       
-      if (getType()!=SEMICOLON) fail("Expected ;");
+      if (getType()!=SEMICOLON) fail("Expected ; after CONTINUE");
       advance();      
   }
-  else{
+  else
+  {
     statement->type=EXPR;    
     statement->child=parse_exp();  // removes 2
     
-    if (getType()!=SEMICOLON) fail("Expected ;");
+    if (getType()!=SEMICOLON) fail("Expected ; after EXPR");
     advance();
   }
   return statement;
@@ -1991,7 +2080,7 @@ struct Node* parse_function()
     }
   }
 
-  if (getType()!=CLOSE_BRACKET) fail("Expected )");
+  if (getType()!=CLOSE_BRACKET) fail("Expected ) after function args");
   advance();
 
   if (getType()!=OPEN_BRACE) fail("Expected {");
@@ -2042,7 +2131,7 @@ struct Node* parse_prototype()
     }
   }
 
-  if (getType()!=CLOSE_BRACKET) fail("Expected )");
+  if (getType()!=CLOSE_BRACKET) fail("Expected ) at end of prototype");
   advance();
 
   if (getType()!=SEMICOLON) fail("Expected ;");
@@ -2056,7 +2145,8 @@ struct Node* parse_prototype()
 struct Node* parse_global()
 {
     int n=countDeclGroup();
-    if (n>1)
+    printf("parse_global found %d\n",n);
+    if (1)
       return parse_decl_group(GLOBALGROUP,n);
     else
       return parse_decl(GLOBAL);
@@ -2069,29 +2159,59 @@ int foo;
 int foo();
 int foo(){}
 struct Foo{};
+struct Foo f;
+struct Foo {} f;
+enum Foo {};
+typedef int Number;
 */
 
-int countGlobals()
+int countGlobals2()
 {
   int count=0;
   int level=0;
   struct Token *p=tokenHead;
-  struct Token *prev=p;
-  while (p!=NULL){
-    if (p->type==OPEN_BRACE){
-      if (level==0) count++;
-      level++;
-    }
-    if (p->type==CLOSE_BRACE)
-      level--;
-    if (level==0 && p->type==SEMICOLON && prev->type!=CLOSE_BRACE)
-      count++;
 
-    prev=p;
+  while (p!=NULL){
+    if (p->type==OPEN_BRACE || p->type==OPEN_BRACKET)
+      level++;
+    if (p->type==CLOSE_BRACE || p->type==CLOSE_BRACKET)
+      level--;
+
+    if (isTypeDec(p)) printf("countGlobals2 %s %d\n", names[p->type],isTypeDec(p));
+    if (level==0 && (isTypeDec(p))) count++;
+  
     p=p->next;
   }
   if (level!=0) fail("Mismatched braces");
   return count;
+}   
+
+int countGlobals()
+{
+    int count=0;
+    int level=0;
+    struct Token *p=tokenHead;
+    struct Token *prev=p;
+
+    while (p!=NULL)
+    {
+        if (p->type==OPEN_BRACE)
+        {
+            if (level==0 && prev->type==CLOSE_BRACKET) count++;
+            level++;
+        }
+
+        if (p->type==CLOSE_BRACE)
+            level--;
+
+        if (level==0 && p->type==SEMICOLON)
+            count++;
+
+        prev=p;
+        p=p->next;
+    }
+    if (level!=0) fail("Mismatched braces");
+    return count;
 }
 
 // ######################################################################
@@ -2115,6 +2235,7 @@ struct Node* parse_program()
   // int foo;
   // int foo=2;
   // struct Foo {int x; int y;};
+  // struct Foo {int x; int y;} f;
   // struct Foo f;
   // enum Colour {RED, BLACK};
   // enum Colour c;
@@ -2123,9 +2244,10 @@ struct Node* parse_program()
   int i;
   for (i=0; i<n; i++)
   {
-    if ((getType()==STRUCT || getType()==UNION) && tokenHead->next->next->type==OPEN_BRACE) // struct/union Foo {int x; int y;};
+    if (isStructDef(tokenHead)) // struct/union Foo {int x; int y;};
     {
         program->line[i]=parse_struct();
+        advance();
     }
     else if (getType()==ENUM && (tokenHead->next->next->type==OPEN_BRACE || tokenHead->next->type==OPEN_BRACE)) // enum Colour {RED, BLACK};
     {
@@ -2135,7 +2257,7 @@ struct Node* parse_program()
     {
         program->line[i]=parse_typedef();
     }
-    else if (!isProtoOrFunc())   // int foo=2; struct Foo f;
+    else if (!isProtoOrFunc())   // int foo=2; struct Foo f; struct Foo {} f;
     {
       program->line[i]=parse_global();
     }
@@ -2614,11 +2736,7 @@ int sizeOf(struct Type t, struct Node* node)
             exit(1);
         }
     }
-    
-    // int*
-    
-//    printf("n=%d\n", n);
-    
+        
     struct Type s = t;
     
     if (n>0)
@@ -2666,7 +2784,7 @@ int sizeOf(struct Type t, struct Node* node)
                 else
                     tot = (sz > tot) ? sz : tot;
             }
-            else // DECLGROUP
+            else if (structNode->line[i]->type==DECLGROUP) // DECLGROUP
             {
                 for (j=0;j<structNode->line[i]->nlines;j++)
                 {
@@ -2898,6 +3016,20 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
     return varType;
 }
 
+struct Type writeAsm(struct Node *node, int level, int lvalue, int loop);
+
+void findSubStructs(struct Node *node, int level, int loop)
+{
+    int i;
+    for (i=0; i< node->nlines; i++)
+    {
+        if (node->line[i]->type==DECLGROUP)
+            findSubStructs(node->line[i], level, loop);
+        if (node->line[i]->type==STRUCT)
+            writeAsm(node->line[i],level,0,loop);
+    }
+}
+
 // ######################################################################
 
 struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
@@ -2919,8 +3051,17 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     }
   }
   
-  else if (node->type==ENUM || node->type==TYPEDEF || node->type==TYPEDEFGROUP)
+  else if (node->type==ENUM || node->type==TYPEDEF)
   {
+  }
+  
+  else if (node->type==TYPEDEFGROUP)
+  {
+    for (i=0; i < node->nlines; i++)
+    {
+        if (node->line[i]->type==STRUCT)   
+            writeAsm(node->line[i],level,0, loop);
+    }      
   }
 
   /*
@@ -2951,7 +3092,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
         {
             if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
             fprintf(fps,"_%s:\n",node->id);
-            fprintf(fps,".long 0\n");
+            fprintf(fps,".skip %d\n",sizeOf(node->varType, node));
         }
         else if (node->child->type==INT_LITERAL)
         {
@@ -3451,6 +3592,8 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     varEnd->structNode=node;            // Pointer to this STRUCT on the tree
     varEnd->prev=oldVarEnd;
 
+    findSubStructs(node, level, loop); // add any sub structs to variable list also
+    
     writeVars();
   }
   
@@ -3608,7 +3751,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
             }
             tot += sizeOf(structNode->line[i]->varType, node);
         }
-        else  // line[i] is a DECLGROUP
+        else if (structNode->line[i]->type==DECLGROUP) // line[i] is a DECLGROUP
         {
             for (j=0; j<structNode->line[i]->nlines; j++)
             {

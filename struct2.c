@@ -40,5 +40,5 @@ int main()
 
     printf("%d %d\n",p.x,p.y);
 
-    return s.bot.y+s.top.x;
+    return s.bot.y + s.top.x;
 }

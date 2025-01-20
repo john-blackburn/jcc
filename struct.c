@@ -1,7 +1,6 @@
 struct Point
 {
-    int x;
-    int y;
+    int x,y;
 };
 
 struct Point gp;
@@ -13,6 +12,7 @@ int test(struct Point* p, int s)
 
 int main()
 {
+    printf("sizeof Point=%d\n",sizeof (struct Point));
     struct Point p[3];
     struct Point *pp;
     
@@ -29,5 +29,5 @@ int main()
     pp=&q;
     pp->y = 3 + pp->x; // 13
     
-    return p[1].y+q.y+test(pp,20); // 22+13+10*20 = 235
+    return p[1].y + q.y + test(pp,20); // 22+13+10*20 = 235
 }

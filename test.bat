@@ -1,7 +1,10 @@
 @echo off
 
+del %1.exe
+del %1.s
+
 jcc %1.c
-winmergeu %1.s correct_asm\%1.s
+winmergeu correct_asm\%1.s %1.s
 echo running %1.exe...
 %1.exe
 echo return %errorlevel%
