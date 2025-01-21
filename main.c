@@ -9,10 +9,9 @@ More initialise arrays:
     char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. 
     char *foo[]={"hello","world"} (currently only done for globals)
 Function protoypes (currently ignored but return value considered). Coercion. (WON'T DO)
-TERNARY OPERATOR ?:
 comma operator (WON'T DO)
 function pointers (WON'T DO)
-double (WON'T DO) but at least parse...
+double (WON'T DO)
 const, long, register, short, volatile (parsed but ignored: WON'T DO)
 short int (2 bytes on AX) (WON'T DO)
 bit fields (WON'T DO)
@@ -112,15 +111,16 @@ char *tokNames[]={"<<=", ">>=",
 
 		  "return", "int", "char", "if", "else", "for", "while", "do", "break", "continue", 
           "struct", "sizeof", "void", "enum", "typedef", "float", "const", "extern", "long", "register",
-          "short", "static", "unsigned", "volatile", "goto", "switch", "case", "default", "union"};
+          "short", "static", "unsigned", "volatile", "inline", "goto", "switch", "case", "default", "union", 
+          "double"};
 
 
 // NB tokNames, the next enum and names must all correspond. Punctuation tokens
 // must come first with 3 char punctuation, then 2 char, then 1 char. (eg && before &)
 // Also, += ... ^= must be continuous sequence (+, -, *, /, &, |, ^), search "ops" to see why.
-// qualifiers EXTERN to VOLATILE must remain in sequence
+// qualifiers EXTERN to INLINE must remain in sequence
 
-int numToks=75;  // ie number of entries in tokNames above
+int numToks=77;  // ie number of entries in tokNames above
 
 enum
 {
@@ -194,12 +194,14 @@ enum
  STATIC,
  UNSIGNED,
  VOLATILE,
+ INLINE,
  GOTO,
  SWITCH,
  CASE,
  DEFAULT,
  UNION,
-
+ DOUBLE_DECLARATION,
+ 
  INT_LITERAL,      // eg,3
  IDENTIFIER,       // eg main
  STRING_LITERAL,   // "hello, world!\n"
@@ -326,11 +328,13 @@ char *names[]={
   "STATIC",
   "UNSIGNED",
   "VOLATILE",
+  "INLINE",
   "GOTO",
   "SWITCH",
   "CASE",
   "DEFAULT",
   "UNION",
+  "DOUBLE_DECLARATION",
 
   "INT_LITERAL",      // eg 123
   "IDENTIFIER",       // eg main
@@ -415,6 +419,7 @@ struct Type
     int isStatic;
     int isUnsigned;
     int isVolatile;
+    int isInline;
 };
 
 struct Node
@@ -842,9 +847,9 @@ int isTypeDec(struct Token *tok)
 {
     int type = tok->type;
     
-    return type == FLOAT_DECLARATION || type==INT_DECLARATION || type==CHAR_DECLARATION 
+    return type == FLOAT_DECLARATION || type==DOUBLE_DECLARATION || type==INT_DECLARATION || type==CHAR_DECLARATION 
         || type==STRUCT || type==UNION || type==ENUM || type==VOID_DECLARATION
-           || (type>=CONST && type<=VOLATILE) // qualifiers like const, etc
+           || (type>=CONST && type<=INLINE) // qualifiers like const, etc
            || (type==IDENTIFIER && isTypedef(tok->id)); // typedef
 }
 
@@ -1360,6 +1365,7 @@ struct Type newVartype()
     vt.isStatic=0;
     vt.isUnsigned=0;
     vt.isVolatile=0;
+    vt.isInline=0;
     
     return vt;
 }
@@ -1396,6 +1402,8 @@ struct Type getBaseType()
             vt.isUnsigned=1;
         else if (type==VOLATILE)
             vt.isVolatile=1;
+        else if (type==INLINE)
+            vt.isInline=1;
         else
             break;  // no more
         
@@ -1420,6 +1428,11 @@ struct Type getBaseType()
             strcpy(vt.data, "float");
             advance();
         }
+        else if (getType()==DOUBLE_DECLARATION)
+        {
+            strcpy(vt.data, "double");
+            advance();
+        }
         else // must be int but "int" ommitted, don't advance
             strcpy(vt.data, "int");
     }
@@ -1433,6 +1446,8 @@ struct Type getBaseType()
             strcpy(vt.data, "void");
         else if (getType()==FLOAT_DECLARATION)
             strcpy(vt.data, "float");
+        else if (getType()==DOUBLE_DECLARATION)
+            strcpy(vt.data, "double");
         else if (getType()==STRUCT)
         {
              strcpy(vt.data, "struct ");
@@ -2511,6 +2526,7 @@ void writeQuals(struct Type varType, FILE *fp)
     if (varType.isStatic) fprintf(fp," STATIC");
     if (varType.isUnsigned) fprintf(fp," UNSIGNED");
     if (varType.isVolatile) fprintf(fp," VOLATILE");
+    if (varType.isInline) fprintf(fp," INLINE");
     fprintf(fp,"\n");
 }
 
