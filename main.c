@@ -5,21 +5,26 @@ Creates foo.s in current directory and assembles/links to get foo.exe
 
 TODO:
 Not needed to compile this compiler (and not done):
-More initialise arrays. char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. char *foo[]={"hello","world"} (currently only done for globals)
+More initialise arrays: 
+    char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. 
+    char *foo[]={"hello","world"} (currently only done for globals)
 Function protoypes (currently ignored but return value considered). Coercion. (WON'T DO)
 TERNARY OPERATOR ?:
 comma operator (WON'T DO)
 function pointers (WON'T DO)
-double (WON'T DO) but at least parse
+double (WON'T DO) but at least parse...
 const, long, register, short, volatile (parsed but ignored: WON'T DO)
 short int (2 bytes on AX) (WON'T DO)
 bit fields (WON'T DO)
 struct, typedef and prototype in function body
-static int s=0; need to change name to s+s_label since might have multiple functions with static int s
-(in GLOBAL and VAR sections of writeasm)
 inline for GNU C (don't compile inline functions)
 
-Other calling conventions. Stack alignment (always push multiple of 4 bytes). (Application Binary Interface)
+static int s=0; need to change name to s+s_label since might have multiple functions with static int s
+(in GLOBAL and VAR sections of writeasm)
+
+Other calling conventions. 
+Stack alignment (always push multiple of 4 bytes). (Application Binary Interface)
+padding within structs?
 64 bit
 */
 
@@ -103,7 +108,7 @@ char *tokNames[]={"<<=", ">>=",
 		  "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=",
 
 		  "<", ">", "!", "=", ",", ";", "...", ".", "(",  ")", "{", "}", "[", "]",
-		  "+", "-", "*", "/", "%", "&", "|", "^", "~", ":",
+		  "+", "-", "*", "/", "%", "&", "|", "^", "~", ":", "?",
 
 		  "return", "int", "char", "if", "else", "for", "while", "do", "break", "continue", 
           "struct", "sizeof", "void", "enum", "typedef", "float", "const", "extern", "long", "register",
@@ -113,8 +118,9 @@ char *tokNames[]={"<<=", ">>=",
 // NB tokNames, the next enum and names must all correspond. Punctuation tokens
 // must come first with 3 char punctuation, then 2 char, then 1 char. (eg && before &)
 // Also, += ... ^= must be continuous sequence (+, -, *, /, &, |, ^), search "ops" to see why.
+// qualifiers EXTERN to VOLATILE must remain in sequence
 
-int numToks=74;  // ie number of entries in tokNames
+int numToks=75;  // ie number of entries in tokNames above
 
 enum
 {
@@ -163,6 +169,7 @@ enum
  HAT,
  TILDE,
  COLON,
+ QUESTION,
  RETURN,           // "return" NB all puntuation chars must come before RETURN
  INT_DECLARATION , // "int"
  CHAR_DECLARATION, // "char"
@@ -244,7 +251,8 @@ enum
  DECLGROUP,
  GLOBALGROUP,
  TYPEDEFGROUP,
- LABEL
+ LABEL,
+ TERNARY
 };
 
 char *names[]={
@@ -293,6 +301,7 @@ char *names[]={
   "HAT",
   "TILDE",
   "COLON",
+  "QUESTION",
   "RETURN",           // "return"
   "INT_DECLARATION",  // "int"
   "CHAR_DECLARATION", // "char"
@@ -374,7 +383,8 @@ char *names[]={
   "DECLGROUP",
   "GLOBALGROUP",
   "TYPEDEFGROUP",
-  "LABEL"
+  "LABEL",
+  "TERNARY"
 };
 
 union F2U 
@@ -714,7 +724,7 @@ int countLines(struct Token *p)
     if (p->type==ELSE && nlevel==0) nlines--;
     if (p->type==DO && nlevel==0) nlines--;
     if (p->type==FOR && nlevel==0) nlines-=2;
-    // one less for ?
+    if (p->type==QUESTION && nlevel==0) nlines--;
     p=p->next;
   }
   return nlines;
@@ -1270,13 +1280,47 @@ struct Node* parse_or_exp()
   return term;
 }
 
+// <conditional-exp> ::= <logical-or-exp> [ "?" <exp> ":" <conditional-exp> ]
+
+struct Node* parse_conditional_exp()
+{
+    struct Node *term = parse_or_exp();
+    
+    if (getType() == QUESTION)
+    {
+        advance();
+        
+        struct Node *left_term=parse_exp();
+        
+        if (getType()!=COLON)
+            fail("Expected : in ternary expression");
+
+        advance();        
+
+        struct Node *right_term=parse_conditional_exp();
+        
+        struct Node *new_term=(struct Node*)malloc(sizeof(struct Node));
+
+        new_term->type=TERNARY;
+        new_term->lineno=tokenHead->lineno;
+        
+        new_term->child=term;
+        new_term->child2=left_term;
+        new_term->child3=right_term;
+        
+        term=new_term;
+    }
+
+    return term;
+}
+    
 // ######################################################################
 // x = y = 0
 // <exp> ::= <logical-or-exp> [ "=" <exp> ]
 
 struct Node* parse_exp()
 {
-    struct Node *temp=parse_or_exp();
+    struct Node *temp=parse_conditional_exp();
     struct Node *exp;
 
     int nextType=getType();
@@ -1751,6 +1795,9 @@ struct Node* parse_struct()
     str->lineno=tokenHead->lineno;
 
     advance();
+
+    if (getType()!=IDENTIFIER)
+        fail("Expected struct tag");
     
     str->id=newStr(tokenHead->id);
     advance();
@@ -2165,27 +2212,6 @@ enum Foo {};
 typedef int Number;
 */
 
-int countGlobals2()
-{
-  int count=0;
-  int level=0;
-  struct Token *p=tokenHead;
-
-  while (p!=NULL){
-    if (p->type==OPEN_BRACE || p->type==OPEN_BRACKET)
-      level++;
-    if (p->type==CLOSE_BRACE || p->type==CLOSE_BRACKET)
-      level--;
-
-    if (isTypeDec(p)) printf("countGlobals2 %s %d\n", names[p->type],isTypeDec(p));
-    if (level==0 && (isTypeDec(p))) count++;
-  
-    p=p->next;
-  }
-  if (level!=0) fail("Mismatched braces");
-  return count;
-}   
-
 int countGlobals()
 {
     int count=0;
@@ -2552,6 +2578,11 @@ void writeTree(struct Node *node, int indent)
     writeTree(node->child2,indent+3);    
     if (node->child3!=NULL) writeTree(node->child3,indent+3);
   }
+  else if (nodetype==TERNARY){
+    writeTree(node->child,indent+3);
+    writeTree(node->child2,indent+3);    
+    writeTree(node->child3,indent+3);
+  }  
   else if (nodetype==EXPR ||
       nodetype==RETURN || 
       nodetype==UNARY_MINUS ||
@@ -3336,6 +3367,39 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     fprintf(fps,"_end%d:\n",label);
   }
 
+  /*
+  TERNARY
+   <CODE FOR e1 GOES HERE>
+    cmpl $0, %eax
+    je   _e3                  ; if e1 == 0, e1 is false so execute e3
+    <CODE FOR e2 GOES HERE>  ; we're still here so e1 must be true. execute e2.
+    jmp  _post_conditional    ; jump over e3
+_e3:
+    <CODE FOR e3 GOES HERE>  ; we jumped here because e1 was false. execute e3.
+_post_conditional:            ; we need this label to jump over e3
+  */
+  
+  else if (node->type==TERNARY)
+  {
+    int label = ++s_label;
+
+    writeAsm(node->child,level,0, loop);
+
+    fprintf(fps,"cmp eax, 0\n");          // If cond is false, jump to else
+    fprintf(fps,"je _else%d\n",label);
+
+    type1 = writeAsm(node->child2,level,0, loop);
+    fprintf(fps,"jmp _end%d\n",label);  // jump over else since conditional was true
+    
+    fprintf(fps,"_else%d:\n",label);
+
+    type2 = writeAsm(node->child3,level,0, loop);
+    
+    fprintf(fps,"_end%d:\n",label);
+
+    varType=type1;  // TODO make correct type (wider of type1 and type2)
+  }
+        
   /*
   WHILE
   */
