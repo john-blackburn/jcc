@@ -5,25 +5,36 @@ I wrote this compiler based on the excellent tutorial by Nora Sandler: https://n
 
 The compiler source consists of a single file, `main.c`.
 
-Compile the compiler using `compile.bat` (which uses gcc/mingw on Windows, see below)
+Compile the compiler using `compile.bat` (which uses gcc/mingw on Windows, see below). You also need to compile the supplied floating point library `floatlib.s` by running `compile_lib.bat`
 
-Run it using,
+Run the compiler using,
 
 ```
-jcc path/to/source.c
+jcc [options] path/to/source.c
 ```
 eg
 
 ```
-jcc fibonacci.c
-jcc expr.c
+jcc examples\fibonacci.c
+jcc examples\expr.c
 ```
 
-This creates assembly language `source.s` in the same directory. Having written this file, the compiler calls the assembler to assemble into an object file and then link into an executable (`source.exe`). You will see the call to gcc which accomplishes this. The assembly file (`source.s`) has some comments in it (beginning with `#`) which show the state of the variables list at various times. The assembler will ignore these.
+options are:
+```
+-c: compile only
+-dumpLex: dump lex tokens to stdout
+-dumpParse: dump Abstract Syntax Tree to stdout
+-lexOnly: lex input file but do not parse or create function calls (no output file)
+-parseOnly: lex and parse but don't create function calls (no output file)
+```
 
-In addition to compiling, the compiler writes lots of debug info to stdout. First it writes the output from the lexer (tokens), then the output from the parser (an Abstract Syntax Tree of Nodes)
+This creates assembly language `source.s` in the current directory. Having written this file, the compiler calls the assembler to assemble into an object file and then link into an executable (`source.exe`). It also links against the supplied floating point library `floatlib.o`. You will see the calls to gcc which accomplish this. The assembly file (`source.s`) has some comments in it (beginning with `#`) which show the state of the compiler's internal variables list at various times. You can suppress assembly and link stages by using `-c`.
+
+In addition to compiling, the compiler optionally writes debug info to stdout. If `-dumpLex` is specified it writes the output from the lexer (tokens). If `-dumpParse` is specified it dumps the output from the parser (an Abstract Syntax Tree of Nodes)
 
 I have used the 32-bit gcc/mingw compiler for Windows to compile the compiler and also to act as assembler (ie I'm using Gnu's AS assembler). Thus, the assembler directives in the `.s` file are in AS format, including the use of `#` as comments. You will see various directives in the `.s` file beginning with dots eg `.intel_syntax noprefix` specifies to use the more readable Intel syntax for the x86 assembly language (not AT&T).
+
+The code should work equally well on Linux using gcc and tools, you would only need to change the convenience `.bat` scripts.
 
 The compiler supports only a subset of the ANSI C89 language (maybe 90%). Here is an example of code it can compile
 
@@ -47,42 +58,41 @@ int main() {
 }
 ```
 
-This source file is provided as `fibonacci.c`.
+This source file is provided as `fibonacci.c` in `examples`.
 
 The compiler implements the following language features:
 
-* int (4 bytes) and char (1 byte) base types. Also literal strings and void.
+* int (4 bytes), char (1 byte) and float (4 byte) base types. Also literal strings and void.
 * arrays, pointers and structs are fully supported.
-* All C operators are supported except for the comma operator (,) and the ternary operator (?:)
+* All C operators are supported except for the comma operator (,).
 * for, if, do, while fully supported
-* variable scope fully supported including local and global variables. New variables can be declared anywhere inside a block.
-* function calls supported using the cdecl calling convention only. Can call the std library no problem!
+* variables scope fully supported including local and global variables. New variables can be declared anywhere inside a block.
+* function calls supported using the cdecl calling convention only. Can call the C std library no problem!
 
 Limitations include:
 
-* No floats or doubles yet.
-* Only int and char base types supported. Qualifiers short/long and signed/unsigned are not supported.
-* No support for `switch, case, default, union, enum, typedef, goto`
-* No support for qualifiers `auto, const, extern, register, static, volatile`
+* No doubles yet.
+* Qualifiers const, long, register, short, volatile are currently ignored.
 * Single initialisations like `int i=j+k;` are supported but more complex block initialisation is not
  fully implemented. However `int i[]={1,2,3}` and `char* names[]={"foo","bar","zap"}` are allowed *for global variables only*.
 * Function pointers are not supported. Types may not include parentheses eg `struct Foo**[3][6]` is allowed but `int (*fp)()` is not.
-(note there is no limit to the number of array dimensions or pointer dereferences)
 * Function prototypes are parsed but only the return value is considered. No coercion is done when calling functions or on return values.
 
 There's a long way to go but...
 
 **The compiler is now advanced enough to compile itself!**
 
-Before compiling the program first preprocesses the C code by calling gcc with `gcc -E`. However, including standard library headers won't work as the compiler is not complete (and the headers tend to have compiler-specific directives not part of the official language). In fact such headers are not really needed as the compiler ignores function prototypes (except for return values). The above code will compile and 
-run fine even though `printf` is not declared (you could also write the prototypes for printf and friends by hand). When calling a function, the compiler simply passes the 
-arguments through not checking or coercing types (or even the number of arguments).
+Before compiling, jcc first preprocesses the C code by calling gcc with `gcc -E`.
 
-This code does not include an assembler or linker: the compiler's only function is to create an assembly language file (`.s`) which must be assembled into an object file (`.o`) then linked into an executable or library.
+This code does not include a preprocessor, assembler or linker: the compiler's only function is to take a `.c` file (preprocessed) and create an assembly language file (`.s`) which must be assembled into an object file (`.o`) then linked into an executable or library.
+
+# Example code
+
+Example source files are supplied in `examples` and corresponding compiled assembly language files in `correct_asm`. The script `test.bat` can test a particular source file. Eg `test fibonacci` uses `jcc` to compile and run `examples\fibonacci.c`. It then compiles and runs the same code with gcc and compares output. It also compares the assembly language `.s` file written by `jcc` to the "correct" version in `correct_asm` (note there may be cosmetic differences due to updates)
 
 # How it works
 
-The program first lexes the source file then parses it. The output from both stages is dumped to stdout. For the above example code, the lexer gives:
+The program first lexes the source file then parses it. The output from both stages is optionally dumped to stdout. For the above example code, the lexer gives:
 ```
 INT_DECLARATION
 IDENTIFIER: 'fib'
@@ -164,9 +174,9 @@ struct Token
 ```
 The type could be an identifier (variable), an int literal, a C keyword such as `return` or one of many punctuation symbols such as `OPEN_BRACKET`. The `id` is defined only
 for identifiers and literals. The tokens are assembled into a linked list pointed to by global variable `tokenHead`. Function `getTok` is called repeatedly to generate these Tokens.
-Lineno is the used for error output and is the line number from which the token was generated. (this is reset by preprocessor directives so refers to the line number in the original file)
+Lineno is the used for error output and is the line number from which the token was generated. (this is reset by preprocessor `#` directives so refers to the line number in the original file)
 
-The parser then takes these tokens and creates an Abstract Syntax Tree (AST). The output from the parser, for the same example, is
+The parser then takes these tokens and creates an Abstract Syntax Tree (AST). The output from the parser, for `fibonacci.c`, is
 ```
 PROGRAM
    FUNCTION: 'fib' [int]
@@ -227,7 +237,9 @@ Each Node has a type such as `BINARY_PLUS`, `VAR` (a reference to a variable), `
 ```
 struct Type
 {
-    char data[32];
+    char data[32];   // eg int*
+    int isConst;
+    :
 };
 ```
 
@@ -239,14 +251,18 @@ Each Node has a certain number of children with different meaning depending on t
 * `FOR` statements have 4 children (`child` is the initialiser, `child2` is the condition, `child3` is the increment, `child4` is the body)
 * `WHILE` has 2 children (`child` is the condition and `child2` is the body)
 * `DO` has 2 children (`child` is the body and `child2` is the condition)
+* ternary operator has 3 children (`child` is the conditional, `child2` is left expression (before the :), `child3` is right expression)
 
-The "bodies" mentioned above can be a single statement, a block (see next) or another if, for etc...
+The "bodies" mentioned above can be a single statement or block.
 Some nodes have an arbitrary number of children, stored in `line` with `nlines` being the number of children:
 
-* `FUNCTION` the first n children are the arguments then each child is a statement in the function (where "statement" can be a block, if etc)
-* `BLOCK` each child is a statement in the block ("statement" can be another block, an if, for etc)
+* `FUNCTION` the first n children are the arguments then each child is a statement in the function (where "statement" can be a block)
+* `BLOCK` each child is a statement in the block
 * `CALL` each child is function parameter
-* `PROGRAM` each child is a function, function prototype or global variable
+* `DECLGROUP` each child is a variable defined in one line. eg `int x,y,z` produces a DECLGROUP with 3 entries (each a DECL). Note that when a struct is created on the fly to define variables the 0-th entry is the STRUCT. Eg `struct Foo {int x,y;} a,b;` would have 3 entries: the Struct itself, then a, then b.
+* STRUCT each child is a DECLGROUP
+* ENUM each child is an Enum constant
+* `PROGRAM` each child is a function, function prototype, global variable, struct, enum or typedef
 
 The AST is generated by calling `parse_program` which recursively calls a series of other functions `parse_xxx`. These functions advance pointer `tokenHead` (a global variable)
 until no more tokens are available.
@@ -267,11 +283,11 @@ struct Var
 where `id` is the variable name, `level` is the scoping level with 0 being global scope, 1 function level scope and higher numbers being within (nested) blocks.
 `offset` is the offset of each variable on the stack (negative for local variables, positive for function arguments).
 
-`varType` is the variable type stored as a fixed length string eg `int*[3][6]`. `isArg` specifies if the variable is a function argument.
+`varType` is the variable type stored as a fixed length string eg `int*[3][6]`. `isArg` specifies if the variable is a function argument. `isConst` etc define qualifiers.
 `structNode` is a pointer to the AST which is used when defining structs. Note that when a struct is declared its name is pushed onto the variable stack with 
 `structNode` pointing to the AST location of the struct.
 
-The compiler uses the machine stack to evaluate expressions pushing and poping values onto it to do calculations. Values from this "calculator stack" are popped off onto the `eax` and `ecx` registers to do calculations and these are the only registers used. When calling functions `jcc` uses only the `cdecl` calling convention (arguments pushed onto the stack right to left and `eax`, `ecx`, `edx` corrupted during the call: caller must preserve these. Return value put on eax [in fact the compiler doesn't use `edx`]). A stack frame is set up using `esp` and `ebp`. Note that local variables within inner scopes (eg in an if-block) are created on demand by pushing them onto the stack. This is different from commercial compilers which will create all local variables within a function right at the beginning of the function.
+The compiler uses the machine stack to evaluate expressions pushing and poping values onto it to do calculations. Values from this "calculator stack" are popped off onto the `eax` and `ecx` registers to do calculations and these are the only registers used. When calling functions `jcc` uses only the `cdecl` calling convention (arguments pushed onto the stack right to left and `eax`, `ecx`, `edx` volatile. Return value put on eax). A stack frame is set up using `esp` and `ebp`. Note that local variables within inner scopes (eg in an if-block) are created on demand by pushing them onto the stack. This is different from commercial compilers which will create all local variables within a function right at the beginning of the function.
 So the compiler doesn't need to worry about registers getting corrupted when it calls a function: everything is pushed onto the stack.
 
 Once the AST has been prepared, the assembly language is written out using a single call to `writeAsm`. This function is recursive and has the prototype
