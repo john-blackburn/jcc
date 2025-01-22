@@ -9,7 +9,9 @@ echo running %1.exe...
 %1.exe
 echo return %errorlevel%
 
-gcc -o examples\%1_gcc.exe %1.c
+del %1_gcc.exe
+
+gcc -o %1_gcc.exe examples\%1.c
 echo running %1_gcc.exe...
 %1_gcc.exe
 echo gcc return %errorlevel%
