@@ -754,57 +754,101 @@ int countArgsAndLines()
 
 // ######################################################################
 
-struct Node* parse_identifier()
+struct Node *parse_identifier()
 {
-    struct Node *exp=(struct Node*)malloc(sizeof(struct Node));
-	
-    // if enum constant, set up INT_LITERAL with correct value
-	if (isEnumConst(tokenHead->id))
-	{
-		exp->type=INT_LITERAL;
-        exp->lineno=tokenHead->lineno;
-        exp->id=getEnumConst(tokenHead->id);
-        exp->child=NULL;
-        advance();
-		return exp;
-	}
-	
+    struct Node *exp = (struct Node*)malloc(sizeof(struct Node));
     exp->type=VAR;
     exp->lineno=tokenHead->lineno;
     exp->id=newStr(tokenHead->id);
     exp->child=NULL;
     exp->varType.data[0]='\0';
     advance();
+    
+    return exp;
+}
 
-    int type = getType();
-
-    if (type==PLUS2 || type==MINUS2)
+// a, 1, "foo", (expression)
+struct Node* parse_primary_exp()
+{
+    struct Node *exp;
+    int type=getType();
+	
+    if (type==OPEN_BRACKET)
     {
-       struct Node *after=(struct Node*)malloc(sizeof(struct Node));
-
-       if (type==PLUS2)
-          after->type=INC_AFTER;
-       else
-          after->type=DEC_AFTER;
-
-       after->lineno=tokenHead->lineno;
-       
-       after->child=exp;
-       advance();
-       return after;        
+        advance();
+        exp=parse_exp();
+        if (getType() != CLOSE_BRACKET) fail("Expected ) at end of expression");
+        advance();
     }
 
-    return exp;
+    // if enum constant, set up INT_LITERAL with correct value
+	else if (type==IDENTIFIER && isEnumConst(tokenHead->id))
+	{
+        exp=(struct Node*)malloc(sizeof(struct Node));
+		exp->type=INT_LITERAL;
+        exp->lineno=tokenHead->lineno;
+        exp->id=getEnumConst(tokenHead->id);
+        exp->child=NULL;
+        advance();
+	}
+
+	else if (type==INT_LITERAL)
+    {
+        exp=(struct Node*)malloc(sizeof(struct Node));
+        exp->type=INT_LITERAL;
+        exp->lineno=tokenHead->lineno;
+        exp->id=newStr(tokenHead->id);
+        exp->child=NULL;    
+        advance();
+  }
+  else if (type==STRING_LITERAL){              // "foo"
+    exp=(struct Node*)malloc(sizeof(struct Node));
+    exp->type=STRING_LITERAL;
+    exp->lineno=tokenHead->lineno;
+    exp->id=newStr(tokenHead->id);
+    exp->child=NULL;
+    advance();
+  }
+  else if (type==CHAR_LITERAL){                // 'c'
+    exp=(struct Node*)malloc(sizeof(struct Node));
+    exp->type=CHAR_LITERAL;
+    exp->lineno=tokenHead->lineno;
+    exp->id=newStr(tokenHead->id);
+    exp->child=NULL;
+    advance();
+  }
+  else if (type==FLOAT_LITERAL){                // 123.456
+    exp=(struct Node*)malloc(sizeof(struct Node));
+    exp->type=FLOAT_LITERAL;
+    exp->lineno=tokenHead->lineno;
+    exp->id=newStr(tokenHead->id);
+    exp->child=NULL;
+    advance();
+  }
+  else if (type==IDENTIFIER)
+  {
+      exp=parse_identifier();
+  }
+  else
+      fail("unknown type in parse_primary_exp");
+
+  return exp;
 }
 
 // ######################################################################
 
-// a[2][3], a[i+1], a[b[3]][4], a.x, a->y
-struct Node* parse_index()
+// postfix-exp := <primary-exp> {"[" <exp> "]"}
+// postfix-exp := <primary-exp> {"(" <exp> ")"}  // currently in parse_unary_exp
+//             := <primary-exp> {("."|"->") <identifier> }
+//             := <primary-exp> {("++"|"--")}  // a++
+// left associative
+// a[2][3], a[i+1], a[b[3]][4], a.x, a->y, a++
+struct Node* parse_postfix_exp()
 {
-  struct Node *factor=parse_identifier();
+  struct Node *factor=parse_primary_exp();
   int nextType=getType();
-  while (nextType==OPEN_SQUARE || nextType==DOT || nextType==MINUS_GREATERTHAN)
+  while (nextType==OPEN_SQUARE || nextType==DOT || nextType==MINUS_GREATERTHAN 
+      || nextType==PLUS2 || nextType==MINUS2)
   {
     advance();
     struct Node *next_factor;
@@ -816,10 +860,12 @@ struct Node* parse_index()
             fail("expected ]");
         advance();
     }
-    else
-    {
+    else if (nextType==DOT || nextType==MINUS_GREATERTHAN)
+    {        
         next_factor=parse_identifier();
     }
+    else
+        next_factor=NULL;
 
     struct Node *new_factor=(struct Node*)malloc(sizeof(struct Node));
 
@@ -827,8 +873,13 @@ struct Node* parse_index()
         new_factor->type=INDEX;
     else if (nextType==DOT)
         new_factor->type=DOT;
-    else
+    else if (nextType==MINUS_GREATERTHAN)
         new_factor->type=ARROW;
+    else if (nextType==PLUS2)
+        new_factor->type=INC_AFTER;
+    else
+        new_factor->type=DEC_AFTER;
+            
 
     new_factor->lineno=tokenHead->lineno;
     new_factor->child=factor;
@@ -855,8 +906,10 @@ int isTypeDec(struct Token *tok)
 
 // ######################################################################
 
-// 2, -2, 'c', "string", a, *a, &a, a[1][2], a(2,3), !a, ~a
-struct Node* parse_factor()
+// <unary-exp> := (&,*,+,-,~,!,++,--)<unary-exp> | sizeof <decl> | (<decl>)<exp> | <postfix-exp>
+// -2, *a, &a, a[1][2], a(2,3), !a, ~a, sizeof int, (int)5.0, ++a
+// right associative
+struct Node* parse_unary_exp()
 {
   struct Node *exp;
   int type=getType();
@@ -872,44 +925,8 @@ struct Node* parse_factor()
 
       exp->child=parse_exp();
   }
-  else if (type==OPEN_BRACKET){
-    advance();
-    exp=parse_exp();
-    if (getType() != CLOSE_BRACKET) fail("Expected ) at end of expression");
-    advance();
-  }
-  else if (type==INT_LITERAL){
-    exp=(struct Node*)malloc(sizeof(struct Node));
-    exp->type=INT_LITERAL;
-    exp->lineno=tokenHead->lineno;
-    exp->id=newStr(tokenHead->id);
-    exp->child=NULL;    
-    advance();
-  }
-  else if (type==STRING_LITERAL){              // "foo"
-    exp=(struct Node*)malloc(sizeof(struct Node));
-    exp->type=STRING_LITERAL;
-    exp->lineno=tokenHead->lineno;
-    exp->id=newStr(tokenHead->id);
-    exp->child=NULL;
-    advance();
-  }
-  else if (type==CHAR_LITERAL){                // 'c'
-    exp=(struct Node*)malloc(sizeof(struct Node));
-    exp->type=CHAR_LITERAL;
-    exp->lineno=tokenHead->lineno;
-    exp->id=newStr(tokenHead->id);
-    exp->child=NULL;
-    advance();
-  }
-  else if (type==FLOAT_LITERAL){                // 123.456
-    exp=(struct Node*)malloc(sizeof(struct Node));
-    exp->type=FLOAT_LITERAL;
-    exp->lineno=tokenHead->lineno;
-    exp->id=newStr(tokenHead->id);
-    exp->child=NULL;
-    advance();
-  }
+  
+  // TODO should move this to parse_postfix_exp
   else if (type==IDENTIFIER && tokenHead->next->type==OPEN_BRACKET){
     exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=CALL;
@@ -929,13 +946,14 @@ struct Node* parse_factor()
     if (getType()!=CLOSE_BRACKET) fail("expected ) in CALL");
     advance();
   }
+
   else if (type==AMP)        // &a
   {
       exp=(struct Node*)malloc(sizeof(struct Node));
       exp->type=ADDRESS;
       exp->lineno=tokenHead->lineno;
       advance();
-      exp->child=parse_factor();
+      exp->child=parse_unary_exp();
   }  
   else if (type==ASTERISK)   // *p, **p etc
   {
@@ -943,54 +961,49 @@ struct Node* parse_factor()
       exp->type=DEREF;
       exp->lineno=tokenHead->lineno;
       advance();
-      exp->child=parse_factor();
+      exp->child=parse_unary_exp();
   }
   else if (type==MINUS){
       exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=UNARY_MINUS;
     exp->lineno=tokenHead->lineno;
     advance();
-    exp->child=parse_factor();
+    exp->child=parse_unary_exp();
   }
   else if (type==PLUS){
       exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=UNARY_PLUS;
     exp->lineno=tokenHead->lineno;
     advance();
-    exp->child=parse_factor();
+    exp->child=parse_unary_exp();
   }
   else if (type==PLUS2){
     exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=INC;
     exp->lineno=tokenHead->lineno;
     advance();
-    exp->child=parse_factor();
+    exp->child=parse_unary_exp();
   }
   else if (type==MINUS2){
     exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=DEC;
     exp->lineno=tokenHead->lineno;
     advance();
-    exp->child=parse_factor();
+    exp->child=parse_unary_exp();
   }
   else if (type==TILDE){
     exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=UNARY_COMPLEMENT;
     exp->lineno=tokenHead->lineno;
     advance();
-    exp->child=parse_factor();
+    exp->child=parse_unary_exp();
   }
   else if (type==EXCLAM){
     exp=(struct Node*)malloc(sizeof(struct Node));
     exp->type=UNARY_NOT;
     exp->lineno=tokenHead->lineno;
     advance();
-    exp->child=parse_factor();
-  }
-  else if (type==IDENTIFIER)
-  {
-      // don't allocate
-      exp=parse_index();
+    exp->child=parse_unary_exp();
   }
   else if (type==SIZEOF)
   {
@@ -1002,10 +1015,10 @@ struct Node* parse_factor()
           advance();
       }
       
-      if (0) // getType()==IDENTIFIER)
-          exp=parse_identifier();  // TODO fix this!
-      else
-          exp=parse_decl(SIZEOF);
+//      if (0) // getType()==IDENTIFIER)
+//          exp=parse_identifier();  // TODO fix this!
+//      else
+      exp=parse_decl(SIZEOF);
 
       if (brk)
       {
@@ -1015,20 +1028,22 @@ struct Node* parse_factor()
       }
   }
   else
-    fail("Expected literal or unary operator");
+      exp=parse_postfix_exp();
 
   return exp;
 }
 
 // ######################################################################
-// a * 5 * 7
-struct Node* parse_term()
+// <multiplicative-exp> ::= <unary-exp> { ("*" | "/" | "%") <unary-exp> }
+// (left associative)
+// a * 5 / 7
+struct Node* parse_multiplicative_exp()
 {
-  struct Node *factor=parse_factor();
+  struct Node *factor=parse_unary_exp();
   int nextType=getType();
   while (nextType==ASTERISK || nextType==SLASH || nextType==PERCENT){
     advance();
-    struct Node *next_factor=parse_factor();
+    struct Node *next_factor=parse_unary_exp();
     struct Node *new_factor=(struct Node*)malloc(sizeof(struct Node));
 
     if (nextType==ASTERISK)
@@ -1050,14 +1065,15 @@ struct Node* parse_term()
 
 // ######################################################################
 
-//1+2+3
+//<additive-exp> ::= <term> { ("+" | "-") <term> }
+//1 + 2 - 3
 struct Node* parse_additive_exp()
 {
-  struct Node *term=parse_term();
+  struct Node *term=parse_multiplicative_exp();
   int nextType=getType();
   while (nextType==PLUS || nextType==MINUS){
     advance();
-    struct Node *next_term=parse_term();
+    struct Node *next_term=parse_multiplicative_exp();
     struct Node *new_term=(struct Node*)malloc(sizeof(struct Node));
 
     if (nextType==PLUS)
@@ -1104,6 +1120,8 @@ struct Node* parse_shift_exp()
 
 // ######################################################################
 
+//<relational-exp> ::= <additive-exp> { ("<" | ">" | "<=" | ">=") <additive-exp> }
+// (left associative)
 //1<2<=3
 struct Node* parse_relational_exp()
 {
@@ -1140,6 +1158,8 @@ struct Node* parse_relational_exp()
 
 // ######################################################################
 
+// <equality-exp> ::= <relational-exp> { ("!=" | "==") <relational-exp> }
+// (left associative)
 //1 != 2 == 3
 struct Node* parse_equality_exp()
 {
@@ -1239,6 +1259,8 @@ struct Node* parse_bitwise_or_exp()
 
 // ######################################################################
 
+// <logical-and-exp> ::= <equality-exp> { "&&" <equality-exp> }
+// (left associative)
 //1 && 2 && 3
 struct Node* parse_and_exp()
 {
@@ -1263,6 +1285,8 @@ struct Node* parse_and_exp()
 
 // ######################################################################
 
+//<logical-or-exp> ::= <logical-and-exp> { "||" <logical-and-exp> } 
+// (left associative)
 //1 || 2 || 3
 struct Node* parse_or_exp()
 {
@@ -1285,7 +1309,10 @@ struct Node* parse_or_exp()
   return term;
 }
 
+// ######################################################################
+
 // <conditional-exp> ::= <logical-or-exp> [ "?" <exp> ":" <conditional-exp> ]
+// x>y ? 1 : 0
 
 struct Node* parse_conditional_exp()
 {
@@ -1320,8 +1347,11 @@ struct Node* parse_conditional_exp()
 }
     
 // ######################################################################
-// x = y = 0
 // <exp> ::= <logical-or-exp> [ "=" <exp> ]
+// (right associative)
+// note: I simplified this, Nora grammar was 
+// <exp> ::= <id> "=" <exp> | <logical-or-exp>
+// x = y = 0
 
 struct Node* parse_exp()
 {
