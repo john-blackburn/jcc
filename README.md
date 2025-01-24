@@ -28,7 +28,7 @@ options are:
 -parseOnly: lex and parse but don't create assembly (no output file)
 ```
 
-This creates assembly language `source.s` in the current directory. Having written this file, the compiler calls the assembler to assemble into an object file and then link into an executable (`source.exe`). It also links against the supplied floating point library `floatlib.o`. You will see the calls to gcc which accomplish this. The assembly file (`source.s`) has some comments in it (beginning with `#`) which show the state of the compiler's internal variables list at various times. You can suppress assembly and link stages by using `-c`.
+This creates assembly language `source.s` in the current directory. Having written this file, the compiler calls the assembler to assemble into an object file and then link into an executable (`source.exe`). It also links against the supplied floating point library `floatlib.o`. You will see the calls to gcc which accomplish this. The assembly file (`source.s`) has some comments in it (beginning with `#`) which show the state of the compiler's internal variables list at various times. You can suppress the link stage by using `-c`.
 
 In addition to compiling, the compiler optionally writes debug info to stdout. If `-dumpLex` is specified it writes the output from the lexer (tokens). If `-dumpParse` is specified it dumps the output from the parser (an Abstract Syntax Tree of Nodes)
 
@@ -63,7 +63,7 @@ This source file is provided as `fibonacci.c` in `examples`.
 The compiler implements the following language features:
 
 * int (4 bytes), char (1 byte) and float (4 byte) base types. Also literal strings and void.
-* arrays, pointers and structs are fully supported.
+* arrays, pointers, structs and unions are fully supported.
 * All C operators are supported except for the comma operator (,).
 * for, if, do, while fully supported
 * variables scope fully supported including local and global variables. New variables can be declared anywhere inside a block.
@@ -73,9 +73,10 @@ Limitations include:
 
 * No doubles yet.
 * Qualifiers const, long, register, short, volatile are currently ignored.
+* No bitfields
 * Single initialisations like `int i=j+k;` are supported but more complex block initialisation is not
  fully implemented. However `int i[]={1,2,3}` and `char* names[]={"foo","bar","zap"}` are allowed *for global variables only*.
-* Function pointers are not supported. Types may not include parentheses eg `struct Foo**[3][6]` is allowed but `int (*fp)()` is not.
+* Function pointers are not supported. Types may not include parentheses eg `struct Foo **F[3][6]` is allowed but `int (*fp)()` is not.
 * Function prototypes are parsed but only the return value is considered. No coercion is done when calling functions or on return values.
 
 There's a long way to go but...
