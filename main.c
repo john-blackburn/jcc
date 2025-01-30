@@ -27,19 +27,22 @@ padding within structs?
 64 bit
 */
 
+/*
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+*/
 
-/*
-Taken from the above header files. We want to avoid headers as they have non-standard stuff
-Below is the minimum set of declarations
+//Taken from the above header files. We want to avoid headers as they have non-standard stuff
+//Below is the minimum set of declarations
 
 
 #define NULL ((void*)0)
 #define errno (*_errno())
 #define SEEK_END 2
+#define STDOUT_FILENO   1
+#define stdout  (&_iob[STDOUT_FILENO])
 
 typedef unsigned int size_t;
 
@@ -55,6 +58,7 @@ typedef struct _iobuf
   char *_tmpfname;
 } FILE;
 
+extern __attribute__((__dllimport__)) FILE _iob[];
 
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) FILE * fopen (const char *, const char *);
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) int fclose (FILE *);
@@ -82,6 +86,7 @@ __attribute__((__cdecl__)) __attribute__((__nothrow__)) char *strstr (const char
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) char *strtok (char *, const char *);
 
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) void *malloc (size_t) __attribute__((__malloc__));
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) void *realloc (void *, size_t);
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) void free (void *);
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) void exit (int) __attribute__((__noreturn__));
 
@@ -97,8 +102,7 @@ __attribute__((__cdecl__)) __attribute__((__nothrow__)) long strtol (const char 
  __attribute__((__cdecl__)) __attribute__((__nothrow__)) int scanf (const char *, ...);
  __attribute__((__cdecl__)) __attribute__((__nothrow__)) int sscanf (const char *, const char *, ...);
 
-End of std headers stuff
-*/
+// End of std headers stuff
 
 char *tokNames[]={"<<=", ">>=",
 
@@ -1407,6 +1411,8 @@ Insert them into varType
 Advance tokenHead
 */
 
+void writeQuals(struct Type varType, FILE *fp);
+
 struct Type getBaseType()
 {
     struct Type vt=newVartype();
@@ -1498,11 +1504,16 @@ struct Type getBaseType()
         else
         {
             // must be typedef
-            vt = getTypedef(tokenHead->id); // will fail if not found
+            struct Type vt0 = getTypedef(tokenHead->id); // will fail if not found
+            strcpy(vt.data, vt0.data);  // use only the data part
         }
 
         advance();
     }
+    
+    printf("basetype %s extern=%d", vt.data, vt.isExtern);
+    writeQuals(vt,stdout);
+    printf("\n");
     
     return vt;
 }
@@ -2800,7 +2811,6 @@ int sizeOf(struct Type t, struct Node* node)
 
         if (strlen(index)==0)
         {
-            printf("[%s]\n",index);
             asmFail("Empty array index", node);
         }
         errno = 0;
@@ -3818,12 +3828,12 @@ _post_conditional:            ; we need this label to jump over e3
   {
     char* field = node->child2->id; // eg x
 
-    type1 = writeAsm(node->child,level,1,loop);  // p, lvalue requested (type1=struct Point)
+    type1 = writeAsm(node->child, level, (node->type==DOT) ? 1 : 0, loop);  // p, lvalue requested if DOT (type1=struct Point)
 
     if (node->type==ARROW) 
     {
         type1 = removePointer(type1); 
-        fprintf(fps,"mov eax,[eax]\n");
+//        fprintf(fps,"mov eax,[eax]\n");
     }
     
     struct Var *p=varEnd;
@@ -3842,7 +3852,7 @@ _post_conditional:            ; we need this label to jump over e3
     if (found==0) 
     {
         printf("Unknown struct/union %s\n",type1.data);
-        exit(1);
+        asmFail("",node);
     }
 
     int tot=0;
@@ -3997,6 +4007,9 @@ ed: if (found==0)
 #define AMP_EQUALS 18
 #define PIPE_EQUALS 19
 #define HAT_EQUALS 20
+
+eg x[f()] += 5 only calls f() once. Figures out lvalue of x[f()] push it, deref it to get value
+add to 5 via writeBinOp. pop lvalue and store result in that memory location
   */
 
   else if (node->type >= PLUS_EQUALS && node->type <= HAT_EQUALS)
@@ -4200,73 +4213,76 @@ ed: if (found==0)
   {
       // does nothing!
   }
-  else if (node->type==INC)
+  else if (node->type==INC || node->type==DEC)
   {
     varType = writeAsm(node->child,level,1,loop);
     if (isChar(varType))
     {
-        fprintf(fps,"inc byte ptr [eax]\n");
+        fprintf(fps,"%s byte ptr [eax]\n", (node->type==INC) ? "inc": "dec");
         fprintf(fps,"mov al,[eax]\n");
     }
     else if (isInt(varType))
     {
-        fprintf(fps,"inc dword ptr [eax]\n");
+        fprintf(fps,"%s dword ptr [eax]\n", (node->type==INC) ? "inc": "dec");
+        fprintf(fps,"mov eax,[eax]\n");
+    }
+    else if (isFloat(varType))  // ++a;
+    {
+        fprintf(fps,"push eax\n");  // lvalue
+        fprintf(fps,"mov eax,[eax]\n");
+        fprintf(fps,"mov ecx,3f800000\n"); // 1.0
+        fprintf(fps,"push ecx\n");
+        fprintf(fps,"push eax\n");        
+        fprintf(fps,"call _f%s\n", (node->type==INC) ? "add": "sub");
+        fprintf(fps,"add esp,8\n");
+        fprintf(fps,"pop ecx\n");  // lvalue
+        fprintf(fps,"mov [ecx],eax\n");
+    }
+    else if (isPointer(varType))
+    {
+        fprintf(fps,"%s dword ptr [eax],%d\n", (node->type==INC) ? "add": "sub", sizeOf(removePointer(varType),node));
         fprintf(fps,"mov eax,[eax]\n");
     }
     else
-        asmFail("INC only for int or char",node);
+        asmFail("Cannot use INC, DEC for this type",node);
   }
-  else if (node->type==DEC)
-  {
-    varType = writeAsm(node->child,level,1,loop);
-    if (isChar(varType))
-    {
-        fprintf(fps,"dec byte ptr [eax]\n");
-        fprintf(fps,"mov al,[eax]\n");
-    }
-    else if (isInt(varType))
-    {
-        fprintf(fps,"dec dword ptr [eax]\n");
-        fprintf(fps,"mov eax,[eax]\n");
-    }
-    else
-        asmFail("DEC only for int or char",node);
-  }
-  else if (node->type==INC_AFTER)
+  else if (node->type==INC_AFTER || node->type==DEC_AFTER)
   {
     varType = writeAsm(node->child,level,1,loop);
     if (isChar(varType))
     {
         fprintf(fps,"mov cl,[eax]\n");
-        fprintf(fps,"inc byte ptr [eax]\n");
+        fprintf(fps,"%s byte ptr [eax]\n",(node->type==INC_AFTER) ? "inc": "dec");
         fprintf(fps,"mov al,cl\n");
     }
     else if (isInt(varType))
     {
         fprintf(fps,"mov ecx,[eax]\n");   // store old value
-        fprintf(fps,"inc dword ptr [eax]\n");  // increase
+        fprintf(fps,"%s dword ptr [eax]\n", (node->type==INC_AFTER) ? "inc": "dec");  // increase
         fprintf(fps,"mov eax,ecx\n");          // return old value
     }
-    else
-        asmFail("INC_AFTER only for int or char",node);
-  }
-  else if (node->type==DEC_AFTER)
-  {
-    varType = writeAsm(node->child,level,1,loop);
-    if (isChar(varType))
+    else if (isFloat(varType))  // a++;
     {
-        fprintf(fps,"mov cl,[eax]\n");
-        fprintf(fps,"dec byte ptr [eax]\n");
-        fprintf(fps,"mov al,cl\n"); 
-    }
-    else if (isInt(varType))
+        fprintf(fps,"push eax\n");  // lvalue
+        fprintf(fps,"mov eax,[eax]\n");
+        fprintf(fps,"mov edx,eax\n");  // store for expression value
+        fprintf(fps,"mov ecx,3f800000\n"); // 1.0
+        fprintf(fps,"push ecx\n");
+        fprintf(fps,"push eax\n");        
+        fprintf(fps,"call _f%s\n", (node->type==INC_AFTER) ? "add": "sub");
+        fprintf(fps,"add esp,8\n");
+        fprintf(fps,"pop ecx\n");  // lvalue
+        fprintf(fps,"mov [ecx],eax\n");
+        fprintf(fps,"mov eax,edx\n");
+    }        
+    else if (isPointer(varType))
     {
         fprintf(fps,"mov ecx,[eax]\n");
-        fprintf(fps,"dec dword ptr [eax]\n");
+        fprintf(fps,"%s dword ptr [eax],%d\n", (node->type==INC_AFTER) ? "add": "sub", sizeOf(removePointer(varType),node));
         fprintf(fps,"mov eax,ecx\n");
     }
     else
-        asmFail("DEC_AFTER only for int or char",node);
+        asmFail("Cannot use INC_AFTER, DEC_AFTER for this type",node);
   }
   else if (node->type==UNARY_COMPLEMENT){
     type1 = writeAsm(node->child,level,0, loop);
@@ -5011,9 +5027,10 @@ int main(int argc, char **argv)
       struct TypeDef* q=typeDefEnd;      
       while (q!=NULL)
       {
-          printf("%s %s\n", q->name, q->type.data);
+          printf("%s => %s\n", q->name, q->type.data);
           q=q->prev;
       }
+      printf("end\n");
 
   }
 
