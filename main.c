@@ -3,6 +3,19 @@ Usage:
 jcc path/to/foo.c
 Creates foo.s in current directory and assembles/links to get foo.exe
 
+do coercion
+fix break and continue. clean stack at end of block
+issue with idiv?
+complex init in functions eg char* ops[]={"add",...}
+allow add int to array eg t.data+st
+allow empty expression ;
+accept 0UL, 0.0f etc for literals (also hex, octal?)
+issue with examples\fibonacci.c => fibonacci.s
+do return struct properly. Create hidden local on demand and callee copy to that. 
+destroy at block exit as if void f(struct S *s,...)
+or callee malloc and put struct on heap, return pointer as if struct S *f(...)
+eax set to address. Remember to free at end of block
+
 TODO:
 Not needed to compile this compiler (and not done):
 More initialise arrays: 
@@ -476,14 +489,18 @@ struct Var *varEnd;       // top of the stack where we store variable declaratio
 struct Token *tokenHead;  // global for parsing
 int lineno;
 
-struct TypeDef *typeDefEnd = NULL;
-struct EnumConst *enumConstEnd = NULL;
+struct TypeDef *typeDefEnd = 0;
+struct EnumConst *enumConstEnd = 0;
 
 FILE* fps;
 
 // forward declarations
 struct Node *parse_decl(int type);
 struct Node *parse_exp(); 
+
+// todo div should possibly be idiv? (search for idiv below)
+
+char* ops[]={"add","sub","imul","idiv","idiv","and","or","xor"};
 
 // ######################################################################
 
@@ -709,6 +726,8 @@ int countInit()
 
 // ######################################################################
 
+// TODO: count "){" or "else {" as +1 and ; : as +1
+// -1 for ELSE, DO, ?. -2 for FOR
 // count lines in a block, eg function body or for loop body
 int countLines(struct Token *p)
 {
@@ -1624,7 +1643,8 @@ struct Node* parse_decl(int type)
 }
 
 // ######################################################################
-// count number of items in an init group eg int i=1, *j[3], k[]={1,2,3};
+// count number of items in an init group eg int i=1, *j[3], k[]={1,2,3}; => 3
+// int n=foo(1,2,3),j=1; => 2
 int countDeclGroup()
 {
   struct Token *p=tokenHead;
@@ -1633,10 +1653,10 @@ int countDeclGroup()
   int level=0;
   while(!(p->type==SEMICOLON && level==0))
   {
-      if (p->type==OPEN_BRACE)
+      if (p->type==OPEN_BRACE || p->type==OPEN_BRACKET)
           level++;
       
-      if (p->type==CLOSE_BRACE)
+      if (p->type==CLOSE_BRACE || p->type==CLOSE_BRACKET)
           level--;
             
     if (p->type==COMMA && level==0)
@@ -1898,9 +1918,9 @@ struct Node* parse_struct()
 // struct Foo {}; -> true
 // struct Foo f; -> false
 // struct Foo {} f; -> false
-int isStructDef(struct Token* tok)
+int isStructOrUnionDef(struct Token* tok)
 {
-    if (tok->type==STRUCT)
+    if (tok->type==STRUCT || tok->type==UNION)
     {
         tok=tok->next;
         if (tok->type == IDENTIFIER) tok=tok->next;
@@ -2050,7 +2070,7 @@ struct Node* parse_statement()
     if (getType()!=SEMICOLON) fail("Expected ;");
     advance();
   }
-  else if(isStructDef(tokenHead))  // struct/union Foo{int x; int y;};
+  else if(isStructOrUnionDef(tokenHead))  // struct/union Foo{int x; int y;};
   {
       statement = parse_struct();
       advance();
@@ -2170,7 +2190,7 @@ struct Node* parse_function()
   int nargs=countArgs();
   function->nlines=ntot;
 
-  printf("found %d args and %d statements in function\n", nargs, ntot-nargs);
+  printf("found %d args and %d statements in function: %s\n", nargs, ntot-nargs, function->id);
 
   function->line=(struct Node**)malloc(ntot*sizeof(struct Node*));
 
@@ -2258,6 +2278,7 @@ struct Node* parse_global()
 // ######################################################################
 
 /*
+TODO: count "){" as +1 and ; as +1
 int foo;
 int foo();
 int foo(){}
@@ -2326,7 +2347,7 @@ struct Node* parse_program()
   int i;
   for (i=0; i<n; i++)
   {
-    if (isStructDef(tokenHead)) // struct/union Foo {int x; int y;};
+    if (isStructOrUnionDef(tokenHead)) // struct/union Foo {int x; int y;};
     {
         program->line[i]=parse_struct();
         advance();
@@ -2339,7 +2360,7 @@ struct Node* parse_program()
     {
         program->line[i]=parse_typedef();
     }
-    else if (!isProtoOrFunc())   // int foo=2; struct Foo f; struct Foo {} f;
+    else if (!isProtoOrFunc())   // int foo=2; struct Foo f; struct Foo {} f; (ruled out struct def)
     {
       program->line[i]=parse_global();
     }
@@ -2806,7 +2827,7 @@ int sizeOf(struct Type t, struct Node* node)
     for (i=0; i<n; i++)
     {        
         st=open[i]+1; len=close[i]-1-st+1;
-        memcpy(index, t.data+st, len);
+        memcpy(index, &t.data[st], len);
         index[len]='\0';
 
         if (strlen(index)==0)
@@ -2963,7 +2984,7 @@ struct Type removeArray(struct Type t)
     for (i=1;i<n;i++)
     {
         st=open[i]; len=close[i]-st+1;
-        memcpy(ind, t.data+st, len);
+        memcpy(ind, &t.data[st], len);
         ind[len]='\0';
         strcat(s.data, ind);
     }
@@ -3065,7 +3086,7 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
         varType=type1;
 //        strcpy(varType.data,"int");
     }
-    else if (strstr("add,sub", op)!=0 && isPointer(type1) && isInt(type2))
+    else if (strstr("add,sub", op)!=NULL && isPointer(type1) && isInt(type2))
     {
         fprintf(fps, "imul ecx,%d\n",sizeOf(removePointer(type1),node));
         fprintf(fps,"%s eax,ecx\n", op);
@@ -3087,7 +3108,8 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
 
         fprintf(fps,"sub eax,ecx\n");
         fprintf(fps,"cdq\n");
-        fprintf(fps,"idiv eax,%d\n", sizeOf(removePointer(type1),node));
+        fprintf(fps,"mov ecx, %d\n",sizeOf(removePointer(type1),node));
+        fprintf(fps,"idiv eax,ecx\n");
         strcpy(varType.data,"int");
     }
     else if (strcmp(op,"cmp")==0 && isPointer(type1) && isPointer(type2))
@@ -3115,6 +3137,11 @@ void findSubStructs(struct Node *node, int level, int loop)
         if (node->line[i]->type==STRUCT)
             writeAsm(node->line[i],level,0,loop);
     }
+}
+
+int getPaddedSize(int size)
+{
+    return (size%4 == 0) ? size : (1+size/4)*4;
 }
 
 // ######################################################################
@@ -3248,6 +3275,8 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
             else
                 asmFail("Only int[] and char*[] supported for block init", node);
         }
+        else
+            asmFail("unknown global initialisation type",node);
         
         fprintf(fps,".text\n");
     }
@@ -3320,7 +3349,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     fprintf(fps,"push ebp\n");
     fprintf(fps,"mov ebp,esp\n");
 
-    for ( ; i<node->nlines; i++)
+    for ( 0 ; i<node->nlines; i++)
     {
       writeAsm(node->line[i], level+1, 0, loop);
     }    
@@ -3386,7 +3415,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     while(varEnd!=NULL){
       if (varEnd->level > level+1) asmFail("Error: Unexpected high level variable", node);
       if (varEnd->level != level+1) break;
-      tot += sizeOf(varEnd->varType,node);
+      tot += getPaddedSize(sizeOf(varEnd->varType,node));
       struct Var *prev=varEnd->prev;
       free(varEnd);
       varEnd=prev;
@@ -3949,7 +3978,7 @@ ed: if (found==0)
     else
     {
         printf("Incompatible types for assignment: %s, %s\n", type1.data, type2.data);
-        exit(1);
+        asmFail("",node);
     }
     
     if (isChar(type1))   // LHS = char
@@ -4023,7 +4052,6 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     fprintf(fps,"push eax\n"); // push the lvalue
     fprintf(fps,"mov eax,[eax]\n"); // get the actual value
     
-    char* ops[]={"add","sub","imul","idiv","idiv","and","or","xor"};
     char* op;
 
     printf("types=%s %s\n", type1.data,type2.data);
@@ -4324,7 +4352,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
       sscanf(node->id, "%f", &f);
       f2u.f=f;
       
-    fprintf(fps,"mov eax,0x%0x # %f\n",f2u.u, f);
+    fprintf(fps,"mov eax,0x%0x # %f\n", f2u.u, f);
     strcpy(varType.data,"float");
   }
   else if (node->type==STRING_LITERAL){
@@ -4883,7 +4911,7 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  fseek(fp, 0L, SEEK_END);
+  fseek(fp, 0, SEEK_END);
   int sz = ftell(fp);
   rewind(fp);
 
@@ -4897,7 +4925,7 @@ int main(int argc, char **argv)
   // Get list of tokens starting at head
   // ----------------------------------------------------------------------
 
-  printf("%s###\n",source);
+//  printf("%s###\n",source);
   printf("source length=%d\n",strlen(source));
 
   lineno=1;
@@ -4909,7 +4937,7 @@ int main(int argc, char **argv)
   prev=head;
   st=ed;
 
-//  printf("head: %d %s %s\n", head->type, names[head->type], head->id);
+  printf("head: %d %s %s\n", head->type, names[head->type], head->id);
   
   while(1)
   {
@@ -4936,7 +4964,7 @@ int main(int argc, char **argv)
   free(source);
 
   // ----------------------------------------------------------------------
-  // concatenate multiple string literals
+  // concatenate multiple string literals "foo" "bar" => "foobar"
   // ----------------------------------------------------------------------
 
   int inString=0;
