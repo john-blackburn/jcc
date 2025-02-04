@@ -6,10 +6,11 @@ int foo(int bar)
 static int globalMass, charge=10;  // global statics
 
 int putchar(int c);
-int strlen(int s);
+int strlen(const char*);
 
 char* newStr(char* p);
 void* malloc(int size);
+int printf (const char *, ...);
 
 int bar()
 {

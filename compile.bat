@@ -1,1 +1,1 @@
-gcc -o jcc.exe main.c
+gcc -g -o jcc.exe main.c

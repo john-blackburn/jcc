@@ -3,9 +3,7 @@ Usage:
 jcc path/to/foo.c
 Creates foo.s in current directory and assembles/links to get foo.exe
 
-do coercion
 fix break and continue. clean stack at end of block
-issue with idiv?
 complex init in functions eg char* ops[]={"add",...}
 allow add int to array eg t.data+st
 allow empty expression ;
@@ -13,15 +11,12 @@ accept 0UL, 0.0f etc for literals (also hex, octal?)
 issue with examples\fibonacci.c => fibonacci.s
 do return struct properly. Create hidden local on demand and callee copy to that. 
 destroy at block exit as if void f(struct S *s,...)
-or callee malloc and put struct on heap, return pointer as if struct S *f(...)
-eax set to address. Remember to free at end of block
 
 TODO:
 Not needed to compile this compiler (and not done):
 More initialise arrays: 
     char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. 
     char *foo[]={"hello","world"} (currently only done for globals)
-Function protoypes (currently ignored but return value considered). Coercion. (WON'T DO)
 comma operator (WON'T DO)
 function pointers (WON'T DO)
 double (WON'T DO)
@@ -2928,6 +2923,11 @@ int isArray(struct Type t)
     return n!=0;
 }
 
+int isPointerOrArray(struct Type t)
+{
+    return isPointer(t) || isArray(t);
+}
+
 int isStruct(struct Type t)
 {
     return startsWith(t.data, "struct") && !isArray(t) && !isPointer(t);
@@ -3144,6 +3144,98 @@ int getPaddedSize(int size)
     return (size%4 == 0) ? size : (1+size/4)*4;
 }
 
+
+// varType is required type
+void doCast(struct Type type1, struct Type varType, struct Node* node)
+{
+      
+      if (strcmp(varType.data, type1.data)==0)
+      {
+          // identical
+      }
+      else if (isPointerOrArray(type1) && isPointerOrArray(varType))
+      {
+          // pointer to pointer
+      }
+      else if (isChar(type1) && isInt(varType))  // widen char -> int
+      {
+          fprintf(fps,"movzx eax,al\n");
+      }
+      else if (isInt(type1) && isFloat(varType))  // widen int -> float
+      {
+          fprintf(fps,"push eax\n");
+          fprintf(fps,"call _int2float\n");
+          fprintf(fps,"add esp,4\n");
+      }
+      else if (isFloat(type1) && isInt(varType))  // widen float -> int
+      {
+          fprintf(fps,"push eax\n");
+          fprintf(fps,"call _float2int\n");
+          fprintf(fps,"add esp,4\n");
+      }
+      else if (isInt(type1) && isChar(varType))  // narrow
+      {
+      }
+      else if (isPointer(varType) && isInt(type1))
+      {
+      }
+      else
+      {
+          asmFail("Illegal cast!", node);
+      }
+}
+
+int sizeLocals(struct Node* node)
+{
+    int tot=0;
+    
+    if (node->type==FUNCTION || node->type==BLOCK)
+    {
+        int mx=0;
+        for (i=0;i<node->nlines;i++)
+        {
+            sz = sizeLocals(node->line[i]);
+            int type=node->line[i]->type;
+            
+            if (type==BLOCK || type==WHILE || type==FOR || type==DO || type==IF || type==SWITCH)
+                mx=max(mx,sz);
+            else
+                tot+=sz;
+        }
+        return tot+mx;
+    }
+    else if (node->type==FOR)
+    {
+        return sizeLocals(node->child4);
+    }    
+    else if (node->type==WHILE || node->type==SWITCH)
+    {
+        return sizeLocals(node->child2);
+    }    
+    else if (node->type==IF)
+    {
+        int sz=sizeLocals(node->child2);
+        if (node->child3!=NULL)
+            sz = max(sz, sizeLocals(node->child3));
+        return sz;
+    }    
+    else if (node->type==DECLGROUP)
+    {        
+        for (i=0;i<node->nlines;i++)
+        {
+            tot += sizeLocals(node->line[i]);
+        }
+        return tot;
+    }
+
+    else if (node->type==DECL && node->varType.isStatic==0)
+    {
+        return getPaddedSize(sizeOf(node->varType));
+    }
+    else
+        return 0;    
+}
+
 // ######################################################################
 
 struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
@@ -3206,7 +3298,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
         {
             if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
             fprintf(fps,"_%s:\n",node->id);
-            fprintf(fps,".skip %d\n",sizeOf(node->varType, node));
+            fprintf(fps,".skip %d\n",getPaddedSize(sizeOf(node->varType, node)));
         }
         else if (node->child->type==INT_LITERAL)
         {
@@ -3242,7 +3334,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
                 if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
                 fprintf(fps,"_%s:\n",node->id);
                 int i;
-                for (i=0;i<node->child->nlines;i++)
+                for (i=0; i < node->child->nlines; i++)
                 {
                     fprintf(fps,".long %s\n", node->child->line[i]->id);
                 }
@@ -3312,8 +3404,9 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     varEnd->varType=node->varType;
     varEnd->level=0;
     varEnd->isArg=0;
+    varEnd->structNode=node;  // store location of function on AST
     varEnd->prev=oldVarEnd;
-
+    
     g_offset = 0;
 
     // create arguments as local variables (data is on stack but lets point to it)
@@ -3335,9 +3428,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
       if (isArray(varEnd->varType))
           tot += 4;
       else
-      {
-          tot += sizeOf(varEnd->varType, node);
-      }
+          tot += getPaddedSize(sizeOf(varEnd->varType, node));
     }
     
     writeVars();
@@ -3394,6 +3485,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     varEnd->varType=node->varType;
     varEnd->level=0;
     varEnd->isArg=0;
+    varEnd->structNode=node;  // store location of proto on AST
     varEnd->prev=oldVarEnd;
   }
   
@@ -3406,7 +3498,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   else if (node->type==BLOCK){
       
     int i;
-    for (i=0;i<node->nlines;i++){
+    for (i=0; i < node->nlines; i++){
       writeAsm(node->line[i], level+1, 0, loop);
     }
 
@@ -3666,23 +3758,52 @@ _post_conditional:            ; we need this label to jump over e3
   else if (node->type==CALL){
     int i;
     int tot=0;
-    int size;
-    int paddedSize;
+    int size, paddedSize;
 
+    strcpy(varType.data,"int");  // default return is int
+    struct Var *p=varEnd;
+    while(p!=NULL)  // p is NULL if not found
+    {
+        if (strcmp(node->id,p->id)==0)
+        {
+            varType=p->varType;
+            break;
+        }
+        p=p->prev;
+    }
+
+    // put args on in reverse order (cdecl)
     for (i=node->nlines-1;i>=0;i--)
     {
-      type1 = writeAsm(node->line[i],level,0, loop);
+      type1 = writeAsm(node->line[i],level,0, loop);  // type of the expression
+
+      if (p!=NULL)   // function has been defined so try to coerce args
+      {          
+          struct Node *pFunc = p->structNode;
+          int nargs=pFunc->nlines;  // assumes proto
+          
+          if (pFunc==NULL)
+              asmFail("structNode has not been set for function",node);
+
+          if (strcmp(pFunc->line[nargs-1]->varType.data,"...")!=0)  // not vararg
+          {
+              if (nargs < i+1 || pFunc->line[i]->type!=ARG)
+                  asmFail("pass too many args to function",node);
+                                          
+              type2 = p->structNode->line[i]->varType; // required type
+              printf("coerce %s -> %s\n", type1.data, type2.data);
+              doCast(type1, type2, node);  //  coercion
+          }
+      }
+
       if (isArray(type1)) 
           size=4;
       else
           size = sizeOf(type1, node);
 
-      paddedSize= size%4 == 0 ? size : (1+size/4)*4;
+      paddedSize= getPaddedSize(size);
       tot += paddedSize;
       
-//      if (sizeOf(type1)==1)
-//          fprintf(fps,"movzx eax,al\n");
-
       if (paddedSize==4)
         fprintf(fps,"push eax\n");
       else
@@ -3692,7 +3813,7 @@ _post_conditional:            ; we need this label to jump over e3
         // memcpy(esp,eax,sizeOf(type1));
         
         fprintf(fps,"mov ecx,esp\n");       // store esp as we are about to change it
-        fprintf(fps,"push %d\n",sizeOf(type1, node));
+        fprintf(fps,"push %d\n",size);
         fprintf(fps,"push eax\n");
         fprintf(fps,"push ecx\n");
         fprintf(fps,"call _memcpy\n");
@@ -3704,17 +3825,6 @@ _post_conditional:            ; we need this label to jump over e3
     fprintf(fps,"call _%s\n",node->id);
     fprintf(fps,"add esp,%d\n",tot);
 
-    strcpy(varType.data,"int");  // default return is int
-    struct Var *p=varEnd;
-    while(p!=NULL)
-    {
-        if (strcmp(node->id,p->id)==0)
-        {
-            varType=p->varType;
-            break;
-        }
-        p=p->prev;
-    }
 
     // if function returns float get return value from st(0) into eax    
     if (strcmp(varType.data,"float")==0)    
@@ -3768,13 +3878,12 @@ _post_conditional:            ; we need this label to jump over e3
   else if (node->type==DECL)
   {
     // printf("decl '%s' [%s] %p\n", node->id, node->varType.data, node->child);
-    int size=sizeOf(node->varType, node);
-    int paddedSize= size%4 == 0 ? size : (1+size/4)*4;
+    int paddedSize= getPaddedSize(sizeOf(node->varType, node));
 
     if (node->child!=NULL) 
     {
         type1 = writeAsm(node->child,level,0, loop);
-        if (sizeOf(type1, node)==1) fprintf(fps,"movzx eax,al\n");
+        if (isChar(type1)) fprintf(fps,"movzx eax,al\n");
     }
     
     if (paddedSize==4)
@@ -3930,7 +4039,7 @@ ed: if (found==0)
 
     if (lvalue==0 && !isStructOrUnion(varType) && !isArray(varType))
     {
-        if (sizeOf(varType, node)==1)
+        if (isChar(varType))
             fprintf(fps,"mov al,[eax]\n");
         else
             fprintf(fps,"mov eax,[eax]\n");
@@ -4142,7 +4251,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     varType=removePointer(type1);
     if (lvalue==0)
     {
-        if (sizeOf(varType, node)==1)
+        if (isChar(varType))
             fprintf(fps,"mov al,[eax]\n");
         else
             fprintf(fps,"mov eax,[eax]\n");
@@ -4181,41 +4290,8 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
   {
       type1 = writeAsm(node->child,level,0, loop);
       varType = node->varType;
-
-      if (strcmp(varType.data, type1.data)==0)
-      {
-          // identical
-      }
-      else if (isPointer(type1) && isPointer(varType))
-      {
-          // pointer to pointer
-      }
-      else if (isChar(type1) && isInt(varType))  // widen char -> int
-      {
-          fprintf(fps,"movzx eax,al\n");
-      }
-      else if (isInt(type1) && isFloat(varType))  // widen int -> float
-      {
-          fprintf(fps,"push eax\n");
-          fprintf(fps,"call _int2float\n");
-          fprintf(fps,"add esp,4\n");
-      }
-      else if (isFloat(type1) && isInt(varType))  // widen float -> int
-      {
-          fprintf(fps,"push eax\n");
-          fprintf(fps,"call _float2int\n");
-          fprintf(fps,"add esp,4\n");
-      }
-      else if (isInt(type1) && isChar(varType))  // narrow
-      {
-      }
-      else if (isPointer(varType) && isInt(type1))
-      {
-      }
-      else
-      {
-          asmFail("Illegal cast!", node);
-      }
+      
+      doCast(type1,varType,node);
   }
 
   /*
@@ -4314,7 +4390,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
   }
   else if (node->type==UNARY_COMPLEMENT){
     type1 = writeAsm(node->child,level,0, loop);
-    if (sizeOf(type1, node)==1)
+    if (isChar(type1))
         fprintf(fps,"not al\n");
     else
         fprintf(fps,"not eax\n");
@@ -4323,7 +4399,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
   }
   else if (node->type==UNARY_NOT){
     type1 = writeAsm(node->child,level,0, loop);
-    if (sizeOf(type1, node)==1)
+    if (isChar(type1))
     {
         fprintf(fps,"cmp al,0\n");
         fprintf(fps,"sete al\n");
@@ -4440,7 +4516,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
 
 //    printf("var %s\n",varType.data);
     char *reg;    
-    if (sizeOf(varType, node)==1)
+    if (isChar(varType))
         reg="al";
     else
         reg="eax";
@@ -4643,14 +4719,14 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     int label = ++s_label;
     type1 = writeAsm(node->child,level,0, loop);
 
-    if (sizeOf(type1, node)==1)
+    if (isChar(type1))
         fprintf(fps,"cmp al, 0\n");
     else
         fprintf(fps,"cmp eax, 0\n");          // check if e1 is 0
             
     fprintf(fps,"je _else%d\n",label);    // e1 is 0, so we need to evaluate _else
 
-    if (sizeOf(type1, node)==1)
+    if (isChar(type1))
         fprintf(fps,"mov al, 1\n");
     else
         fprintf(fps,"mov eax, 1\n");          // we didn't jump, so e1 is 1 and therefore result is 1
@@ -4660,7 +4736,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
 
     type2 = writeAsm(node->child2,level,0, loop);
 
-    if (sizeOf(type2, node)==1)
+    if (isChar(type2))
     {
         fprintf(fps,"cmp al, 0\n");
         fprintf(fps,"mov al, 0\n");
@@ -4684,14 +4760,14 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     int label = ++s_label;
     type1 = writeAsm(node->child,level,0, loop);
 
-    if (sizeOf(type1, node)==1)
+    if (isChar(type1))
         fprintf(fps,"cmp al, 0\n");
     else
         fprintf(fps,"cmp eax, 0\n");          // check if e1 is 0
         
     fprintf(fps,"jne _else%d\n",label);   // e1 isnt 0, so we need to evaluate _else
 
-    if (sizeOf(type1, node)==1)
+    if (isChar(type1))
         fprintf(fps,"mov al, 0\n");
     else
         fprintf(fps,"mov eax, 0\n");          // we didn't jump, so e1 is 0 and therefore result is 0
@@ -4701,7 +4777,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
 
     type2 = writeAsm(node->child2,level,0, loop);
 
-    if (sizeOf(type2, node)==1)
+    if (isChar(type2))
     {
         fprintf(fps,"cmp al, 0\n");
         fprintf(fps,"mov al, 0\n");

@@ -4,6 +4,9 @@
 // jcc only reads return value of function prototype and even that is optional
 // Note we rely on the preprocessor to remove comments (like this) so jcc doesn't see them
 
+typedef unsigned int size_t;
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) int printf (const char *, ...);
+
 int fib(int n) 
 {
     if (n == 0 || n == 1) 
@@ -18,7 +21,7 @@ int fib(int n)
 
 int main(void) 
 {
-    const int n = 10;
-    printf("The %d-th Fibonacci number is %d\n",n,fib(n));
+    const char n = 10;
+    printf("The %d-th Fibonacci number is %d\n",(int)n,fib(n));
     return 0;
 }

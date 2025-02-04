@@ -9,8 +9,13 @@ int main()
     int k;    
     for (k=0; k<10; ++k)
     {
+       int z;
        j += 3*k;       
-       if (j>100) break;
+       if (j>100)
+       {
+           int q;
+           break;
+       }
     }
         
     return j;
