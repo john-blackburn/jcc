@@ -1,6 +1,7 @@
 struct Point
 {
     int x,y;
+    int l,w;
 };
 
 struct Rect
@@ -14,6 +15,9 @@ struct Point addPoints(struct Point p, struct Point q)
     struct Point tot;
     tot.x = p.x + q.x;
     tot.y = p.y + q.y;
+    
+    tot.l=0;
+    tot.w=0;
         
     return tot;
 }

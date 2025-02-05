@@ -3185,16 +3185,21 @@ void doCast(struct Type type1, struct Type varType, struct Node* node)
       }
 }
 
+int max(int a, int b)
+{
+    return (a>b) ? a : b;
+}
+
 int sizeLocals(struct Node* node)
 {
     int tot=0;
     
     if (node->type==FUNCTION || node->type==BLOCK)
     {
-        int mx=0;
+        int i, mx=0;
         for (i=0;i<node->nlines;i++)
         {
-            sz = sizeLocals(node->line[i]);
+            int sz = sizeLocals(node->line[i]);
             int type=node->line[i]->type;
             
             if (type==BLOCK || type==WHILE || type==FOR || type==DO || type==IF || type==SWITCH)
@@ -3207,6 +3212,10 @@ int sizeLocals(struct Node* node)
     else if (node->type==FOR)
     {
         return sizeLocals(node->child4);
+    }    
+    else if (node->type==DO)
+    {
+        return sizeLocals(node->child);
     }    
     else if (node->type==WHILE || node->type==SWITCH)
     {
@@ -3221,6 +3230,7 @@ int sizeLocals(struct Node* node)
     }    
     else if (node->type==DECLGROUP)
     {        
+        int i;
         for (i=0;i<node->nlines;i++)
         {
             tot += sizeLocals(node->line[i]);
@@ -3230,7 +3240,7 @@ int sizeLocals(struct Node* node)
 
     else if (node->type==DECL && node->varType.isStatic==0)
     {
-        return getPaddedSize(sizeOf(node->varType));
+        return getPaddedSize(sizeOf(node->varType,node));
     }
     else
         return 0;    
@@ -3440,6 +3450,8 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     fprintf(fps,"push ebp\n");
     fprintf(fps,"mov ebp,esp\n");
 
+    fprintf(fps,"sub esp,%d\n",sizeLocals(node)); // clear space for locals
+
     for ( 0 ; i<node->nlines; i++)
     {
       writeAsm(node->line[i], level+1, 0, loop);
@@ -3512,7 +3524,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
       free(varEnd);
       varEnd=prev;
     }
-    fprintf(fps,"add esp,%d\n",tot);
+//    fprintf(fps,"add esp,%d\n",tot);  don't change esp at end of block
     g_offset += tot;
     fprintf(fps,"# ** End of block **\n");
     writeVars();
@@ -3880,31 +3892,6 @@ _post_conditional:            ; we need this label to jump over e3
     // printf("decl '%s' [%s] %p\n", node->id, node->varType.data, node->child);
     int paddedSize= getPaddedSize(sizeOf(node->varType, node));
 
-    if (node->child!=NULL) 
-    {
-        type1 = writeAsm(node->child,level,0, loop);
-        if (isChar(type1)) fprintf(fps,"movzx eax,al\n");
-    }
-    
-    if (paddedSize==4)
-        fprintf(fps,"push eax # declare %s (level %d)\n",node->id,level);
-    else
-        fprintf(fps,"sub esp,%d # declare %s (level %d)\n",paddedSize,node->id,level);
-
-    // struct init TODO: fix this, type1 might not be defined
-    if (node->child!=NULL && isStructOrUnion(type1))
-    {
-        // memcpy(esp,eax,sizeOf(type1));
-        fprintf(fps,"mov ecx,esp\n");
-        fprintf(fps,"push %d\n",sizeOf(type1, node));
-        fprintf(fps,"push eax\n");
-        fprintf(fps,"push ecx\n");
-        fprintf(fps,"call _memcpy\n");
-        fprintf(fps,"add esp,12\n");
-
-        varType = type1;
-    }
-
     g_offset -= paddedSize;
 
     struct Var *oldVarEnd=varEnd;  // might be NULL
@@ -3916,7 +3903,29 @@ _post_conditional:            ; we need this label to jump over e3
     varEnd->isArg=0;
     varEnd->prev=oldVarEnd;
 
+    if (node->child!=NULL) 
+    {
+        type1 = writeAsm(node->child,level,0, loop);
+        if (isChar(type1)) fprintf(fps,"movzx eax,al\n");
+
+        if (isStructOrUnion(type1))
+        {
+            // memcpy(ebp-offset,eax,sizeOf(type1));
+            fprintf(fps,"lea ecx,[ebp%+d]\n",g_offset);
+            fprintf(fps,"push %d\n",sizeOf(type1, node));
+            fprintf(fps,"push eax\n");
+            fprintf(fps,"push ecx\n");
+            fprintf(fps,"call _memcpy\n");
+            fprintf(fps,"add esp,12\n");
+
+            varType = type1;
+        }        
+        else
+            fprintf(fps,"mov [ebp%+d],eax # declare %s (level %d)\n",g_offset,node->id,level);
+    }
+
     writeVars();
+
   }
   
   /*
@@ -4034,7 +4043,7 @@ ed: if (found==0)
     if (isStruct(type1))
     {
         fprintf(fps,"mov ecx,%d\n",tot);
-        fprintf(fps,"add eax,ecx\n");
+        fprintf(fps,"add eax,ecx # .%s\n",field);
     }
 
     if (lvalue==0 && !isStructOrUnion(varType) && !isArray(varType))

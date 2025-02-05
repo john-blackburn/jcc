@@ -55,7 +55,7 @@ int main()
         printf("b<a\n");
 
     if (b<=a)
-        printf("b<=a, sinf(a)=%0x\n", sinf(a));
+        printf("b<=a, sinf(a)=%0x\n", sinf(a));  // 0.6569866 (3f283046)
     
     i=3+a; // promote to 3.0, add to get 10.0, demote to 10
     return i+1; // 11
