@@ -3,14 +3,9 @@ Usage:
 jcc path/to/foo.c
 Creates foo.s in current directory and assembles/links to get foo.exe
 
-fix break and continue. clean stack at end of block
-complex init in functions eg char* ops[]={"add",...}
 allow add int to array eg t.data+st
 allow empty expression ;
 accept 0UL, 0.0f etc for literals (also hex, octal?)
-issue with examples\fibonacci.c => fibonacci.s
-do return struct properly. Create hidden local on demand and callee copy to that. 
-destroy at block exit as if void f(struct S *s,...)
 
 TODO:
 Not needed to compile this compiler (and not done):
@@ -109,6 +104,8 @@ __attribute__((__cdecl__)) __attribute__((__nothrow__)) long strtol (const char 
  __attribute__((__cdecl__)) __attribute__((__nothrow__)) int fscanf (FILE *, const char *, ...);
  __attribute__((__cdecl__)) __attribute__((__nothrow__)) int scanf (const char *, ...);
  __attribute__((__cdecl__)) __attribute__((__nothrow__)) int sscanf (const char *, const char *, ...);
+
+ __attribute__((__cdecl__)) __attribute__((__nothrow__)) int abs (int) __attribute__((__const__));
 
 // End of std headers stuff
 
@@ -480,6 +477,7 @@ struct EnumConst
 };
 
 int g_offset;             // offset relative to ebp for local vars and args
+int g_offsetmin;          // max space needed for locals in func
 struct Var *varEnd;       // top of the stack where we store variable declarations
 struct Token *tokenHead;  // global for parsing
 int lineno;
@@ -3190,6 +3188,11 @@ int max(int a, int b)
     return (a>b) ? a : b;
 }
 
+int min(int a, int b)
+{
+    return (a<b) ? a : b;
+}
+
 int sizeLocals(struct Node* node)
 {
     int tot=0;
@@ -3241,6 +3244,26 @@ int sizeLocals(struct Node* node)
     else if (node->type==DECL && node->varType.isStatic==0)
     {
         return getPaddedSize(sizeOf(node->varType,node));
+    }
+    else if (node->type==CALL)
+    {
+        struct Var *p=varEnd;
+        struct Type varType;
+        
+        while(p!=NULL)  // p is NULL if function not found. Then doesn't return struct
+        {
+            if (strcmp(node->id,p->id)==0)
+            {
+                varType=p->varType;
+                break;
+            }
+            p=p->prev;
+        }
+        
+        if (p!=NULL && isStruct(varType))  // returns struct
+            return getPaddedSize(sizeOf(varType,node));
+        else
+            return 0;
     }
     else
         return 0;    
@@ -3418,14 +3441,23 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     varEnd->prev=oldVarEnd;
     
     g_offset = 0;
+    g_offsetmin=0;
+
+    // note if this function returns a struct
+    int retStruct=0;
+    if (isStruct(node->varType))
+    {
+        retStruct=1;
+    }
 
     // create arguments as local variables (data is on stack but lets point to it)
     int i=0;
-    int tot=8;
+    int tot= retStruct ? 12 : 8;   // start at 12 if func returns Struct
     while(node->line[i]->type==ARG)
     {
       if (isVoid(node->line[i]->varType)) {i++; break;}
       if (node->line[i]->id==NULL) asmFail("argument name must be defined for function",node);
+
       oldVarEnd=varEnd;  // might be NULL
       varEnd=malloc(sizeof(struct Var));
       varEnd->offset=tot;
@@ -3450,12 +3482,15 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     fprintf(fps,"push ebp\n");
     fprintf(fps,"mov ebp,esp\n");
 
-    fprintf(fps,"sub esp,%d\n",sizeLocals(node)); // clear space for locals
+    fprintf(fps,"sub esp, offset locals_%s\n",node->id); // clear space for locals (equ filled in later)
 
     for ( 0 ; i<node->nlines; i++)
     {
       writeAsm(node->line[i], level+1, 0, loop);
     }    
+
+    // we now know the size of local variables
+    fprintf(fps,".set locals_%s,%d\n",node->id,abs(g_offsetmin));
 
     // Clear local vars (level 1) from list
     // 0  1
@@ -3740,6 +3775,19 @@ _post_conditional:            ; we need this label to jump over e3
 //    if (sizeOf(type1, node)==1)
 //        fprintf(fps,"movzx eax,al\n");
 
+    // if returning a struct copy it to the hidden pointer (first arg at ebp+8)
+    if (isStruct(type1))
+    {
+        fprintf(fps,"mov ecx,[ebp+8]\n");
+        // memcpy(ecx,eax,sizeOf(type1));
+        fprintf(fps,"push %d\n",sizeOf(type1, node));
+        fprintf(fps,"push eax\n");
+        fprintf(fps,"push ecx\n");
+        fprintf(fps,"call _memcpy\n");
+        fprintf(fps,"add esp,12\n");        
+        fprintf(fps,"mov eax,[ebp+8]\n");
+    }
+
     if (isFloat(type1))
     {
         fprintf(fps,"mov [_float_temp],eax\n");
@@ -3774,7 +3822,7 @@ _post_conditional:            ; we need this label to jump over e3
 
     strcpy(varType.data,"int");  // default return is int
     struct Var *p=varEnd;
-    while(p!=NULL)  // p is NULL if not found
+    while(p!=NULL)  // p is NULL if function not found. Then we cannot coerce
     {
         if (strcmp(node->id,p->id)==0)
         {
@@ -3834,6 +3882,30 @@ _post_conditional:            ; we need this label to jump over e3
       }
     }
 
+    // if calling a func that returns struct, create local for return and push pointer to this
+    if (p!=NULL && isStruct(p->varType))
+    {
+        int paddedSize= getPaddedSize(sizeOf(p->varType, node));
+        
+        g_offset -= paddedSize;
+        g_offsetmin = min(g_offsetmin, g_offset);
+
+        struct Var *oldVarEnd=varEnd;  // might be NULL
+        varEnd=malloc(sizeof(struct Var));
+        varEnd->offset=g_offset;
+        varEnd->id=newStr("(str return)");
+        varEnd->varType=p->varType;
+        varEnd->level=level;
+        varEnd->isArg=0;
+        varEnd->prev=oldVarEnd;
+        
+        writeVars();
+        
+        fprintf(fps,"lea eax,[ebp%+d]\n",g_offset);
+        fprintf(fps,"push eax\n");
+        tot+=4;
+    }
+
     fprintf(fps,"call _%s\n",node->id);
     fprintf(fps,"add esp,%d\n",tot);
 
@@ -3890,9 +3962,17 @@ _post_conditional:            ; we need this label to jump over e3
   else if (node->type==DECL)
   {
     // printf("decl '%s' [%s] %p\n", node->id, node->varType.data, node->child);
+
+    if (node->child!=NULL) 
+    {
+        type1 = writeAsm(node->child,level,0, loop);
+        if (isChar(type1)) fprintf(fps,"movzx eax,al\n");
+    }
+
     int paddedSize= getPaddedSize(sizeOf(node->varType, node));
 
     g_offset -= paddedSize;
+    g_offsetmin = min(g_offsetmin, g_offset);
 
     struct Var *oldVarEnd=varEnd;  // might be NULL
     varEnd=malloc(sizeof(struct Var));
@@ -3905,8 +3985,6 @@ _post_conditional:            ; we need this label to jump over e3
 
     if (node->child!=NULL) 
     {
-        type1 = writeAsm(node->child,level,0, loop);
-        if (isChar(type1)) fprintf(fps,"movzx eax,al\n");
 
         if (isStructOrUnion(type1))
         {
