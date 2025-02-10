@@ -1,24 +1,25 @@
 .intel_syntax noprefix
 # =========================================
-# main l=0 o=0 [int]  
+# main l=0 o=0 [int] 
 # =========================================
 .globl _main
 _main:
 push ebp
 mov ebp,esp
+sub esp, offset locals_main
 mov al,'A'
 movzx eax,al
-push eax # declare c (level 1)
+mov [ebp-4],eax # declare c (level 1)
 # =========================================
-# c l=1 o=-4 [char]  
-# main l=0 o=0 [int]  
+# c l=1 o=-4 [char] 
+# main l=0 o=0 [int] 
 # =========================================
 mov eax,0
-push eax # declare i (level 1)
+mov [ebp-8],eax # declare i (level 1)
 # =========================================
-# i l=1 o=-8 [int]  
-# c l=1 o=-4 [char]  
-# main l=0 o=0 [int]  
+# i l=1 o=-8 [int] 
+# c l=1 o=-4 [char] 
+# main l=0 o=0 [int] 
 # =========================================
 mov al,'A'
 push eax
@@ -108,12 +109,11 @@ pop eax
 mov [eax],ecx
 mov eax,ecx
 jmp _end4
-add esp,0
 # ** End of block **
 # =========================================
-# i l=1 o=-8 [int]  
-# c l=1 o=-4 [char]  
-# main l=0 o=0 [int]  
+# i l=1 o=-8 [int] 
+# c l=1 o=-4 [char] 
+# main l=0 o=0 [int] 
 # =========================================
 _end4:
 mov eax,20
@@ -127,12 +127,11 @@ cmp eax, 0
 je _end5
 jmp _end3
 _end5:
-add esp,0
 # ** End of block **
 # =========================================
-# i l=1 o=-8 [int]  
-# c l=1 o=-4 [char]  
-# main l=0 o=0 [int]  
+# i l=1 o=-8 [int] 
+# c l=1 o=-4 [char] 
+# main l=0 o=0 [int] 
 # =========================================
 jmp _start3
 _end3:
@@ -140,9 +139,10 @@ mov eax,[ebp-8] # i
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,8
 # ** End of function **
 # =========================================
-# main l=0 o=0 [int]  
+# main l=0 o=0 [int] 
 # =========================================
 mov esp,ebp
 pop ebp

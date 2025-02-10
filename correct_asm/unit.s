@@ -1,80 +1,81 @@
 .intel_syntax noprefix
-# ======================
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
-# ======================
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
-# ======================
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
+# =========================================
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
+# =========================================
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 .data
 .globl _varEnd
 _varEnd:
-.long 0
+.skip 4
 .text
-# ======================
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
-# ======================
-# s 1 12 [char*] 1
-# t 1 8 [char*] 1
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
+# =========================================
+# s l=1 o=12 [char*] ARG
+# t l=1 o=8 [char*] ARG
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 .globl _startsWith
 _startsWith:
 push ebp
 mov ebp,esp
+sub esp, offset locals_startsWith
 mov eax,[ebp+8] # t
 push eax
 call _strlen
@@ -95,25 +96,24 @@ mov esp,ebp
 pop ebp
 ret
 _end1:
-push eax # declare i (level 1)
-# ======================
-# i 1 -4 [int] 0
-# s 1 12 [char*] 1
-# t 1 8 [char*] 1
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# i l=1 o=-4 [int] 
+# s l=1 o=12 [char*] ARG
+# t l=1 o=8 [char*] ARG
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 lea eax,[ebp-4] # i
 push eax
 mov eax,0
@@ -160,26 +160,25 @@ mov esp,ebp
 pop ebp
 ret
 _end3:
-add esp,0
 # ** End of block **
-# ======================
-# i 1 -4 [int] 0
-# s 1 12 [char*] 1
-# t 1 8 [char*] 1
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# i l=1 o=-4 [int] 
+# s l=1 o=12 [char*] ARG
+# t l=1 o=8 [char*] ARG
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _cont2:
 lea eax,[ebp-4] # i
 mov ecx,[eax]
@@ -191,71 +190,73 @@ mov eax,1
 mov esp,ebp
 pop ebp
 ret
+.set locals_startsWith,4
 # ** End of function **
-# ======================
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret
-# ======================
-# c 1 12 [char] 1
-# t 1 8 [char*] 1
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# c l=1 o=12 [char] ARG
+# t l=1 o=8 [char*] ARG
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 .globl _endsWith
 _endsWith:
 push ebp
 mov ebp,esp
+sub esp, offset locals_endsWith
 mov eax,[ebp+8] # t
 push eax
 call _strlen
 add esp,4
-push eax # declare l (level 1)
-# ======================
-# l 1 -4 [int] 0
-# c 1 12 [char] 1
-# t 1 8 [char*] 1
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+mov [ebp-4],eax # declare l (level 1)
+# =========================================
+# l l=1 o=-4 [int] 
+# c l=1 o=12 [char] ARG
+# t l=1 o=8 [char*] ARG
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 mov al,[ebp+12] # c
 push eax
 mov eax,1
@@ -277,124 +278,125 @@ sete al
 mov esp,ebp
 pop ebp
 ret
+.set locals_endsWith,4
 # ** End of function **
-# ======================
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret
-# ======================
-# close 1 16 [int[]] 1
-# open 1 12 [int[]] 1
-# t 1 8 [char*] 1
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# close l=1 o=16 [int[]] ARG
+# open l=1 o=12 [int[]] ARG
+# t l=1 o=8 [char*] ARG
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 .globl _getArray
 _getArray:
 push ebp
 mov ebp,esp
+sub esp, offset locals_getArray
 mov eax,[ebp+8] # t
 push eax
 call _strlen
 add esp,4
-push eax # declare l (level 1)
-# ======================
-# l 1 -4 [int] 0
-# close 1 16 [int[]] 1
-# open 1 12 [int[]] 1
-# t 1 8 [char*] 1
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
-push eax # declare i (level 1)
-# ======================
-# i 1 -8 [int] 0
-# l 1 -4 [int] 0
-# close 1 16 [int[]] 1
-# open 1 12 [int[]] 1
-# t 1 8 [char*] 1
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+mov [ebp-4],eax # declare l (level 1)
+# =========================================
+# l l=1 o=-4 [int] 
+# close l=1 o=16 [int[]] ARG
+# open l=1 o=12 [int[]] ARG
+# t l=1 o=8 [char*] ARG
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
+# =========================================
+# i l=1 o=-8 [int] 
+# l l=1 o=-4 [int] 
+# close l=1 o=16 [int[]] ARG
+# open l=1 o=12 [int[]] ARG
+# t l=1 o=8 [char*] ARG
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 mov eax,0
-push eax # declare ind (level 1)
-# ======================
-# ind 1 -12 [int] 0
-# i 1 -8 [int] 0
-# l 1 -4 [int] 0
-# close 1 16 [int[]] 1
-# open 1 12 [int[]] 1
-# t 1 8 [char*] 1
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+mov [ebp-12],eax # declare ind (level 1)
+# =========================================
+# ind l=1 o=-12 [int] 
+# i l=1 o=-8 [int] 
+# l l=1 o=-4 [int] 
+# close l=1 o=16 [int[]] ARG
+# open l=1 o=12 [int[]] ARG
+# t l=1 o=8 [char*] ARG
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 lea eax,[ebp-8] # i
 push eax
 mov eax,0
@@ -436,31 +438,30 @@ push eax
 mov eax,[ebp-8] # i
 pop ecx
 mov [ecx],eax
-add esp,0
 # ** End of block **
-# ======================
-# ind 1 -12 [int] 0
-# i 1 -8 [int] 0
-# l 1 -4 [int] 0
-# close 1 16 [int[]] 1
-# open 1 12 [int[]] 1
-# t 1 8 [char*] 1
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# ind l=1 o=-12 [int] 
+# i l=1 o=-8 [int] 
+# l l=1 o=-4 [int] 
+# close l=1 o=16 [int[]] ARG
+# open l=1 o=12 [int[]] ARG
+# t l=1 o=8 [char*] ARG
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _end5:
 mov al,']'
 push eax
@@ -492,57 +493,55 @@ lea eax,[ebp-12] # ind
 mov ecx,[eax]
 inc dword ptr [eax]
 mov eax,ecx
-add esp,0
 # ** End of block **
-# ======================
-# ind 1 -12 [int] 0
-# i 1 -8 [int] 0
-# l 1 -4 [int] 0
-# close 1 16 [int[]] 1
-# open 1 12 [int[]] 1
-# t 1 8 [char*] 1
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# ind l=1 o=-12 [int] 
+# i l=1 o=-8 [int] 
+# l l=1 o=-4 [int] 
+# close l=1 o=16 [int[]] ARG
+# open l=1 o=12 [int[]] ARG
+# t l=1 o=8 [char*] ARG
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _end6:
-add esp,0
 # ** End of block **
-# ======================
-# ind 1 -12 [int] 0
-# i 1 -8 [int] 0
-# l 1 -4 [int] 0
-# close 1 16 [int[]] 1
-# open 1 12 [int[]] 1
-# t 1 8 [char*] 1
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# ind l=1 o=-12 [int] 
+# i l=1 o=-8 [int] 
+# l l=1 o=-4 [int] 
+# close l=1 o=16 [int[]] ARG
+# open l=1 o=12 [int[]] ARG
+# t l=1 o=8 [char*] ARG
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _cont4:
 lea eax,[ebp-8] # i
 mov ecx,[eax]
@@ -554,50 +553,52 @@ mov eax,[ebp-12] # ind
 mov esp,ebp
 pop ebp
 ret
+.set locals_getArray,12
 # ** End of function **
-# ======================
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret
-# ======================
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 .globl _sizeOf
 _sizeOf:
 push ebp
 mov ebp,esp
+sub esp, offset locals_sizeOf
 mov eax,0
 push eax
 .data
@@ -608,7 +609,7 @@ mov eax, offset _string8
 push eax
 lea eax,[ebp+8] # t
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _strcmp
 add esp,8
@@ -630,33 +631,32 @@ mov eax,1
 push eax
 call _exit
 add esp,4
-add esp,0
 # ** End of block **
-# ======================
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _end7:
 mov eax,0
 push eax
 lea eax,[ebp+8] # t
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _strlen
 add esp,4
@@ -671,96 +671,92 @@ mov esp,ebp
 pop ebp
 ret
 _end10:
-push eax # declare i (level 1)
-# ======================
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
-push eax # declare n (level 1)
-# ======================
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
-sub esp,40 # declare open (level 1)
-# ======================
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
-sub esp,40 # declare close (level 1)
-# ======================
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
+# =========================================
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
+# =========================================
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
+# =========================================
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 lea eax,[ebp-8] # n
 push eax
 lea eax,[ebp-88] # close
@@ -769,149 +765,146 @@ lea eax,[ebp-48] # open
 push eax
 lea eax,[ebp+8] # t
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _getArray
 add esp,12
 pop ecx
 mov [ecx],eax
 mov eax,1
-push eax # declare nElem (level 1)
-# ======================
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
-push eax # declare st (level 1)
-# ======================
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
-push eax # declare len (level 1)
-# ======================
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
-sub esp,16 # declare index (level 1)
-# ======================
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+mov [ebp-92],eax # declare nElem (level 1)
+# =========================================
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
+# =========================================
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
+# =========================================
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
+# =========================================
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 mov eax,0
-push eax # declare endptr (level 1)
-# ======================
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+mov [ebp-120],eax # declare endptr (level 1)
+# =========================================
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 lea eax,[ebp-4] # i
 push eax
 mov eax,0
@@ -971,7 +964,7 @@ mov eax,[ebp-96] # st
 push eax
 lea eax,[ebp+8] # t
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 pop ecx
 imul ecx,1
 add eax,ecx
@@ -996,8 +989,6 @@ push eax
 mov eax,0
 pop ecx
 mov [ecx],eax
-lea eax,[ebp-92] # nElem
-push eax
 mov eax,0
 push eax
 lea eax,[ebp-120] # endptr
@@ -1006,11 +997,16 @@ lea eax,[ebp-116] # index
 push eax
 call _strtol
 add esp,12
+push eax
+lea eax,[ebp-92] # nElem
 pop ecx
-mov edx,[ecx]
-imul edx,eax
-mov [ecx],edx
-mov eax,edx
+push eax
+mov eax,[eax]
+imul eax,ecx
+mov ecx,eax
+pop eax
+mov [eax],ecx
+mov eax,ecx
 mov eax,0
 push eax
 call __errno
@@ -1054,67 +1050,65 @@ mov eax,1
 push eax
 call _exit
 add esp,4
-add esp,0
 # ** End of block **
-# ======================
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _end12:
-add esp,0
 # ** End of block **
-# ======================
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _cont11:
 lea eax,[ebp-4] # i
 mov ecx,[eax]
@@ -1123,42 +1117,41 @@ mov eax,ecx
 jmp _start11
 _end11:
 lea eax,[ebp+8] # t
-sub esp,32 # declare s (level 1)
-mov ecx,esp
+lea ecx,[ebp-152]
 push 32
 push eax
 push ecx
 call _memcpy
 add esp,12
-# ======================
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 mov eax,0
 push eax
 mov eax,[ebp-8] # n
@@ -1178,7 +1171,7 @@ mov eax,[eax]
 push eax
 lea eax,[ebp-152] # s
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 pop ecx
 imul ecx,1
 add eax,ecx
@@ -1186,43 +1179,42 @@ push eax
 mov al,0
 pop ecx
 mov [ecx],al
-add esp,0
 # ** End of block **
-# ======================
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _end15:
 mov al,'*'
 push eax
 lea eax,[ebp-152] # s
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _endsWith
 add esp,8
@@ -1248,7 +1240,7 @@ mov eax, offset _string18
 push eax
 lea eax,[ebp-152] # s
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _strcmp
 add esp,8
@@ -1278,7 +1270,7 @@ mov eax, offset _string20
 push eax
 lea eax,[ebp-152] # s
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _strcmp
 add esp,8
@@ -1302,110 +1294,109 @@ mov eax, offset _string22
 push eax
 lea eax,[ebp-152] # s
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _startsWith
 add esp,8
 cmp eax, 0
 je _else21
 mov eax,_varEnd
-push eax # declare p (level 2)
-# ======================
-# p 2 -156 [struct Var*] 0
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
-push eax # declare structNode (level 2)
-# ======================
-# structNode 2 -160 [struct Node*] 0
-# p 2 -156 [struct Var*] 0
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+mov [ebp-156],eax # declare p (level 2)
+# =========================================
+# p l=2 o=-156 [struct Var*] 
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
+# =========================================
+# structNode l=2 o=-160 [struct Node*] 
+# p l=2 o=-156 [struct Var*] 
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 mov eax,0
-push eax # declare found (level 2)
-# ======================
-# found 2 -164 [int] 0
-# structNode 2 -160 [struct Node*] 0
-# p 2 -156 [struct Var*] 0
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+mov [ebp-164],eax # declare found (level 2)
+# =========================================
+# found l=2 o=-164 [int] 
+# structNode l=2 o=-160 [struct Node*] 
+# p l=2 o=-156 [struct Var*] 
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _cont23:
 _start23:
 mov eax,0
@@ -1419,15 +1410,14 @@ cmp eax, 0
 je _end23
 mov eax,0
 push eax
-lea eax,[ebp-156] # p
-mov eax,[eax]
+mov eax,[ebp-156] # p
 mov ecx,0
-add eax,ecx
+add eax,ecx # .id
 mov eax,[eax]
 push eax
 lea eax,[ebp-152] # s
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _strcmp
 add esp,8
@@ -1439,10 +1429,9 @@ cmp eax, 0
 je _end24
 lea eax,[ebp-160] # structNode
 push eax
-lea eax,[ebp-156] # p
-mov eax,[eax]
+mov eax,[ebp-156] # p
 mov ecx,48
-add eax,ecx
+add eax,ecx # .structNode
 mov eax,[eax]
 pop ecx
 mov [ecx],eax
@@ -1452,84 +1441,81 @@ mov eax,1
 pop ecx
 mov [ecx],eax
 jmp _end23
-add esp,0
 # ** End of block **
-# ======================
-# found 2 -164 [int] 0
-# structNode 2 -160 [struct Node*] 0
-# p 2 -156 [struct Var*] 0
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# found l=2 o=-164 [int] 
+# structNode l=2 o=-160 [struct Node*] 
+# p l=2 o=-156 [struct Var*] 
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _end24:
 lea eax,[ebp-156] # p
 push eax
-lea eax,[ebp-156] # p
-mov eax,[eax]
+mov eax,[ebp-156] # p
 mov ecx,52
-add eax,ecx
+add eax,ecx # .prev
 mov eax,[eax]
 pop ecx
 mov [ecx],eax
-add esp,0
 # ** End of block **
-# ======================
-# found 2 -164 [int] 0
-# structNode 2 -160 [struct Node*] 0
-# p 2 -156 [struct Var*] 0
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# found l=2 o=-164 [int] 
+# structNode l=2 o=-160 [struct Node*] 
+# p l=2 o=-156 [struct Var*] 
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 jmp _start23
 _end23:
 mov eax,0
@@ -1543,7 +1529,7 @@ cmp eax, 0
 je _end25
 lea eax,[ebp-152] # s
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 .data
 _string26:
@@ -1557,86 +1543,84 @@ mov eax,1
 push eax
 call _exit
 add esp,4
-add esp,0
 # ** End of block **
-# ======================
-# found 2 -164 [int] 0
-# structNode 2 -160 [struct Node*] 0
-# p 2 -156 [struct Var*] 0
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# found l=2 o=-164 [int] 
+# structNode l=2 o=-160 [struct Node*] 
+# p l=2 o=-156 [struct Var*] 
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _end25:
 mov eax,0
-push eax # declare tot (level 2)
-# ======================
-# tot 2 -168 [int] 0
-# found 2 -164 [int] 0
-# structNode 2 -160 [struct Node*] 0
-# p 2 -156 [struct Var*] 0
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+mov [ebp-168],eax # declare tot (level 2)
+# =========================================
+# tot l=2 o=-168 [int] 
+# found l=2 o=-164 [int] 
+# structNode l=2 o=-160 [struct Node*] 
+# p l=2 o=-156 [struct Var*] 
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 lea eax,[ebp-4] # i
 push eax
 mov eax,0
 pop ecx
 mov [ecx],eax
 _start27:
-lea eax,[ebp-160] # structNode
-mov eax,[eax]
+mov eax,[ebp-160] # structNode
 mov ecx,60
-add eax,ecx
+add eax,ecx # .nlines
 mov eax,[eax]
 push eax
 mov eax,[ebp-4] # i
@@ -1646,21 +1630,18 @@ mov eax, 0
 setl al
 cmp eax, 0
 je _end27
-lea eax,[ebp-168] # tot
-push eax
 mov eax,[ebp-4] # i
 push eax
-lea eax,[ebp-160] # structNode
-mov eax,[eax]
+mov eax,[ebp-160] # structNode
 mov ecx,56
-add eax,ecx
+add eax,ecx # .line
 mov eax,[eax]
 pop ecx
 imul ecx,4
 add eax,ecx
 mov eax,[eax]
 mov ecx,8
-add eax,ecx
+add eax,ecx # .varType
 sub esp,32
 mov ecx,esp
 push 32
@@ -1670,46 +1651,50 @@ call _memcpy
 add esp,12
 call _sizeOf
 add esp,32
+push eax
+lea eax,[ebp-168] # tot
 pop ecx
-mov edx,[ecx]
-add edx,eax
-mov [ecx],edx
-mov eax,edx
-add esp,0
+push eax
+mov eax,[eax]
+add eax,ecx
+mov ecx,eax
+pop eax
+mov [eax],ecx
+mov eax,ecx
 # ** End of block **
-# ======================
-# tot 2 -168 [int] 0
-# found 2 -164 [int] 0
-# structNode 2 -160 [struct Node*] 0
-# p 2 -156 [struct Var*] 0
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# tot l=2 o=-168 [int] 
+# found l=2 o=-164 [int] 
+# structNode l=2 o=-160 [struct Node*] 
+# p l=2 o=-156 [struct Var*] 
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _cont27:
 lea eax,[ebp-4] # i
 mov ecx,[eax]
@@ -1725,42 +1710,41 @@ imul eax,ecx
 mov esp,ebp
 pop ebp
 ret
-add esp,16
 # ** End of block **
-# ======================
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 jmp _end21
 _else21:
 lea eax,[ebp-152] # s
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 .data
 _string28:
@@ -1774,171 +1758,173 @@ mov eax,1
 push eax
 call _exit
 add esp,4
-add esp,0
 # ** End of block **
-# ======================
-# s 1 -152 [struct Type] 0
-# endptr 1 -120 [char*] 0
-# index 1 -116 [char[16]] 0
-# len 1 -100 [int] 0
-# st 1 -96 [int] 0
-# nElem 1 -92 [int] 0
-# close 1 -88 [int[10]] 0
-# open 1 -48 [int[10]] 0
-# n 1 -8 [int] 0
-# i 1 -4 [int] 0
-# t 1 8 [struct Type] 1
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# s l=1 o=-152 [struct Type] 
+# endptr l=1 o=-120 [char*] 
+# index l=1 o=-116 [char[16]] 
+# len l=1 o=-100 [int] 
+# st l=1 o=-96 [int] 
+# nElem l=1 o=-92 [int] 
+# close l=1 o=-88 [int[10]] 
+# open l=1 o=-48 [int[10]] 
+# n l=1 o=-8 [int] 
+# i l=1 o=-4 [int] 
+# t l=1 o=8 [struct Type] ARG
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 _end21:
 _end19:
 _end17:
 _end16:
+.set locals_sizeOf,168
 # ** End of function **
-# ======================
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret
-# ======================
-# t 1 8 [struct Type] 1
-# isPointer 0 0 [int] 0
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# t l=1 o=8 [struct Type] ARG
+# isPointer l=0 o=0 [int] 
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 .globl _isPointer
 _isPointer:
 push ebp
 mov ebp,esp
+sub esp, offset locals_isPointer
 mov al,'*'
 push eax
 lea eax,[ebp+8] # t
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _endsWith
 add esp,8
 mov esp,ebp
 pop ebp
 ret
+.set locals_isPointer,0
 # ** End of function **
-# ======================
-# isPointer 0 0 [int] 0
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# isPointer l=0 o=0 [int] 
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret
-# ======================
-# argv 1 12 [char**] 1
-# argc 1 8 [int] 1
-# main 0 0 [int] 0
-# isPointer 0 0 [int] 0
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# argv l=1 o=12 [char**] ARG
+# argc l=1 o=8 [int] ARG
+# main l=0 o=0 [int] 
+# isPointer l=0 o=0 [int] 
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 .globl _main
 _main:
 push ebp
 mov ebp,esp
-sub esp,32 # declare t (level 1)
-# ======================
-# t 1 -32 [struct Type] 0
-# argv 1 12 [char**] 1
-# argc 1 8 [int] 1
-# main 0 0 [int] 0
-# isPointer 0 0 [int] 0
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+sub esp, offset locals_main
+# =========================================
+# t l=1 o=-32 [struct Type] 
+# argv l=1 o=12 [char**] ARG
+# argc l=1 o=8 [int] ARG
+# main l=0 o=0 [int] 
+# isPointer l=0 o=0 [int] 
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 .data
 _string29:
 .asciz "jo"
@@ -2015,7 +2001,7 @@ mov eax, offset _string37
 push eax
 lea eax,[ebp-32] # t
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _strcpy
 add esp,8
@@ -2057,7 +2043,7 @@ mov eax, offset _string39
 push eax
 lea eax,[ebp-32] # t
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _strcpy
 add esp,8
@@ -2099,7 +2085,7 @@ mov eax, offset _string41
 push eax
 lea eax,[ebp-32] # t
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _strcpy
 add esp,8
@@ -2141,7 +2127,7 @@ mov eax, offset _string43
 push eax
 lea eax,[ebp-32] # t
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _strcpy
 add esp,8
@@ -2183,7 +2169,7 @@ mov eax, offset _string45
 push eax
 lea eax,[ebp-32] # t
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _strcpy
 add esp,8
@@ -2221,27 +2207,28 @@ mov eax,0
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,32
 # ** End of function **
-# ======================
-# main 0 0 [int] 0
-# isPointer 0 0 [int] 0
-# sizeOf 0 0 [int] 0
-# getArray 0 0 [int] 0
-# endsWith 0 0 [int] 0
-# startsWith 0 0 [int] 0
-# varEnd 0 0 [struct Var*] 0
-# struct Var 0 0 [] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# _errno 0 0 [int*] 0
-# strtol 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# exit 0 0 [void] 0
-# memcpy 0 0 [void*] 0
-# printf 0 0 [int] 0
-# strcmp 0 0 [int] 0
-# strlen 0 0 [int] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# isPointer l=0 o=0 [int] 
+# sizeOf l=0 o=0 [int] 
+# getArray l=0 o=0 [int] 
+# endsWith l=0 o=0 [int] 
+# startsWith l=0 o=0 [int] 
+# varEnd l=0 o=0 [struct Var*] 
+# struct Var l=0 o=0 [] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# _errno l=0 o=0 [int*] 
+# strtol l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# exit l=0 o=0 [void] 
+# memcpy l=0 o=0 [void*] 
+# printf l=0 o=0 [int] 
+# strcmp l=0 o=0 [int] 
+# strlen l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret

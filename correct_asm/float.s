@@ -4,18 +4,21 @@
 _pi:
 .float 3.1415
 .text
-# ======================
-# pi 0 0 [float] 0
-# ======================
-# ======================
-# x 1 8 [float] 1
-# square 0 0 [float] 0
-# pi 0 0 [float] 0
-# ======================
+# =========================================
+# pi l=0 o=0 [float] 
+# sinf l=0 o=0 [float] 
+# =========================================
+# =========================================
+# x l=1 o=8 [float] ARG
+# square l=0 o=0 [float] 
+# pi l=0 o=0 [float] 
+# sinf l=0 o=0 [float] 
+# =========================================
 .globl _square
 _square:
 push ebp
 mov ebp,esp
+sub esp, offset locals_square
 mov eax,[ebp+8] # x
 push eax
 mov eax,[ebp+8] # x
@@ -23,47 +26,53 @@ pop ecx
 push ecx
 push eax
 call _fimul
-add esp,8
+pop ecx
+pop ecx
 mov [_float_temp],eax
 FLD dword ptr [_float_temp]
 mov esp,ebp
 pop ebp
 ret
+.set locals_square,0
 # ** End of function **
-# ======================
-# square 0 0 [float] 0
-# pi 0 0 [float] 0
-# ======================
+# =========================================
+# square l=0 o=0 [float] 
+# pi l=0 o=0 [float] 
+# sinf l=0 o=0 [float] 
+# =========================================
 mov [_float_temp],eax
 FLD dword ptr [_float_temp]
 mov esp,ebp
 pop ebp
 ret
-# ======================
-# main 0 0 [int] 0
-# square 0 0 [float] 0
-# pi 0 0 [float] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# square l=0 o=0 [float] 
+# pi l=0 o=0 [float] 
+# sinf l=0 o=0 [float] 
+# =========================================
 .globl _main
 _main:
 push ebp
 mov ebp,esp
-push eax # declare a (level 1)
-# ======================
-# a 1 -4 [float] 0
-# main 0 0 [int] 0
-# square 0 0 [float] 0
-# pi 0 0 [float] 0
-# ======================
+sub esp, offset locals_main
+# =========================================
+# a l=1 o=-4 [float] 
+# main l=0 o=0 [int] 
+# square l=0 o=0 [float] 
+# pi l=0 o=0 [float] 
+# sinf l=0 o=0 [float] 
+# =========================================
 mov eax,1
-push eax # declare i (level 1)
-# ======================
-# i 1 -8 [int] 0
-# a 1 -4 [float] 0
-# main 0 0 [int] 0
-# square 0 0 [float] 0
-# pi 0 0 [float] 0
-# ======================
+mov [ebp-8],eax # declare i (level 1)
+# =========================================
+# i l=1 o=-8 [int] 
+# a l=1 o=-4 [float] 
+# main l=0 o=0 [int] 
+# square l=0 o=0 [float] 
+# pi l=0 o=0 [float] 
+# sinf l=0 o=0 [float] 
+# =========================================
 lea eax,[ebp-4] # a
 push eax
 mov eax,0x40a00000 # 5.000000
@@ -96,7 +105,8 @@ pop eax
 push ecx
 push eax
 call _fadd
-add esp,8
+pop ecx
+pop ecx
 mov ecx,eax
 pop eax
 mov [eax],ecx
@@ -108,7 +118,8 @@ pop ecx
 push ecx
 push eax
 call _fsub
-add esp,8
+pop ecx
+pop ecx
 push eax
 mov eax,_pi
 push eax
@@ -117,7 +128,8 @@ pop ecx
 push ecx
 push eax
 call _fadd
-add esp,8
+pop ecx
+pop ecx
 push eax
 mov eax,0x40600000 # 3.500000
 push eax
@@ -126,7 +138,8 @@ pop ecx
 push ecx
 push eax
 call _fadd
-add esp,8
+pop ecx
+pop ecx
 push eax
 .data
 _string2:
@@ -140,15 +153,16 @@ mov eax,0x40400000 # 3.000000
 push eax
 call _fneg
 add esp,4
-push eax # declare b (level 1)
-# ======================
-# b 1 -12 [float] 0
-# i 1 -8 [int] 0
-# a 1 -4 [float] 0
-# main 0 0 [int] 0
-# square 0 0 [float] 0
-# pi 0 0 [float] 0
-# ======================
+mov [ebp-12],eax # declare b (level 1)
+# =========================================
+# b l=1 o=-12 [float] 
+# i l=1 o=-8 [int] 
+# a l=1 o=-4 [float] 
+# main l=0 o=0 [int] 
+# square l=0 o=0 [float] 
+# pi l=0 o=0 [float] 
+# sinf l=0 o=0 [float] 
+# =========================================
 mov eax,[ebp-12] # b
 push eax
 call _square
@@ -173,6 +187,189 @@ mov eax, offset _string3
 push eax
 call _printf
 add esp,20
+mov eax,[ebp-12] # b
+push eax
+mov eax,[ebp-4] # a
+pop ecx
+push ecx
+push eax
+call _fcmp
+pop ecx
+pop ecx
+mov eax, 0
+seta al
+cmp eax, 0
+je _end4
+.data
+_string5:
+.asciz "a>b\n"
+.text
+mov eax, offset _string5
+push eax
+call _printf
+add esp,4
+_end4:
+mov eax,[ebp-12] # b
+push eax
+mov eax,[ebp-4] # a
+pop ecx
+push ecx
+push eax
+call _fcmp
+pop ecx
+pop ecx
+mov eax, 0
+setae al
+cmp eax, 0
+je _end6
+.data
+_string7:
+.asciz "a>=b\n"
+.text
+mov eax, offset _string7
+push eax
+call _printf
+add esp,4
+_end6:
+mov eax,[ebp-12] # b
+push eax
+mov eax,[ebp-4] # a
+pop ecx
+push ecx
+push eax
+call _fcmp
+pop ecx
+pop ecx
+mov eax, 0
+setb al
+cmp eax, 0
+je _end8
+.data
+_string9:
+.asciz "a<b\n"
+.text
+mov eax, offset _string9
+push eax
+call _printf
+add esp,4
+_end8:
+mov eax,[ebp-12] # b
+push eax
+mov eax,[ebp-4] # a
+pop ecx
+push ecx
+push eax
+call _fcmp
+pop ecx
+pop ecx
+mov eax, 0
+setbe al
+cmp eax, 0
+je _end10
+.data
+_string11:
+.asciz "a<=b\n"
+.text
+mov eax, offset _string11
+push eax
+call _printf
+add esp,4
+_end10:
+mov eax,[ebp-4] # a
+push eax
+mov eax,[ebp-12] # b
+pop ecx
+push ecx
+push eax
+call _fcmp
+pop ecx
+pop ecx
+mov eax, 0
+seta al
+cmp eax, 0
+je _end12
+.data
+_string13:
+.asciz "b>a\n"
+.text
+mov eax, offset _string13
+push eax
+call _printf
+add esp,4
+_end12:
+mov eax,[ebp-4] # a
+push eax
+mov eax,[ebp-12] # b
+pop ecx
+push ecx
+push eax
+call _fcmp
+pop ecx
+pop ecx
+mov eax, 0
+setae al
+cmp eax, 0
+je _end14
+.data
+_string15:
+.asciz "b>=a\n"
+.text
+mov eax, offset _string15
+push eax
+call _printf
+add esp,4
+_end14:
+mov eax,[ebp-4] # a
+push eax
+mov eax,[ebp-12] # b
+pop ecx
+push ecx
+push eax
+call _fcmp
+pop ecx
+pop ecx
+mov eax, 0
+setb al
+cmp eax, 0
+je _end16
+.data
+_string17:
+.asciz "b<a\n"
+.text
+mov eax, offset _string17
+push eax
+call _printf
+add esp,4
+_end16:
+mov eax,[ebp-4] # a
+push eax
+mov eax,[ebp-12] # b
+pop ecx
+push ecx
+push eax
+call _fcmp
+pop ecx
+pop ecx
+mov eax, 0
+setbe al
+cmp eax, 0
+je _end18
+mov eax,[ebp-4] # a
+push eax
+call _sinf
+add esp,4
+FSTP dword ptr [_float_temp]
+mov eax,[_float_temp]
+push eax
+.data
+_string19:
+.asciz "b<=a, sinf(a)=%0x\n"
+.text
+mov eax, offset _string19
+push eax
+call _printf
+add esp,8
+_end18:
 lea eax,[ebp-8] # i
 push eax
 mov eax,[ebp-4] # a
@@ -185,7 +382,8 @@ add esp,4
 push ecx
 push eax
 call _fadd
-add esp,8
+pop ecx
+pop ecx
 pop ecx
 push eax
 call _float2int
@@ -199,12 +397,14 @@ add eax,ecx
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,12
 # ** End of function **
-# ======================
-# main 0 0 [int] 0
-# square 0 0 [float] 0
-# pi 0 0 [float] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# square l=0 o=0 [float] 
+# pi l=0 o=0 [float] 
+# sinf l=0 o=0 [float] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret

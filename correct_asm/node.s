@@ -4,11 +4,11 @@
 _numToks:
 .long 56
 .text
-# ======================
-# numToks 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# malloc 0 0 [void*] 0
-# ======================
+# =========================================
+# numToks l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# malloc l=0 o=0 [void*] 
+# =========================================
 .data
 names_string0:
 .asciz "foo"
@@ -19,59 +19,59 @@ _names:
 .long names_string0
 .long names_string1
 .text
-# ======================
-# names 0 0 [char*[]] 0
-# numToks 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# malloc 0 0 [void*] 0
-# ======================
-# ======================
-# struct Type 0 0 [] 0
-# names 0 0 [char*[]] 0
-# numToks 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# malloc 0 0 [void*] 0
-# ======================
-# ======================
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# names 0 0 [char*[]] 0
-# numToks 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# malloc 0 0 [void*] 0
-# ======================
-# ======================
-# main 0 0 [int] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# names 0 0 [char*[]] 0
-# numToks 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# malloc 0 0 [void*] 0
-# ======================
+# =========================================
+# names l=0 o=0 [char*[]] 
+# numToks l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# malloc l=0 o=0 [void*] 
+# =========================================
+# =========================================
+# struct Type l=0 o=0 [] 
+# names l=0 o=0 [char*[]] 
+# numToks l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# malloc l=0 o=0 [void*] 
+# =========================================
+# =========================================
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# names l=0 o=0 [char*[]] 
+# numToks l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# malloc l=0 o=0 [void*] 
+# =========================================
+# =========================================
+# main l=0 o=0 [int] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# names l=0 o=0 [char*[]] 
+# numToks l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# malloc l=0 o=0 [void*] 
+# =========================================
 .globl _main
 _main:
 push ebp
 mov ebp,esp
+sub esp, offset locals_main
 mov eax,64
 push eax
 call _malloc
 add esp,4
-push eax # declare node (level 1)
-# ======================
-# node 1 -4 [struct Node*] 0
-# main 0 0 [int] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# names 0 0 [char*[]] 0
-# numToks 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# malloc 0 0 [void*] 0
-# ======================
-lea eax,[ebp-4] # node
-mov eax,[eax]
+mov [ebp-4],eax # declare node (level 1)
+# =========================================
+# node l=1 o=-4 [struct Node*] 
+# main l=0 o=0 [int] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# names l=0 o=0 [char*[]] 
+# numToks l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# malloc l=0 o=0 [void*] 
+# =========================================
+mov eax,[ebp-4] # node
 mov ecx,0
-add eax,ecx
+add eax,ecx # .type
 push eax
 mov eax,10
 pop ecx
@@ -82,26 +82,23 @@ _string1:
 .text
 mov eax, offset _string1
 push eax
-lea eax,[ebp-4] # node
-mov eax,[eax]
+mov eax,[ebp-4] # node
 mov ecx,8
-add eax,ecx
+add eax,ecx # .varType
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
 call _strcpy
 add esp,8
-lea eax,[ebp-4] # node
-mov eax,[eax]
+mov eax,[ebp-4] # node
 mov ecx,8
-add eax,ecx
+add eax,ecx # .varType
 mov ecx,0
-add eax,ecx
+add eax,ecx # .data
 push eax
-lea eax,[ebp-4] # node
-mov eax,[eax]
+mov eax,[ebp-4] # node
 mov ecx,0
-add eax,ecx
+add eax,ecx # .type
 mov eax,[eax]
 push eax
 .data
@@ -112,37 +109,36 @@ mov eax, offset _string2
 push eax
 call _printf
 add esp,12
-sub esp,12 # declare array (level 1)
-# ======================
-# array 1 -16 [int[3]] 0
-# node 1 -4 [struct Node*] 0
-# main 0 0 [int] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# names 0 0 [char*[]] 0
-# numToks 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# malloc 0 0 [void*] 0
-# ======================
+# =========================================
+# array l=1 o=-16 [int[3]] 
+# node l=1 o=-4 [struct Node*] 
+# main l=0 o=0 [int] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# names l=0 o=0 [char*[]] 
+# numToks l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# malloc l=0 o=0 [void*] 
+# =========================================
 mov eax,0
 push eax
 lea eax,[ebp-16] # array
 pop ecx
 imul ecx,4
 add eax,ecx
-push eax # declare p (level 1)
-# ======================
-# p 1 -20 [int*] 0
-# array 1 -16 [int[3]] 0
-# node 1 -4 [struct Node*] 0
-# main 0 0 [int] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# names 0 0 [char*[]] 0
-# numToks 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# malloc 0 0 [void*] 0
-# ======================
+mov [ebp-20],eax # declare p (level 1)
+# =========================================
+# p l=1 o=-20 [int*] 
+# array l=1 o=-16 [int[3]] 
+# node l=1 o=-4 [struct Node*] 
+# main l=0 o=0 [int] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# names l=0 o=0 [char*[]] 
+# numToks l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# malloc l=0 o=0 [void*] 
+# =========================================
 mov eax,2
 push eax
 lea eax,[ebp-20] # p
@@ -232,36 +228,36 @@ push eax
 call _printf
 add esp,12
 mov eax,20
-push eax # declare i (level 1)
-# ======================
-# i 1 -24 [int] 0
-# p 1 -20 [int*] 0
-# array 1 -16 [int[3]] 0
-# node 1 -4 [struct Node*] 0
-# main 0 0 [int] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# names 0 0 [char*[]] 0
-# numToks 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# malloc 0 0 [void*] 0
-# ======================
+mov [ebp-24],eax # declare i (level 1)
+# =========================================
+# i l=1 o=-24 [int] 
+# p l=1 o=-20 [int*] 
+# array l=1 o=-16 [int[3]] 
+# node l=1 o=-4 [struct Node*] 
+# main l=0 o=0 [int] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# names l=0 o=0 [char*[]] 
+# numToks l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# malloc l=0 o=0 [void*] 
+# =========================================
 mov eax,30
-push eax # declare j (level 1)
-# ======================
-# j 1 -28 [int] 0
-# i 1 -24 [int] 0
-# p 1 -20 [int*] 0
-# array 1 -16 [int[3]] 0
-# node 1 -4 [struct Node*] 0
-# main 0 0 [int] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# names 0 0 [char*[]] 0
-# numToks 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# malloc 0 0 [void*] 0
-# ======================
+mov [ebp-28],eax # declare j (level 1)
+# =========================================
+# j l=1 o=-28 [int] 
+# i l=1 o=-24 [int] 
+# p l=1 o=-20 [int*] 
+# array l=1 o=-16 [int[3]] 
+# node l=1 o=-4 [struct Node*] 
+# main l=0 o=0 [int] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# names l=0 o=0 [char*[]] 
+# numToks l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# malloc l=0 o=0 [void*] 
+# =========================================
 lea eax,[ebp-28] # j
 push eax
 lea eax,[ebp-24] # i
@@ -289,16 +285,17 @@ add eax,ecx
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,28
 # ** End of function **
-# ======================
-# main 0 0 [int] 0
-# struct Node 0 0 [] 0
-# struct Type 0 0 [] 0
-# names 0 0 [char*[]] 0
-# numToks 0 0 [int] 0
-# strcpy 0 0 [char*] 0
-# malloc 0 0 [void*] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# struct Node l=0 o=0 [] 
+# struct Type l=0 o=0 [] 
+# names l=0 o=0 [char*[]] 
+# numToks l=0 o=0 [int] 
+# strcpy l=0 o=0 [char*] 
+# malloc l=0 o=0 [void*] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret

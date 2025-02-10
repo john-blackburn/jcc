@@ -1,16 +1,17 @@
 .intel_syntax noprefix
 # =========================================
-# main l=0 o=0 [int]  
+# main l=0 o=0 [int] 
 # =========================================
 .globl _main
 _main:
 push ebp
 mov ebp,esp
+sub esp, offset locals_main
 mov eax,0
-push eax # declare i (level 1)
+mov [ebp-4],eax # declare i (level 1)
 # =========================================
-# i l=1 o=-4 [int]  
-# main l=0 o=0 [int]  
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
 # =========================================
 _st:
 mov eax,10
@@ -48,13 +49,14 @@ mov eax, offset _string3
 push eax
 call _printf
 add esp,4
-mov eax,0
+mov eax,[ebp-4] # i
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,4
 # ** End of function **
 # =========================================
-# main l=0 o=0 [int]  
+# main l=0 o=0 [int] 
 # =========================================
 mov esp,ebp
 pop ebp

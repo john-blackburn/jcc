@@ -8,12 +8,13 @@
 _main:
 push ebp
 mov ebp,esp
+sub esp, offset locals_main
 .data
 _string1:
 .asciz "jcc [options] foo.c\n-c: compile only\n-dumpLex: dump lex tokens to stdout\n-dumpParse: dump Abstract Syntax Tree to stdout\n-lexOnly: lex input file but do not parse or create function calls (no output file)\n-parseOnly: lex and parse but don't create function calls (no output file)\n"
 .text
 mov eax, offset _string1
-push eax # declare usage (level 1)
+mov [ebp-4],eax # declare usage (level 1)
 # =========================================
 # usage l=1 o=-4 [char*]  CONST
 # argv l=1 o=12 [char**] ARG
@@ -80,6 +81,7 @@ mov eax,0
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,4
 # ** End of function **
 # =========================================
 # main l=0 o=0 [int] 

@@ -1,11 +1,12 @@
 .intel_syntax noprefix
-# ======================
-# main 0 0 [int] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# =========================================
 .globl _main
 _main:
 push ebp
 mov ebp,esp
+sub esp, offset locals_main
 .data
 _string1:
 .asciz "Start\n"
@@ -19,21 +20,20 @@ _string2:
 .asciz "Hello, world\n"
 .text
 mov eax, offset _string2
-push eax # declare p (level 1)
-# ======================
-# p 1 -4 [char*] 0
-# main 0 0 [int] 0
-# ======================
+mov [ebp-4],eax # declare p (level 1)
+# =========================================
+# p l=1 o=-4 [char*] 
+# main l=0 o=0 [int] 
+# =========================================
 mov eax,[ebp-4] # p
 push eax
 call _printf
 add esp,4
-sub esp,8 # declare array (level 1)
-# ======================
-# array 1 -12 [char[6]] 0
-# p 1 -4 [char*] 0
-# main 0 0 [int] 0
-# ======================
+# =========================================
+# array l=1 o=-12 [char[6]] 
+# p l=1 o=-4 [char*] 
+# main l=0 o=0 [int] 
+# =========================================
 mov eax,0
 push eax
 lea eax,[ebp-12] # array
@@ -127,10 +127,11 @@ movzx eax,al
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,12
 # ** End of function **
-# ======================
-# main 0 0 [int] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret

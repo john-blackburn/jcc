@@ -1,232 +1,264 @@
 .intel_syntax noprefix
-# ======================
-# struct Point 0 0 [] 0
-# ======================
-# ======================
-# struct Rect 0 0 [] 0
-# struct Point 0 0 [] 0
-# ======================
-# ======================
-# q 1 16 [struct Point] 1
-# p 1 8 [struct Point] 1
-# addPoints 0 0 [struct Point] 0
-# struct Rect 0 0 [] 0
-# struct Point 0 0 [] 0
-# ======================
+# =========================================
+# struct Point l=0 o=0 [] 
+# =========================================
+# =========================================
+# struct Rect l=0 o=0 [] 
+# struct Point l=0 o=0 [] 
+# =========================================
+# =========================================
+# q l=1 o=28 [struct Point] ARG
+# p l=1 o=12 [struct Point] ARG
+# addPoints l=0 o=0 [struct Point] 
+# struct Rect l=0 o=0 [] 
+# struct Point l=0 o=0 [] 
+# =========================================
 .globl _addPoints
 _addPoints:
 push ebp
 mov ebp,esp
-sub esp,8 # declare tot (level 1)
-# ======================
-# tot 1 -8 [struct Point] 0
-# q 1 16 [struct Point] 1
-# p 1 8 [struct Point] 1
-# addPoints 0 0 [struct Point] 0
-# struct Rect 0 0 [] 0
-# struct Point 0 0 [] 0
-# ======================
-lea eax,[ebp-8] # tot
+sub esp, offset locals_addPoints
+# =========================================
+# tot l=1 o=-16 [struct Point] 
+# q l=1 o=28 [struct Point] ARG
+# p l=1 o=12 [struct Point] ARG
+# addPoints l=0 o=0 [struct Point] 
+# struct Rect l=0 o=0 [] 
+# struct Point l=0 o=0 [] 
+# =========================================
+lea eax,[ebp-16] # tot
 mov ecx,0
-add eax,ecx
+add eax,ecx # .x
 push eax
-lea eax,[ebp+16] # q
+lea eax,[ebp+28] # q
 mov ecx,0
-add eax,ecx
+add eax,ecx # .x
 mov eax,[eax]
 push eax
-lea eax,[ebp+8] # p
+lea eax,[ebp+12] # p
 mov ecx,0
-add eax,ecx
+add eax,ecx # .x
 mov eax,[eax]
 pop ecx
 add eax,ecx
 pop ecx
 mov [ecx],eax
-lea eax,[ebp-8] # tot
+lea eax,[ebp-16] # tot
 mov ecx,4
-add eax,ecx
+add eax,ecx # .y
 push eax
-lea eax,[ebp+16] # q
+lea eax,[ebp+28] # q
 mov ecx,4
-add eax,ecx
+add eax,ecx # .y
 mov eax,[eax]
 push eax
-lea eax,[ebp+8] # p
+lea eax,[ebp+12] # p
 mov ecx,4
-add eax,ecx
+add eax,ecx # .y
 mov eax,[eax]
 pop ecx
 add eax,ecx
 pop ecx
 mov [ecx],eax
-lea eax,[ebp-8] # tot
+lea eax,[ebp-16] # tot
+mov ecx,8
+add eax,ecx # .l
+push eax
+mov eax,0
+pop ecx
+mov [ecx],eax
+lea eax,[ebp-16] # tot
+mov ecx,12
+add eax,ecx # .w
+push eax
+mov eax,0
+pop ecx
+mov [ecx],eax
+lea eax,[ebp-16] # tot
+mov ecx,[ebp+8]
+push 16
+push eax
+push ecx
+call _memcpy
+add esp,12
+mov eax,[ebp+8]
 mov esp,ebp
 pop ebp
 ret
+.set locals_addPoints,16
 # ** End of function **
-# ======================
-# addPoints 0 0 [struct Point] 0
-# struct Rect 0 0 [] 0
-# struct Point 0 0 [] 0
-# ======================
+# =========================================
+# addPoints l=0 o=0 [struct Point] 
+# struct Rect l=0 o=0 [] 
+# struct Point l=0 o=0 [] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret
-# ======================
-# main 0 0 [int] 0
-# addPoints 0 0 [struct Point] 0
-# struct Rect 0 0 [] 0
-# struct Point 0 0 [] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# addPoints l=0 o=0 [struct Point] 
+# struct Rect l=0 o=0 [] 
+# struct Point l=0 o=0 [] 
+# =========================================
 .globl _main
 _main:
 push ebp
 mov ebp,esp
-sub esp,16 # declare r (level 1)
-# ======================
-# r 1 -16 [struct Rect] 0
-# main 0 0 [int] 0
-# addPoints 0 0 [struct Point] 0
-# struct Rect 0 0 [] 0
-# struct Point 0 0 [] 0
-# ======================
-sub esp,16 # declare s (level 1)
-# ======================
-# s 1 -32 [struct Rect] 0
-# r 1 -16 [struct Rect] 0
-# main 0 0 [int] 0
-# addPoints 0 0 [struct Point] 0
-# struct Rect 0 0 [] 0
-# struct Point 0 0 [] 0
-# ======================
-lea eax,[ebp-16] # r
+sub esp, offset locals_main
+# =========================================
+# r l=1 o=-32 [struct Rect] 
+# main l=0 o=0 [int] 
+# addPoints l=0 o=0 [struct Point] 
+# struct Rect l=0 o=0 [] 
+# struct Point l=0 o=0 [] 
+# =========================================
+# =========================================
+# s l=1 o=-64 [struct Rect] 
+# r l=1 o=-32 [struct Rect] 
+# main l=0 o=0 [int] 
+# addPoints l=0 o=0 [struct Point] 
+# struct Rect l=0 o=0 [] 
+# struct Point l=0 o=0 [] 
+# =========================================
+lea eax,[ebp-32] # r
 mov ecx,0
-add eax,ecx
+add eax,ecx # .top
 mov ecx,0
-add eax,ecx
+add eax,ecx # .x
 push eax
 mov eax,1
 pop ecx
 mov [ecx],eax
-lea eax,[ebp-16] # r
+lea eax,[ebp-32] # r
 mov ecx,0
-add eax,ecx
+add eax,ecx # .top
 mov ecx,4
-add eax,ecx
+add eax,ecx # .y
 push eax
 mov eax,2
 pop ecx
 mov [ecx],eax
-lea eax,[ebp-16] # r
-mov ecx,8
-add eax,ecx
+lea eax,[ebp-32] # r
+mov ecx,16
+add eax,ecx # .bot
 mov ecx,0
-add eax,ecx
+add eax,ecx # .x
 push eax
 mov eax,3
 pop ecx
 mov [ecx],eax
-lea eax,[ebp-16] # r
-mov ecx,8
-add eax,ecx
+lea eax,[ebp-32] # r
+mov ecx,16
+add eax,ecx # .bot
 mov ecx,4
-add eax,ecx
+add eax,ecx # .y
 push eax
 mov eax,4
 pop ecx
 mov [ecx],eax
-sub esp,8 # declare another (level 1)
-# ======================
-# another 1 -40 [struct Point] 0
-# s 1 -32 [struct Rect] 0
-# r 1 -16 [struct Rect] 0
-# main 0 0 [int] 0
-# addPoints 0 0 [struct Point] 0
-# struct Rect 0 0 [] 0
-# struct Point 0 0 [] 0
-# ======================
-lea eax,[ebp-40] # another
+# =========================================
+# another l=1 o=-80 [struct Point] 
+# s l=1 o=-64 [struct Rect] 
+# r l=1 o=-32 [struct Rect] 
+# main l=0 o=0 [int] 
+# addPoints l=0 o=0 [struct Point] 
+# struct Rect l=0 o=0 [] 
+# struct Point l=0 o=0 [] 
+# =========================================
+lea eax,[ebp-80] # another
 mov ecx,0
-add eax,ecx
+add eax,ecx # .x
 push eax
 mov eax,10
 pop ecx
 mov [ecx],eax
-lea eax,[ebp-40] # another
+lea eax,[ebp-80] # another
 mov ecx,4
-add eax,ecx
+add eax,ecx # .y
 push eax
 mov eax,20
 pop ecx
 mov [ecx],eax
-lea eax,[ebp-32] # s
+lea eax,[ebp-64] # s
 push eax
-lea eax,[ebp-16] # r
+lea eax,[ebp-32] # r
+pop ecx
+push 32
+push eax
+push ecx
+call _memcpy
+add esp,12
+lea eax,[ebp-64] # s
+mov ecx,0
+add eax,ecx # .top
+push eax
+lea eax,[ebp-80] # another
 pop ecx
 push 16
 push eax
 push ecx
 call _memcpy
 add esp,12
-lea eax,[ebp-32] # s
+# =========================================
+# p l=1 o=-96 [struct Point] 
+# another l=1 o=-80 [struct Point] 
+# s l=1 o=-64 [struct Rect] 
+# r l=1 o=-32 [struct Rect] 
+# main l=0 o=0 [int] 
+# addPoints l=0 o=0 [struct Point] 
+# struct Rect l=0 o=0 [] 
+# struct Point l=0 o=0 [] 
+# =========================================
+lea eax,[ebp-96] # p
+push eax
+lea eax,[ebp-32] # r
 mov ecx,0
-add eax,ecx
-push eax
-lea eax,[ebp-40] # another
-pop ecx
-push 8
-push eax
-push ecx
-call _memcpy
-add esp,12
-sub esp,8 # declare p (level 1)
-# ======================
-# p 1 -48 [struct Point] 0
-# another 1 -40 [struct Point] 0
-# s 1 -32 [struct Rect] 0
-# r 1 -16 [struct Rect] 0
-# main 0 0 [int] 0
-# addPoints 0 0 [struct Point] 0
-# struct Rect 0 0 [] 0
-# struct Point 0 0 [] 0
-# ======================
-lea eax,[ebp-48] # p
-push eax
-lea eax,[ebp-16] # r
-mov ecx,0
-add eax,ecx
-sub esp,8
+add eax,ecx # .top
+sub esp,16
 mov ecx,esp
-push 8
+push 16
 push eax
 push ecx
 call _memcpy
 add esp,12
-lea eax,[ebp-40] # another
-sub esp,8
+lea eax,[ebp-80] # another
+sub esp,16
 mov ecx,esp
-push 8
+push 16
 push eax
 push ecx
 call _memcpy
 add esp,12
+# =========================================
+# (str return) l=1 o=-112 [struct Point] 
+# p l=1 o=-96 [struct Point] 
+# another l=1 o=-80 [struct Point] 
+# s l=1 o=-64 [struct Rect] 
+# r l=1 o=-32 [struct Rect] 
+# main l=0 o=0 [int] 
+# addPoints l=0 o=0 [struct Point] 
+# struct Rect l=0 o=0 [] 
+# struct Point l=0 o=0 [] 
+# =========================================
+lea eax,[ebp-112]
+push eax
 call _addPoints
-add esp,16
+add esp,36
 pop ecx
-push 8
+push 16
 push eax
 push ecx
 call _memcpy
 add esp,12
-lea eax,[ebp-48] # p
+lea eax,[ebp-96] # p
 mov ecx,4
-add eax,ecx
+add eax,ecx # .y
 mov eax,[eax]
 push eax
-lea eax,[ebp-48] # p
+lea eax,[ebp-96] # p
 mov ecx,0
-add eax,ecx
+add eax,ecx # .x
 mov eax,[eax]
 push eax
 .data
@@ -237,31 +269,32 @@ mov eax, offset _string1
 push eax
 call _printf
 add esp,12
-lea eax,[ebp-32] # s
+lea eax,[ebp-64] # s
 mov ecx,0
-add eax,ecx
+add eax,ecx # .top
 mov ecx,0
-add eax,ecx
+add eax,ecx # .x
 mov eax,[eax]
 push eax
-lea eax,[ebp-32] # s
-mov ecx,8
-add eax,ecx
+lea eax,[ebp-64] # s
+mov ecx,16
+add eax,ecx # .bot
 mov ecx,4
-add eax,ecx
+add eax,ecx # .y
 mov eax,[eax]
 pop ecx
 add eax,ecx
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,112
 # ** End of function **
-# ======================
-# main 0 0 [int] 0
-# addPoints 0 0 [struct Point] 0
-# struct Rect 0 0 [] 0
-# struct Point 0 0 [] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# addPoints l=0 o=0 [struct Point] 
+# struct Rect l=0 o=0 [] 
+# struct Point l=0 o=0 [] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret

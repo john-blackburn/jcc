@@ -21,7 +21,7 @@ int fib(int n)
 
 int main(void) 
 {
-    const char n = 10;
-    printf("The %d-th Fibonacci number is %d\n",(int)n,fib(n));
+    const int n = 10;
+    printf("The %d-th Fibonacci number is %d\n",n,fib(n));
     return 0;
 }

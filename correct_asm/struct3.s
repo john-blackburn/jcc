@@ -39,32 +39,33 @@ _y:
 _main:
 push ebp
 mov ebp,esp
+sub esp, offset locals_main
 mov eax,offset _x
 mov ecx,0
-add eax,ecx
+add eax,ecx # .a
 push eax
 mov eax,1
 pop ecx
 mov [ecx],eax
 mov eax,offset _y
 mov ecx,4
-add eax,ecx
+add eax,ecx # .b
 push eax
 mov eax,offset _x
 mov ecx,0
-add eax,ecx
+add eax,ecx # .a
 mov eax,[eax]
 pop ecx
 mov [ecx],eax
 mov eax,offset _y
 mov ecx,8
-add eax,ecx
+add eax,ecx # .a1
 mov ecx,0
-add eax,ecx
+add eax,ecx # .p
 push eax
 mov eax,offset _x
 mov ecx,0
-add eax,ecx
+add eax,ecx # .a
 mov eax,[eax]
 pop ecx
 push eax
@@ -75,13 +76,14 @@ mov eax,24
 push eax
 mov eax,offset _y
 mov ecx,4
-add eax,ecx
+add eax,ecx # .b
 mov eax,[eax]
 pop ecx
 add eax,ecx
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,0
 # ** End of function **
 # =========================================
 # main l=0 o=0 [int] 

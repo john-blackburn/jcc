@@ -1,24 +1,24 @@
 .intel_syntax noprefix
-# ======================
-# main 0 0 [int] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# =========================================
 .globl _main
 _main:
 push ebp
 mov ebp,esp
-push eax # declare i (level 1)
-# ======================
-# i 1 -4 [int] 0
-# main 0 0 [int] 0
-# ======================
+sub esp, offset locals_main
+# =========================================
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
+# =========================================
 mov al,'a'
 movzx eax,al
-push eax # declare c (level 1)
-# ======================
-# c 1 -8 [char] 0
-# i 1 -4 [int] 0
-# main 0 0 [int] 0
-# ======================
+mov [ebp-8],eax # declare c (level 1)
+# =========================================
+# c l=1 o=-8 [char] 
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
+# =========================================
 lea eax,[ebp-4] # i
 push eax
 mov eax,10
@@ -43,10 +43,11 @@ mov eax,[ebp-4] # i
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,8
 # ** End of function **
-# ======================
-# main 0 0 [int] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret

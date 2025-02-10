@@ -14,7 +14,7 @@ More initialise arrays:
     char *foo[]={"hello","world"} (currently only done for globals)
 comma operator (WON'T DO)
 function pointers (WON'T DO)
-double (WON'T DO)
+double (WON'T DO) but when calling vararg, promote float to double
 const, long, register, short, volatile (parsed but ignored: WON'T DO)
 short int (2 bytes on AX) (WON'T DO)
 bit fields (WON'T DO)
@@ -3193,80 +3193,26 @@ int min(int a, int b)
     return (a<b) ? a : b;
 }
 
-int sizeLocals(struct Node* node)
+int isVarArg(struct Node* pFunc)
 {
-    int tot=0;
-    
-    if (node->type==FUNCTION || node->type==BLOCK)
+    int i;
+    for (i=0;i<pFunc->nlines;i++)
     {
-        int i, mx=0;
-        for (i=0;i<node->nlines;i++)
-        {
-            int sz = sizeLocals(node->line[i]);
-            int type=node->line[i]->type;
-            
-            if (type==BLOCK || type==WHILE || type==FOR || type==DO || type==IF || type==SWITCH)
-                mx=max(mx,sz);
-            else
-                tot+=sz;
-        }
-        return tot+mx;
+        if (pFunc->line[i]->type!=ARG) return 0;
+        if (strcmp(pFunc->line[i]->varType.data,"...")==0) return 1;
     }
-    else if (node->type==FOR)
-    {
-        return sizeLocals(node->child4);
-    }    
-    else if (node->type==DO)
-    {
-        return sizeLocals(node->child);
-    }    
-    else if (node->type==WHILE || node->type==SWITCH)
-    {
-        return sizeLocals(node->child2);
-    }    
-    else if (node->type==IF)
-    {
-        int sz=sizeLocals(node->child2);
-        if (node->child3!=NULL)
-            sz = max(sz, sizeLocals(node->child3));
-        return sz;
-    }    
-    else if (node->type==DECLGROUP)
-    {        
-        int i;
-        for (i=0;i<node->nlines;i++)
-        {
-            tot += sizeLocals(node->line[i]);
-        }
-        return tot;
-    }
+    return 0;
+}
 
-    else if (node->type==DECL && node->varType.isStatic==0)
+int getnargs(struct Node* pFunc)
+{
+    int i,nargs=0;
+    for (i=0;i<pFunc->nlines;i++)
     {
-        return getPaddedSize(sizeOf(node->varType,node));
+        if (pFunc->line[i]->type!=ARG) break;
+        nargs++;
     }
-    else if (node->type==CALL)
-    {
-        struct Var *p=varEnd;
-        struct Type varType;
-        
-        while(p!=NULL)  // p is NULL if function not found. Then doesn't return struct
-        {
-            if (strcmp(node->id,p->id)==0)
-            {
-                varType=p->varType;
-                break;
-            }
-            p=p->prev;
-        }
-        
-        if (p!=NULL && isStruct(varType))  // returns struct
-            return getPaddedSize(sizeOf(varType,node));
-        else
-            return 0;
-    }
-    else
-        return 0;    
+    return nargs;
 }
 
 // ######################################################################
@@ -3839,18 +3785,19 @@ _post_conditional:            ; we need this label to jump over e3
 
       if (p!=NULL)   // function has been defined so try to coerce args
       {          
-          struct Node *pFunc = p->structNode;
-          int nargs=pFunc->nlines;  // assumes proto
+          struct Node *pFunc = p->structNode;  // func on AST
           
           if (pFunc==NULL)
               asmFail("structNode has not been set for function",node);
 
-          if (strcmp(pFunc->line[nargs-1]->varType.data,"...")!=0)  // not vararg
+          int nargs=getnargs(pFunc);
+
+          if (!isVarArg(pFunc))  // not vararg
           {
               if (nargs < i+1 || pFunc->line[i]->type!=ARG)
                   asmFail("pass too many args to function",node);
                                           
-              type2 = p->structNode->line[i]->varType; // required type
+              type2 = pFunc->line[i]->varType; // required type
               printf("coerce %s -> %s\n", type1.data, type2.data);
               doCast(type1, type2, node);  //  coercion
           }
@@ -3906,6 +3853,7 @@ _post_conditional:            ; we need this label to jump over e3
         tot+=4;
     }
 
+    // call the function
     fprintf(fps,"call _%s\n",node->id);
     fprintf(fps,"add esp,%d\n",tot);
 
@@ -4951,6 +4899,7 @@ int main(int argc, char **argv)
     const char* usage =
         "jcc [options] foo.c\n"
         "-c: compile only\n"
+        "-oname: set EXE name (no space between -o and name)\n"
         "-dumpLex: dump lex tokens to stdout\n"
         "-dumpParse: dump Abstract Syntax Tree to stdout\n"
         "-lexOnly: lex input file but do not parse or create function calls (no output file)\n"
@@ -4961,8 +4910,10 @@ int main(int argc, char **argv)
   int lexOnly=0;
   int parseOnly=0;
   int compileOnly=0;
+  int exeSet=0;
   
   char* fname = NULL;
+  char exename[64]; // name of exe eg foo.exe
   
   if (argc == 1)
   {
@@ -4982,6 +4933,11 @@ int main(int argc, char **argv)
           parseOnly=1;
       else if (strcmp(argv[i],"-c")==0)
           compileOnly=1;
+      else if (argv[i][0]=='-' && argv[i][1]=='o')
+      {
+          strcpy(exename,&argv[i][2]);
+          exeSet=1;
+      }
       else
           fname=argv[i];
   }
@@ -4998,7 +4954,6 @@ int main(int argc, char **argv)
     
   char name[64];    // base name, eg foo.c
   char sname[64];   // name of s file eg foo.s
-  char exename[64]; // name of exe eg foo.exe
   char iname[64]; // name of postprocessed source eg foo.i
   char oname[64]; // foo.o file
 
@@ -5033,10 +4988,13 @@ int main(int argc, char **argv)
   sname[i]='\0';
   strcat(sname,".s");
 
-  strcpy(exename,name);
-  exename[i]='\0';
-  strcat(exename,".exe");
-
+  if (!exeSet)
+  {
+      strcpy(exename,name);
+      exename[i]='\0';
+      strcat(exename,".exe");
+  }
+  
   strcpy(iname,name);
   iname[i]='\0';
   strcat(iname,".i");

@@ -1,13 +1,14 @@
 .intel_syntax noprefix
-# ======================
-# b 1 8 [int[][2]] 1
-# transpose 0 0 [int] 0
-# printf 0 0 [int] 0
-# ======================
+# =========================================
+# b l=1 o=8 [int[][2]] ARG
+# transpose l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 .globl _transpose
 _transpose:
 push ebp
 mov ebp,esp
+sub esp, offset locals_transpose
 mov eax,1
 push eax
 mov eax,0
@@ -20,13 +21,13 @@ pop ecx
 imul ecx,4
 add eax,ecx
 mov eax,[eax]
-push eax # declare temp (level 1)
-# ======================
-# temp 1 -4 [int] 0
-# b 1 8 [int[][2]] 1
-# transpose 0 0 [int] 0
-# printf 0 0 [int] 0
-# ======================
+mov [ebp-4],eax # declare temp (level 1)
+# =========================================
+# temp l=1 o=-4 [int] 
+# b l=1 o=8 [int[][2]] ARG
+# transpose l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 mov eax,1
 push eax
 mov eax,0
@@ -72,30 +73,31 @@ mov eax,0
 mov esp,ebp
 pop ebp
 ret
+.set locals_transpose,4
 # ** End of function **
-# ======================
-# transpose 0 0 [int] 0
-# printf 0 0 [int] 0
-# ======================
+# =========================================
+# transpose l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret
-# ======================
-# main 0 0 [int] 0
-# transpose 0 0 [int] 0
-# printf 0 0 [int] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# transpose l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 .globl _main
 _main:
 push ebp
 mov ebp,esp
-sub esp,16 # declare a (level 1)
-# ======================
-# a 1 -16 [int[2][2]] 0
-# main 0 0 [int] 0
-# transpose 0 0 [int] 0
-# printf 0 0 [int] 0
-# ======================
+sub esp, offset locals_main
+# =========================================
+# a l=1 o=-16 [int[2][2]] 
+# main l=0 o=0 [int] 
+# transpose l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 mov eax,0
 push eax
 mov eax,0
@@ -330,12 +332,13 @@ mov eax,0
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,16
 # ** End of function **
-# ======================
-# main 0 0 [int] 0
-# transpose 0 0 [int] 0
-# printf 0 0 [int] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# transpose l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret

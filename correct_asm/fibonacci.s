@@ -1,12 +1,14 @@
 .intel_syntax noprefix
-# ======================
-# n 1 8 [int] 1
-# fib 0 0 [int] 0
-# ======================
+# =========================================
+# n l=1 o=8 [int] ARG
+# fib l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 .globl _fib
 _fib:
 push ebp
 mov ebp,esp
+sub esp, offset locals_fib
 mov eax,0
 push eax
 mov eax,[ebp+8] # n
@@ -36,12 +38,12 @@ mov eax,[ebp+8] # n
 mov esp,ebp
 pop ebp
 ret
-add esp,0
 # ** End of block **
-# ======================
-# n 1 8 [int] 1
-# fib 0 0 [int] 0
-# ======================
+# =========================================
+# n l=1 o=8 [int] ARG
+# fib l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 jmp _end1
 _else1:
 mov eax,2
@@ -66,35 +68,40 @@ add eax,ecx
 mov esp,ebp
 pop ebp
 ret
-add esp,0
 # ** End of block **
-# ======================
-# n 1 8 [int] 1
-# fib 0 0 [int] 0
-# ======================
+# =========================================
+# n l=1 o=8 [int] ARG
+# fib l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 _end1:
+.set locals_fib,0
 # ** End of function **
-# ======================
-# fib 0 0 [int] 0
-# ======================
+# =========================================
+# fib l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret
-# ======================
-# main 0 0 [int] 0
-# fib 0 0 [int] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# fib l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 .globl _main
 _main:
 push ebp
 mov ebp,esp
+sub esp, offset locals_main
 mov eax,10
-push eax # declare n (level 1)
-# ======================
-# n 1 -4 [int] 0
-# main 0 0 [int] 0
-# fib 0 0 [int] 0
-# ======================
+mov [ebp-4],eax # declare n (level 1)
+# =========================================
+# n l=1 o=-4 [int]  CONST
+# main l=0 o=0 [int] 
+# fib l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 mov eax,[ebp-4] # n
 push eax
 call _fib
@@ -114,11 +121,13 @@ mov eax,0
 mov esp,ebp
 pop ebp
 ret
+.set locals_main,4
 # ** End of function **
-# ======================
-# main 0 0 [int] 0
-# fib 0 0 [int] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# fib l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret

@@ -1,12 +1,13 @@
 .intel_syntax noprefix
-# ======================
-# bar 1 8 [int] 1
-# foo 0 0 [int] 0
-# ======================
+# =========================================
+# bar l=1 o=8 [int] ARG
+# foo l=0 o=0 [int] 
+# =========================================
 .globl _foo
 _foo:
 push ebp
 mov ebp,esp
+sub esp, offset locals_foo
 mov eax,[ebp+8] # bar
 push eax
 mov eax,[ebp+8] # bar
@@ -15,46 +16,47 @@ imul eax,ecx
 mov esp,ebp
 pop ebp
 ret
+.set locals_foo,0
 # ** End of function **
-# ======================
-# foo 0 0 [int] 0
-# ======================
+# =========================================
+# foo l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret
 .data
-.globl _globalMass
 _globalMass:
-.long 0
+.skip 4
 .text
-# ======================
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
+# =========================================
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
 .data
-.globl _charge
 _charge:
 .long 10
 .text
-# ======================
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
-# ======================
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
+# =========================================
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
+# =========================================
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
 .globl _bar
 _bar:
 push ebp
 mov ebp,esp
+sub esp, offset locals_bar
 mov eax,3
 push eax
 mov eax,_globalMass
@@ -64,69 +66,76 @@ pop ecx
 imul eax,ecx
 pop ecx
 add eax,ecx
-push eax # declare ret (level 1)
-# ======================
-# ret 1 -4 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
+mov [ebp-4],eax # declare ret (level 1)
+# =========================================
+# ret l=1 o=-4 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
 mov eax,[ebp-4] # ret
 mov esp,ebp
 pop ebp
 ret
+.set locals_bar,4
 # ** End of function **
-# ======================
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
+# =========================================
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret
-# ======================
-# main 0 0 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
 .globl _main
 _main:
 push ebp
 mov ebp,esp
-push eax # declare i (level 1)
-# ======================
-# i 1 -4 [int] 0
-# main 0 0 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
+sub esp, offset locals_main
+# =========================================
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
 mov al,'H'
+movzx eax,al
 push eax
 call _putchar
 add esp,4
 mov al,'\n'
+movzx eax,al
 push eax
 call _putchar
 add esp,4
@@ -167,57 +176,67 @@ push eax
 call _putchar
 add esp,4
 mov al,'\n'
+movzx eax,al
 push eax
 call _putchar
 add esp,4
-mov eax,10
-push eax # declare a (level 1)
-# ======================
-# a 1 -8 [int] 0
-# i 1 -4 [int] 0
-# main 0 0 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
-mov eax,1
-push eax # declare b (level 1)
-# ======================
-# b 1 -12 [int] 0
-# a 1 -8 [int] 0
-# i 1 -4 [int] 0
-# main 0 0 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
-mov eax,2
-push eax # declare c (level 1)
-# ======================
-# c 1 -16 [int] 0
-# b 1 -12 [int] 0
-# a 1 -8 [int] 0
-# i 1 -4 [int] 0
-# main 0 0 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
+.data
+_a:
+.long 10
+.text
+# =========================================
+# a l=1 o=0 [int]  STATIC
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
+.data
+_b:
+.long 1
+.text
+# =========================================
+# b l=1 o=0 [int]  STATIC
+# a l=1 o=0 [int]  STATIC
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
+.data
+_c:
+.long 2
+.text
+# =========================================
+# c l=1 o=0 [int]  STATIC
+# b l=1 o=0 [int]  STATIC
+# a l=1 o=0 [int]  STATIC
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
 mov eax,offset _globalMass
 push eax
 mov eax,4
@@ -238,31 +257,32 @@ _string3:
 .asciz "dir *.c"
 .text
 mov eax, offset _string3
-push eax # declare cmd (level 1)
-# ======================
-# cmd 1 -20 [char*] 0
-# c 1 -16 [int] 0
-# b 1 -12 [int] 0
-# a 1 -8 [int] 0
-# i 1 -4 [int] 0
-# main 0 0 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
-mov eax,[ebp-20] # cmd
+mov [ebp-8],eax # declare cmd (level 1)
+# =========================================
+# cmd l=1 o=-8 [char*] 
+# c l=1 o=0 [int]  STATIC
+# b l=1 o=0 [int]  STATIC
+# a l=1 o=0 [int]  STATIC
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
+mov eax,[ebp-8] # cmd
 push eax
 call _strlen
 add esp,4
 push eax
-mov eax,[ebp-20] # cmd
+mov eax,[ebp-8] # cmd
 push eax
-mov eax,[ebp-20] # cmd
+mov eax,[ebp-8] # cmd
 push eax
 .data
 _string4:
@@ -272,9 +292,9 @@ mov eax, offset _string4
 push eax
 call _printf
 add esp,16
-mov eax,[ebp-16] # c
+mov eax,_c
 push eax
-mov eax,[ebp-8] # a
+mov eax,_a
 push eax
 mov eax,4
 pop ecx
@@ -282,34 +302,35 @@ imul eax,ecx
 pop ecx
 imul eax,ecx
 push eax
-mov eax,[ebp-12] # b
+mov eax,_b
 push eax
-mov eax,[ebp-12] # b
+mov eax,_b
 pop ecx
 imul eax,ecx
 pop ecx
 sub eax,ecx
-push eax # declare disc (level 1)
-# ======================
-# disc 1 -24 [int] 0
-# cmd 1 -20 [char*] 0
-# c 1 -16 [int] 0
-# b 1 -12 [int] 0
-# a 1 -8 [int] 0
-# i 1 -4 [int] 0
-# main 0 0 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
+mov [ebp-12],eax # declare disc (level 1)
+# =========================================
+# disc l=1 o=-12 [int] 
+# cmd l=1 o=-8 [char*] 
+# c l=1 o=0 [int]  STATIC
+# b l=1 o=0 [int]  STATIC
+# a l=1 o=0 [int]  STATIC
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
 mov eax,0
 push eax
-mov eax,[ebp-24] # disc
+mov eax,[ebp-12] # disc
 pop ecx
 cmp eax,ecx
 mov eax, 0
@@ -319,7 +340,7 @@ je _else5
 call _bar
 add esp,0
 push eax
-mov eax,[ebp-24] # disc
+mov eax,[ebp-12] # disc
 push eax
 .data
 _string6:
@@ -329,101 +350,107 @@ mov eax, offset _string6
 push eax
 call _printf
 add esp,12
-mov eax,[ebp-24] # disc
+mov eax,[ebp-12] # disc
 mov esp,ebp
 pop ebp
 ret
-add esp,0
 # ** End of block **
-# ======================
-# disc 1 -24 [int] 0
-# cmd 1 -20 [char*] 0
-# c 1 -16 [int] 0
-# b 1 -12 [int] 0
-# a 1 -8 [int] 0
-# i 1 -4 [int] 0
-# main 0 0 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
+# =========================================
+# disc l=1 o=-12 [int] 
+# cmd l=1 o=-8 [char*] 
+# c l=1 o=0 [int]  STATIC
+# b l=1 o=0 [int]  STATIC
+# a l=1 o=0 [int]  STATIC
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
 jmp _end5
 _else5:
 mov eax,2
 push eax
-mov eax,[ebp-24] # disc
+mov eax,[ebp-12] # disc
 pop ecx
 imul eax,ecx
-push eax # declare ret (level 2)
-# ======================
-# ret 2 -28 [int] 0
-# disc 1 -24 [int] 0
-# cmd 1 -20 [char*] 0
-# c 1 -16 [int] 0
-# b 1 -12 [int] 0
-# a 1 -8 [int] 0
-# i 1 -4 [int] 0
-# main 0 0 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
-mov eax,[ebp-28] # ret
+mov [ebp-16],eax # declare ret (level 2)
+# =========================================
+# ret l=2 o=-16 [int] 
+# disc l=1 o=-12 [int] 
+# cmd l=1 o=-8 [char*] 
+# c l=1 o=0 [int]  STATIC
+# b l=1 o=0 [int]  STATIC
+# a l=1 o=0 [int]  STATIC
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
+call _bar
+add esp,0
+push eax
+mov eax,[ebp-16] # ret
 push eax
 .data
 _string7:
-.asciz "-ve disc=%d\n"
+.asciz "-ve disc=%d %d\n"
 .text
 mov eax, offset _string7
 push eax
 call _printf
-add esp,8
-mov eax,[ebp-28] # ret
+add esp,12
+mov eax,[ebp-16] # ret
 mov esp,ebp
 pop ebp
 ret
-add esp,4
 # ** End of block **
-# ======================
-# disc 1 -24 [int] 0
-# cmd 1 -20 [char*] 0
-# c 1 -16 [int] 0
-# b 1 -12 [int] 0
-# a 1 -8 [int] 0
-# i 1 -4 [int] 0
-# main 0 0 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
+# =========================================
+# disc l=1 o=-12 [int] 
+# cmd l=1 o=-8 [char*] 
+# c l=1 o=0 [int]  STATIC
+# b l=1 o=0 [int]  STATIC
+# a l=1 o=0 [int]  STATIC
+# i l=1 o=-4 [int] 
+# main l=0 o=0 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
 _end5:
+.set locals_main,16
 # ** End of function **
-# ======================
-# main 0 0 [int] 0
-# bar 0 0 [int] 0
-# malloc 0 0 [void*] 0
-# newStr 0 0 [char*] 0
-# strlen 0 0 [int] 0
-# putchar 0 0 [int] 0
-# charge 0 0 [int] 0
-# globalMass 0 0 [int] 0
-# foo 0 0 [int] 0
-# ======================
+# =========================================
+# main l=0 o=0 [int] 
+# bar l=0 o=0 [int] 
+# printf l=0 o=0 [int] 
+# malloc l=0 o=0 [void*] 
+# newStr l=0 o=0 [char*] 
+# strlen l=0 o=0 [int] 
+# putchar l=0 o=0 [int] 
+# charge l=0 o=0 [int]  STATIC
+# globalMass l=0 o=0 [int]  STATIC
+# foo l=0 o=0 [int] 
+# =========================================
 mov esp,ebp
 pop ebp
 ret

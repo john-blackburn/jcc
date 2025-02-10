@@ -6,8 +6,9 @@
 _main:
 push ebp
 mov ebp,esp
+sub esp, offset locals_main
 mov eax,3
-push eax # declare test (level 1)
+mov [ebp-4],eax # declare test (level 1)
 # =========================================
 # test l=1 o=-4 [int] 
 # main l=0 o=0 [int] 
@@ -68,7 +69,7 @@ jmp _end6
 _else6:
 mov eax,4
 _end6:
-push eax # declare a (level 2)
+mov [ebp-8],eax # declare a (level 2)
 # =========================================
 # a l=2 o=-8 [int] 
 # test l=1 o=-4 [int] 
@@ -78,7 +79,6 @@ mov eax,[ebp-8] # a
 mov esp,ebp
 pop ebp
 ret
-add esp,4
 # ** End of block **
 # =========================================
 # test l=1 o=-4 [int] 
@@ -95,7 +95,7 @@ sete al
 cmp eax, 0
 je _end7
 mov eax,1
-push eax # declare a (level 2)
+mov [ebp-8],eax # declare a (level 2)
 # =========================================
 # a l=2 o=-8 [int] 
 # test l=1 o=-4 [int] 
@@ -123,7 +123,6 @@ mov eax,[ebp-8] # a
 mov esp,ebp
 pop ebp
 ret
-add esp,4
 # ** End of block **
 # =========================================
 # test l=1 o=-4 [int] 
@@ -140,7 +139,7 @@ sete al
 cmp eax, 0
 je _end9
 mov eax,10
-push eax # declare a (level 2)
+mov [ebp-8],eax # declare a (level 2)
 # =========================================
 # a l=2 o=-8 [int] 
 # test l=1 o=-4 [int] 
@@ -167,7 +166,6 @@ _end10:
 mov esp,ebp
 pop ebp
 ret
-add esp,4
 # ** End of block **
 # =========================================
 # test l=1 o=-4 [int] 
@@ -215,14 +213,14 @@ sete al
 cmp eax, 0
 je _end15
 mov eax,1
-push eax # declare a (level 2)
+mov [ebp-8],eax # declare a (level 2)
 # =========================================
 # a l=2 o=-8 [int] 
 # test l=1 o=-4 [int] 
 # main l=0 o=0 [int] 
 # =========================================
 mov eax,0
-push eax # declare b (level 2)
+mov [ebp-12],eax # declare b (level 2)
 # =========================================
 # b l=2 o=-12 [int] 
 # a l=2 o=-8 [int] 
@@ -249,13 +247,13 @@ mov eax,[ebp-12] # b
 mov esp,ebp
 pop ebp
 ret
-add esp,8
 # ** End of block **
 # =========================================
 # test l=1 o=-4 [int] 
 # main l=0 o=0 [int] 
 # =========================================
 _end15:
+.set locals_main,12
 # ** End of function **
 # =========================================
 # main l=0 o=0 [int] 
