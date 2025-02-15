@@ -1,11 +1,8 @@
 /*
-Usage:
-jcc path/to/foo.c
-Creates foo.s in current directory and assembles/links to get foo.exe
+Usage: see "usage" variable below
 
-allow add int to array eg t.data+st
 allow empty expression ;
-accept 0UL, 0.0f etc for literals (also hex, octal?)
+accept 0UL, 0.0f, 0.0L etc for literals (also hex, octal?)
 
 TODO:
 Not needed to compile this compiler (and not done):
@@ -39,7 +36,6 @@ padding within structs?
 
 //Taken from the above header files. We want to avoid headers as they have non-standard stuff
 //Below is the minimum set of declarations
-
 
 #define NULL ((void*)0)
 #define errno (*_errno())
@@ -122,7 +118,6 @@ char *tokNames[]={"<<=", ">>=",
           "struct", "sizeof", "void", "enum", "typedef", "float", "const", "extern", "long", "register",
           "short", "static", "unsigned", "volatile", "inline", "goto", "switch", "case", "default", "union", 
           "double"};
-
 
 // NB tokNames, the next enum and names must all correspond. Punctuation tokens
 // must come first with 3 char punctuation, then 2 char, then 1 char. (eg && before &)
@@ -491,8 +486,6 @@ FILE* fps;
 struct Node *parse_decl(int type);
 struct Node *parse_exp(); 
 
-// todo div should possibly be idiv? (search for idiv below)
-
 char* ops[]={"add","sub","imul","idiv","idiv","and","or","xor"};
 
 // ######################################################################
@@ -547,7 +540,7 @@ char* newStr(char *from)
 
 char* newStrStruct(char *from)
 {
-  int len=strlen(from+7);
+  int len=strlen(from)+7;
   char* to=(char*)malloc(len+1);
   strcpy(to,"struct ");
   strcat(to,from);
@@ -556,13 +549,12 @@ char* newStrStruct(char *from)
 
 char* newStrUnion(char *from)
 {
-  int len=strlen(from+6);
+  int len=strlen(from)+6;
   char* to=(char*)malloc(len+1);
   strcpy(to,"union ");
   strcat(to,from);
   return to;
 }
-
 
 int isProtoOrFunc()
 {
@@ -615,6 +607,7 @@ int isEnumConst(char *name)
     return 0;
 }
 
+// TODO: allocate enough space not just 10 bytes
 char* getEnumConst(char *name)
 {
     char *svalue = (char*)malloc(10*sizeof(char));
@@ -1413,6 +1406,8 @@ struct Type newVartype()
     vt.isVolatile=0;
     vt.isInline=0;
     
+    vt.data[0]='\0';
+    
     return vt;
 }
 
@@ -1432,7 +1427,7 @@ struct Type getBaseType()
     while (1)
     {
         int type = getType();
-        printf("type=%s\n",names[type]);
+//        printf("type=%s\n",names[type]);
         
         if (type==CONST)
             vt.isConst=1;
@@ -1523,9 +1518,9 @@ struct Type getBaseType()
         advance();
     }
     
-    printf("basetype %s extern=%d", vt.data, vt.isExtern);
-    writeQuals(vt,stdout);
-    printf("\n");
+//    printf("basetype %s extern=%d", vt.data, vt.isExtern);
+//    writeQuals(vt,stdout);
+//    printf("\n");
     
     return vt;
 }
@@ -1691,7 +1686,7 @@ struct Node* parse_decl_group(int type, int n)
         tokenHead=tok; // rewind
         st=1;
         n++;
-        printf("basetype is struct %d %d\n", st, n);
+//        printf("basetype is struct %d %d\n", st, n);
     }
     else
         st=0;
@@ -2071,10 +2066,10 @@ struct Node* parse_statement()
 
   else if (getType()==GOTO)
   {
-      printf("goto\n");
+//      printf("goto\n");
       statement->type=GOTO;
       advance();
-      statement->id=tokenHead->id;
+      statement->id=newStr(tokenHead->id);
       statement->child=NULL;
       advance();
       if (getType()!=SEMICOLON) fail("Expected ;");
@@ -2084,7 +2079,7 @@ struct Node* parse_statement()
   else if (getType()==IDENTIFIER && tokenHead->next->type==COLON)  // LABEL foo:
   {
       statement->type=LABEL;
-      statement->id = tokenHead->id;
+      statement->id = newStr(tokenHead->id);
       statement->child=NULL;
       advance();
       advance();
@@ -2093,7 +2088,7 @@ struct Node* parse_statement()
   {
       statement->type=CASE;
       advance();
-      statement->id=tokenHead->id;
+      statement->id=newStr(tokenHead->id);
 
       if (tokenHead->type==CHAR_LITERAL) 
           strcpy(statement->varType.data,"char");
@@ -2564,7 +2559,7 @@ struct Token* getTok(char *st, char **ed)
     }
   }
 
-  printf("nothing left\n");
+//  printf("nothing left\n");
   free(tok);
   return NULL;
 }
@@ -3090,9 +3085,21 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
         fprintf(fps,"%s eax,ecx\n", op);
         varType=type1;
     }
+    else if (strstr("add,sub", op)!=NULL && isArray(type1) && isInt(type2))
+    {
+        fprintf(fps, "imul ecx,%d\n",sizeOf(removeArray(type1),node));
+        fprintf(fps,"%s eax,ecx\n", op);
+        varType=type1;
+    }
     else if (strcmp(op,"add")==0 && isInt(type1) && isPointer(type2))
     {
         fprintf(fps, "imul eax,%d\n",sizeOf(removePointer(type2),node));
+        fprintf(fps,"add eax,ecx\n");
+        varType=type2;
+    }
+    else if (strcmp(op,"add")==0 && isInt(type1) && isArray(type2))
+    {
+        fprintf(fps, "imul eax,%d\n",sizeOf(removeArray(type2),node));
         fprintf(fps,"add eax,ecx\n");
         varType=type2;
     }
@@ -3285,6 +3292,13 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
             fprintf(fps,"_%s:\n",node->id);
             fprintf(fps,".long %s\n",node->child->id);
         }
+        else if (node->child->type==CHAR_LITERAL)
+        {
+            if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
+            fprintf(fps,"_%s:\n",node->id);
+            fprintf(fps,".byte '%s'\n",node->child->id);
+            fprintf(fps,".balign 4\n");
+        }
         else if (node->child->type==FLOAT_LITERAL)
         {
             if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
@@ -3307,7 +3321,11 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
             }
             
             type1=removeArray(node->varType);
-            printf("type1=%s\n",type1.data);
+            
+            if (isArray(type1) || isStruct(type1))
+                asmFail("Block init must be a simple array",node);
+            
+//            printf("type1=%s\n",type1.data);
             if (isInt(type1))
             {
                 if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
@@ -3317,6 +3335,17 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
                 {
                     fprintf(fps,".long %s\n", node->child->line[i]->id);
                 }
+            }
+            else if (isChar(type1))
+            {
+                if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
+                fprintf(fps,"_%s:\n",node->id);
+                int i;
+                for (i=0; i < node->child->nlines; i++)
+                {
+                    fprintf(fps,".byte '%s'\n", node->child->line[i]->id);
+                }
+                fprintf(fps,".balign 4\n");
             }
             else if (isFloat(type1))
             {
@@ -3353,7 +3382,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     }
 
     struct Var *oldVarEnd=varEnd;  // might be NULL
-    varEnd=malloc(sizeof(struct Var));
+    varEnd=(struct Var*)malloc(sizeof(struct Var));
     varEnd->offset=0;
     varEnd->id=newStr(node->id);
     varEnd->varType=node->varType;
@@ -3377,7 +3406,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   {
 
     struct Var *oldVarEnd=varEnd;  // put name of function on vars stack
-    varEnd=malloc(sizeof(struct Var));
+    varEnd=(struct Var*)malloc(sizeof(struct Var));
     varEnd->offset=0;
     varEnd->id=newStr(node->id);
     varEnd->varType=node->varType;
@@ -3405,7 +3434,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
       if (node->line[i]->id==NULL) asmFail("argument name must be defined for function",node);
 
       oldVarEnd=varEnd;  // might be NULL
-      varEnd=malloc(sizeof(struct Var));
+      varEnd=(struct Var*)malloc(sizeof(struct Var));
       varEnd->offset=tot;
       varEnd->id=newStr(node->line[i]->id);
       varEnd->varType=node->line[i]->varType;
@@ -3445,7 +3474,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
       if (varEnd->level>1) asmFail("Unexpected high level variable", node);
       if (varEnd->level!=1) break;
       struct Var *prev=varEnd->prev;
-      free(varEnd);
+//      free(varEnd);
       varEnd=prev;
     }
 
@@ -3472,7 +3501,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   else if (node->type==PROTOTYPE)
   {
     struct Var *oldVarEnd=varEnd;  // put name of function on vars stack
-    varEnd=malloc(sizeof(struct Var));
+    varEnd=(struct Var*)malloc(sizeof(struct Var));
     varEnd->offset=0;
     varEnd->id=newStr(node->id);
     varEnd->varType=node->varType;
@@ -3502,7 +3531,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
       if (varEnd->level != level+1) break;
       tot += getPaddedSize(sizeOf(varEnd->varType,node));
       struct Var *prev=varEnd->prev;
-      free(varEnd);
+//      free(varEnd);
       varEnd=prev;
     }
 //    fprintf(fps,"add esp,%d\n",tot);  don't change esp at end of block
@@ -3798,7 +3827,7 @@ _post_conditional:            ; we need this label to jump over e3
                   asmFail("pass too many args to function",node);
                                           
               type2 = pFunc->line[i]->varType; // required type
-              printf("coerce %s -> %s\n", type1.data, type2.data);
+//              printf("coerce %s -> %s\n", type1.data, type2.data);
               doCast(type1, type2, node);  //  coercion
           }
       }
@@ -3838,7 +3867,7 @@ _post_conditional:            ; we need this label to jump over e3
         g_offsetmin = min(g_offsetmin, g_offset);
 
         struct Var *oldVarEnd=varEnd;  // might be NULL
-        varEnd=malloc(sizeof(struct Var));
+        varEnd=(struct Var*)malloc(sizeof(struct Var));
         varEnd->offset=g_offset;
         varEnd->id=newStr("(str return)");
         varEnd->varType=p->varType;
@@ -3874,10 +3903,10 @@ _post_conditional:            ; we need this label to jump over e3
   else if (node->type==STRUCT  || node->type == UNION)
   {
     struct Var *oldVarEnd=varEnd;  // might be NULL
-    varEnd=malloc(sizeof(struct Var));
+    varEnd=(struct Var*)malloc(sizeof(struct Var));
     varEnd->offset=0;
     varEnd->id=(node->type==STRUCT) ? newStrStruct(node->id) : newStrUnion(node->id);  // eg "struct Point"
-    varEnd->varType.data[0]='\0';       // no type. sizeOf this will be 0
+    varEnd->varType=newVartype();       // no type. sizeOf this will be 0
     varEnd->level=level;
     varEnd->isArg=0;
     varEnd->structNode=node;            // Pointer to this STRUCT on the tree
@@ -3923,7 +3952,7 @@ _post_conditional:            ; we need this label to jump over e3
     g_offsetmin = min(g_offsetmin, g_offset);
 
     struct Var *oldVarEnd=varEnd;  // might be NULL
-    varEnd=malloc(sizeof(struct Var));
+    varEnd=(struct Var*)malloc(sizeof(struct Var));
     varEnd->offset=g_offset;
     varEnd->id=newStr(node->id);
     varEnd->varType=node->varType;
@@ -3977,7 +4006,7 @@ _post_conditional:            ; we need this label to jump over e3
     else
         asmFail("Indexing can only be used on array or pointer type", node);
     
-    printf("index %s\n",varType.data);
+//    printf("index %s\n",varType.data);
     fprintf(fps,"imul ecx,%d\n",sizeOf(varType, node));
     fprintf(fps,"add eax,ecx\n");
 
@@ -4198,7 +4227,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     
     char* op;
 
-    printf("types=%s %s\n", type1.data,type2.data);
+//    printf("types=%s %s\n", type1.data,type2.data);
 
     op = ops[node->type - PLUS_EQUALS];
 
@@ -4845,8 +4874,7 @@ int main(int argc, char **argv)
 
     if (0)
     {
-                // unit tests!
-
+        // unit tests!
         printf("==== start of unit tests ===\n");
 
         struct Type t;
@@ -5058,7 +5086,7 @@ int main(int argc, char **argv)
   prev=head;
   st=ed;
 
-  printf("head: %d %s %s\n", head->type, names[head->type], head->id);
+//  printf("head: %d %s %s\n", head->type, names[head->type], head->id);
   
   while(1)
   {
@@ -5067,7 +5095,7 @@ int main(int argc, char **argv)
             
     if (tok->type==IDENTIFIER && strcmp(tok->id, "__attribute__") == 0)   // discard __attribute__((whatever))
     {        
-        printf("found __attribute__\n");
+//        printf("found __attribute__\n");
         st=ed;
         for (i=1;i<=5;i++)
         {
@@ -5106,12 +5134,12 @@ int main(int argc, char **argv)
         int len=0, n=0;
         while(p!=tok)
         {
-            printf("%s %s %d\n", names[p->type], p->id, strlen(p->id));
+//            printf("%s %s %d\n", names[p->type], p->id, strlen(p->id));
             n++;
             len+=strlen(p->id);
             p=p->next;
         }
-        printf("multistring %d %d\n",n,len);
+//        printf("multistring %d %d\n",n,len);
         if (n>1)
         {
             stringStart->id = realloc(stringStart->id, len+1);
@@ -5180,7 +5208,6 @@ int main(int argc, char **argv)
           q=q->prev;
       }
       printf("end\n");
-
   }
 
   if (parseOnly)
@@ -5197,8 +5224,6 @@ int main(int argc, char **argv)
 
   fclose(fps);
   
-//  exit(1);
-
   // ----------------------------------------------------------------------
   // Assemble generated ASM code into .o file
   // ----------------------------------------------------------------------
