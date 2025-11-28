@@ -22,21 +22,22 @@ jcc examples\expr.c
 options are:
 ```
 -c: compile only
+-oname: create EXE called name (note: no space allowed between -o and name)
 -dumpLex: dump lex tokens to stdout
 -dumpParse: dump Abstract Syntax Tree to stdout
 -lexOnly: lex input file but do not parse or create assembly (no output file)
 -parseOnly: lex and parse but don't create assembly (no output file)
 ```
 
-This creates assembly language `source.s` in the current directory. Having written this file, the compiler calls the assembler to assemble into an object file and then link into an executable (`source.exe`). It also links against the supplied floating point library `floatlib.o`. You will see the calls to gcc which accomplish this. The assembly file (`source.s`) has some comments in it (beginning with `#`) which show the state of the compiler's internal variables list at various times. You can suppress the link stage by using `-c`.
+This creates assembly language `source.s` in the current directory. Having written this file, the compiler calls the GAS assembler to assemble into an object file, then calls gcc to link into an executable (`source.exe`). It also links against the supplied floating point library `floatlib.o`. You will see the calls to gcc which accomplish this. The assembly file (`source.s`) has some comments in it (beginning with `#`) which show the state of the compiler's internal variables list at various times. You can suppress the link stage by using `-c`.
 
 In addition to compiling, the compiler optionally writes debug info to stdout. If `-dumpLex` is specified it writes the output from the lexer (tokens). If `-dumpParse` is specified it dumps the output from the parser (an Abstract Syntax Tree of Nodes)
 
-I have used the 32-bit gcc/mingw compiler for Windows to compile the compiler and also to act as assembler (ie I'm using Gnu's AS assembler). Thus, the assembler directives in the `.s` file are in AS format, including the use of `#` as comments. You will see various directives in the `.s` file beginning with dots eg `.intel_syntax noprefix` specifies to use the more readable Intel syntax for the x86 assembly language (not AT&T).
+I have used the 32-bit gcc/mingw compiler for Windows to compile the compiler and also to act as assembler (ie I'm using Gnu's AS assembler). Thus, the assembler directives in the `.s` file are in AS format. You will see various directives in the `.s` file beginning with dots eg `.intel_syntax noprefix` specifies to use the more readable Intel syntax for the x86 assembly language (not AT&T).
 
-The code should work equally well on Linux using gcc and tools, you would only need to change the convenience `.bat` scripts.
+The code should work equally well on Linux using gcc and its tools, you would only need to change the convenience `.bat` scripts. (which are very simple)
 
-The compiler supports only a subset of the ANSI C89 language (maybe 90%). Here is an example of code it can compile
+The compiler supports only a subset of the ANSI C89 language (maybe 95%). Here is an example of code it can compile
 
 ```
 int fib(int n)
@@ -65,9 +66,9 @@ The compiler implements the following language features:
 * int (4 bytes), char (1 byte) and float (4 byte) base types. Also literal strings and void.
 * arrays, pointers, structs and unions are fully supported.
 * All C operators are supported except for the comma operator (,).
-* for, if, do, while fully supported
+* for, if, do, while, switch, goto fully supported
 * variables scope fully supported including local and global variables. New variables can be declared anywhere inside a block.
-* function calls supported using the cdecl calling convention only. Can call the C std library no problem!
+* function calls supported using the cdecl calling convention only. Can call the C std library no problem! (as can be seen in the above example)
 
 Limitations include:
 
@@ -77,19 +78,20 @@ Limitations include:
 * Single initialisations like `int i=j+k;` are supported but more complex block initialisation is not
  fully implemented. However `int i[]={1,2,3}` and `char* names[]={"foo","bar","zap"}` are allowed *for global variables only*.
 * Function pointers are not supported. Types may not include parentheses eg `struct Foo **F[3][6]` is allowed but `int (*fp)()` is not.
-* Function prototypes are parsed but only the return value is considered. No coercion is done when calling functions or on return values.
-
-There's a long way to go but...
 
 **The compiler is now advanced enough to compile itself!**
 
-Before compiling, jcc first preprocesses the C code by calling gcc with `gcc -E`.
+Before compiling, jcc first preprocesses the C code by calling gcc with `gcc -E`. You will see the gcc command which does this.
 
-This code does not include a preprocessor, assembler or linker: the compiler's only function is to take a `.c` file (preprocessed) and create an assembly language file (`.s`) which must be assembled into an object file (`.o`) then linked into an executable or library.
+This code (jcc) does not include a preprocessor, assembler or linker: the compiler's only function is to take a `.c` file (preprocessed) and create an assembly language file (`.s`) which must be assembled into an object file (`.o`) then linked into an executable or library.
 
 # Example code
 
 Example source files are supplied in `examples` and corresponding compiled assembly language files in `correct_asm`. The script `test.bat` can test a particular source file. Eg `test fibonacci` uses `jcc` to compile and run `examples\fibonacci.c`. It then compiles and runs the same code with gcc and compares output. It also compares the assembly language `.s` file written by `jcc` to the "correct" version in `correct_asm` (note there may be cosmetic differences due to updates)
+
+# The triple test (bootstrapping)
+
+Run `triple.bat`. This calls `gcc` to compile the compiler (main.c) into `jcc.exe`. It then runs `jcc.exe` to compile `main.c` to `jcc2.exe`. Finally, it runs `jcc2.exe` to compile `main.c` to `jcc3.exe`. It then checks `jcc2.exe` and `jcc3.exe` are identical (in fact the assembly files output by `jcc` are compared for convenience).
 
 # How it works
 
@@ -282,16 +284,11 @@ struct Var
 };
 ```
 where `id` is the variable name, `level` is the scoping level with 0 being global scope, 1 function level scope and higher numbers being within (nested) blocks.
-`offset` is the offset of each variable on the stack (negative for local variables, positive for function arguments).
-
-`varType` is the variable type stored as a fixed length string eg `int*[3][6]`. `isArg` specifies if the variable is a function argument. `isConst` etc define qualifiers.
+`offset` is the offset in bytes of each variable on the stack (negative for local variables, positive for function arguments). `varType` is the variable type stored as a fixed length string eg `int*[3][6]`. `isArg` specifies if the variable is a function argument.
 `structNode` is a pointer to the AST which is used when defining structs. Note that when a struct is declared its name is pushed onto the variable stack with 
 `structNode` pointing to the AST location of the struct.
 
-The compiler uses the machine stack to evaluate expressions pushing and poping values onto it to do calculations. Values from this "calculator stack" are popped off onto the `eax` and `ecx` registers to do calculations and these are the only registers used. When calling functions `jcc` uses only the `cdecl` calling convention (arguments pushed onto the stack right to left and `eax`, `ecx`, `edx` volatile. Return value put on eax). A stack frame is set up using `esp` and `ebp`. Note that local variables within inner scopes (eg in an if-block) are created on demand by pushing them onto the stack. This is different from commercial compilers which will create all local variables within a function right at the beginning of the function.
-So the compiler doesn't need to worry about registers getting corrupted when it calls a function: everything is pushed onto the stack.
-
-Once the AST has been prepared, the assembly language is written out using a single call to `writeAsm`. This function is recursive and has the prototype
+`writeAsm` is recursive and has the prototype:
 
 ```
 struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
@@ -301,4 +298,10 @@ Each node has a type which is returned to the parent node. Eg if we add `'1'+2` 
 
 The `lvalue` argument tells a node whether to return an lvalue (if lvalue=1) or an rvalue. The addition node above will always ask for rvalues, while an assignment node would ask for an lvalue from its left child and an rvalue from its right child.
 
-The `level` argument is the nesting level: 0 for global scope, 1 for function scope and higher for blocks. `loop` is the index of the current loop which is used by break and continue.
+The `level` argument is the nesting level: 0 for global scope, 1 for function scope and higher for blocks. `loop` is the index of the current loop to be used by break and continue.
+
+The compiler uses the machine stack to evaluate expressions pushing and popping values onto it to do calculations. Values from this "calculator stack" are popped off onto the `eax` and `ecx` registers to do calculations and these, along with edx, are the only registers used aside from `esp` and `ebp`. When calling functions `jcc` uses only the `cdecl` calling convention (arguments pushed onto the stack right to left and `eax`, `ecx`, `edx` volatile. Return value put on eax). A stack frame is set up using `esp` and `ebp`. So the compiler doesn't need to worry about registers getting corrupted when it calls a function: everything is pushed onto the stack.
+
+The compiler figures out the total length of all local variables in a function at the beginning and subtracts from `esp` to reserve enough space. However function arguments are pushed onto the stack just before the function is called and popped off when it returns. When a function returns a struct, the compiler creates a hidden local variable and passes a pointer to that as an additional hidden argument (as if the first argument). The callee then copies the result to the local variable before returning.
+
+The compiler puts all intermediate results from expressions on the machine stack by pushing `eax` or `ecx`. This also applies to floating point results which are placed on the same stack (ie the FP "stack" `st(0)..st(7)` is not used as a calculator stack). The final result of any calculation is always in `eax` but, when returning from a function, the compiler copies this to `st(0)` in accordance with cdecl. Similarly when calling a floating point function, it copies `st(0)` onto eax. This is not very efficient but saves us dealing with two different calculator stacks. To facilitate this, functions in `floatlib.s` are provided eg `fadd` adds two floats (internally these functions use x87 FPU commands). These functions read from the stack as in cdecl but return their value in eax not `st(0)`. Thus they do not conform with cdecl but they are only used internally.
