@@ -35,6 +35,7 @@ padding within structs?
 */
 
 //Taken from the above header files. We want to avoid headers as they have non-standard stuff
+// (we are making it a bit easier for the compiler to compile itself)
 //Below is the minimum set of declarations
 
 #define NULL ((void*)0)
