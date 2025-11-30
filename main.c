@@ -1739,21 +1739,12 @@ struct Node* parse_typedef()
     int n=countDeclGroup();
     int i;
 
-    if (1)
-    {
-       declNode = parse_decl_group(DECLGROUP,n);
-       declNode->type = TYPEDEFGROUP;
-       for (i=0;i<declNode->nlines;i++)
-           // ignore struct in typedef struct Foo {int x,y;} z;
-           if (declNode->line[i]->type != STRUCT)
-             addTypedef(declNode->line[i]->id, declNode->line[i]->varType);
-    }
-    else
-    {
-        declNode = parse_decl(DECL);
-        declNode->type=TYPEDEF;
-        addTypedef(declNode->id, declNode->varType);
-    }
+    declNode = parse_decl_group(DECLGROUP,n);
+    declNode->type = TYPEDEFGROUP;
+    for (i=0;i<declNode->nlines;i++)
+        // ignore struct in typedef struct Foo {int x,y;} z;
+        if (declNode->line[i]->type != STRUCT)
+            addTypedef(declNode->line[i]->id, declNode->line[i]->varType);
         
     return declNode;
 }
@@ -1884,10 +1875,7 @@ struct Node* parse_struct()
     for (i=0; i<n; i++)
     {   
         int m=countDeclGroup();
-        if (1)
-            str->line[i]=parse_decl_group(DECLGROUP,m);
-        else
-            str->line[i]=parse_decl(DECL);
+        str->line[i]=parse_decl_group(DECLGROUP,m);
     }
 
     if (getType()!=CLOSE_BRACE)
@@ -2114,10 +2102,7 @@ struct Node* parse_statement()
   else if (isTypeDec(tokenHead))  // int x; struct Foo f; (already ruled out struct Foo {};)
   {
       int n=countDeclGroup();
-      if (1)
-          return parse_decl_group(DECLGROUP,n);
-      else
-          return parse_decl(DECL);
+      return parse_decl_group(DECLGROUP,n);
   }
   else if(getType()==BREAK)
   {
@@ -2258,10 +2243,7 @@ struct Node* parse_global()
 {
     int n=countDeclGroup();
     printf("parse_global found %d\n",n);
-    if (1)
-      return parse_decl_group(GLOBALGROUP,n);
-    else
-      return parse_decl(GLOBAL);
+    return parse_decl_group(GLOBALGROUP,n);
 }
 
 // ######################################################################
@@ -2869,17 +2851,12 @@ int sizeOf(struct Type t, struct Node* node)
             exit(1);
         }
 
-        // TODO make this double loop since line[i] is DECLGROUP
         int tot=0;
         for (i=0; i < structNode->nlines; i++)
         {
             if (structNode->line[i]->type==DECL)
             {
-                sz = sizeOf(structNode->line[i]->varType, node);
-                if (startsWith(s.data,"struct"))
-                    tot += sz;
-                else
-                    tot = (sz > tot) ? sz : tot;
+				asmFail("sizeof: STRUCT should not have DECL elements", node);
             }
             else if (structNode->line[i]->type==DECLGROUP) // DECLGROUP
             {
@@ -4063,16 +4040,9 @@ _post_conditional:            ; we need this label to jump over e3
     int i, j;
     for (i=0; i < structNode->nlines; i++)
     {
-        // TODO: double loop since lines[i] might be DECLGROUP
         if (structNode->line[i]->type==DECL)  // line[i] is DECL
         {
-            if (strcmp(field, structNode->line[i]->id)==0)
-            {
-                varType = structNode->line[i]->varType;
-                found=1;
-                break;
-            }
-            tot += sizeOf(structNode->line[i]->varType, node);
+			asmFail("STRUCT should not have DECL elements", node);
         }
         else if (structNode->line[i]->type==DECLGROUP) // line[i] is a DECLGROUP
         {
