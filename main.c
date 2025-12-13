@@ -1,11 +1,8 @@
 /*
 Usage: see "usage" variable below
 
-allow empty expression ;
-accept 0UL, 0.0f, 0.0L etc for literals (also hex, octal?)
-
 TODO:
-Not needed to compile this compiler (and not done):
+coerce function return values
 More initialise arrays: 
     char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. 
     char *foo[]={"hello","world"} (currently only done for globals)
@@ -94,6 +91,9 @@ __attribute__((__cdecl__)) __attribute__((__nothrow__)) int isalnum(int);
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) int isalpha(int);
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) int isdigit(int);
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) int isspace(int);
+
+ __attribute__((__cdecl__)) __attribute__((__nothrow__)) int tolower (int);
+ __attribute__((__cdecl__)) __attribute__((__nothrow__)) int toupper (int);
  
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) int system (const char *);
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) long strtol (const char *, char **, int);
@@ -259,7 +259,8 @@ enum
  GLOBALGROUP,
  TYPEDEFGROUP,
  LABEL,
- TERNARY
+ TERNARY,
+ EMPTY
 };
 
 char *names[]={
@@ -393,7 +394,8 @@ char *names[]={
   "GLOBALGROUP",
   "TYPEDEFGROUP",
   "LABEL",
-  "TERNARY"
+  "TERNARY",
+  "EMPTY"
 };
 
 union F2U 
@@ -1925,13 +1927,27 @@ int isStructOrUnionDef(struct Token* tok)
     return 0;
 }
     
+struct Node* newEmpty()
+{
+  struct Node *node=(struct Node*)malloc(sizeof(struct Node));
+  node->type=EMPTY;
+  node->child=NULL;
+  return node;
+}
+
 // return 2;
 struct Node* parse_statement()
 {
   struct Node *statement=(struct Node*)malloc(sizeof(struct Node));
   statement->lineno=tokenHead->lineno;
 
-  if (getType()==IF){
+  if (getType()==SEMICOLON)
+  {
+      statement->type=EMPTY;
+      statement->child=NULL;
+      advance();
+  }
+  else if (getType()==IF){
     statement->type=IF;
     advance();
     
@@ -1988,17 +2004,26 @@ struct Node* parse_statement()
     if (getType()!=OPEN_BRACKET) fail("Expected ( in FOR");
     advance();
 
-    statement->child=parse_exp();
+    if (getType()==SEMICOLON)
+        statement->child=newEmpty();
+    else
+        statement->child=parse_exp();
 
     if (getType()!=SEMICOLON) fail("Expected ; in FOR");
     advance();
 
-    statement->child2=parse_exp();
+    if (getType()==SEMICOLON)
+        statement->child2=newEmpty();
+    else
+        statement->child2=parse_exp();
 
     if (getType()!=SEMICOLON) fail("Expected ; in FOR");
     advance();
 
-    statement->child3=parse_exp();
+    if (getType()==CLOSE_BRACKET)
+        statement->child3=newEmpty();
+    else
+        statement->child3=parse_exp();
 
     if (getType()!=CLOSE_BRACKET) fail("Expected ) in FOR");
     advance();
@@ -2532,10 +2557,10 @@ struct Token* getTok(char *st, char **ed)
       if (!isalnum(*p) && *p != '_')
         idOK=0;
       
-      if (!isdigit(*p))
+      if (!isdigit(*p) && toupper(*p)!='U' && toupper(*p)!='L')
         literalOK=0;
     
-      if (!isdigit(*p) && *p!='.' && *p!='e')
+      if (!isdigit(*p) && *p!='.' && toupper(*p)!='E' && toupper(*p)!='F')
           floatOK=0;
 
       p++;
@@ -2696,7 +2721,7 @@ void writeTree(struct Node *node, int indent)
   else if (nodetype==BREAK || nodetype==CONTINUE || nodetype==LABEL || nodetype==GOTO || nodetype==DEFAULT)
   {
   }
-  else if (nodetype==SIZEOF)
+  else if (nodetype==SIZEOF || nodetype==EMPTY)
   {
   }
   else if (nodetype==DECL || nodetype==GLOBAL || nodetype==TYPEDEF)
@@ -3209,11 +3234,16 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   struct Type varType=newVartype(), type1=newVartype(), type2=newVartype();
   int i;
   
+  // empty statement just a semi-colon
+  if (node->type==EMPTY)
+  {
+  }
+  
   /*
   PROGRAM
   */
 
-  if (node->type==PROGRAM){
+  else if (node->type==PROGRAM){
     varEnd=NULL;
     int i;
     for (i=0; i<node->nlines; i++){
@@ -3559,22 +3589,47 @@ _post_conditional:            ; we need this label to jump over e3
   else if (node->type==TERNARY)
   {
     int label = ++s_label;
-
+    
     writeAsm(node->child,level,0, loop);
 
     fprintf(fps,"cmp eax, 0\n");          // If cond is false, jump to else
     fprintf(fps,"je _else%d\n",label);
 
+    // generate code for left and right just to figure out types
+    // dump to file jcc_temp.s which we will discard (pretty dumb!)
+    FILE *oldFps=fps;
+    fps=fopen("jcc_temp.s","w");
     type1 = writeAsm(node->child2,level,0, loop);
+    type2 = writeAsm(node->child3,level,0, loop);
+    fclose(fps);
+    
+    fps=oldFps;
+    
+    // Type of ternary is wider of the two (probably I should reuse this logic elsewhere)
+    if (strcmp(type1.data, type2.data)==0)
+        varType=type1; // identical incl same struct, same pointer
+    else if (isInt(type1) && isChar(type2))
+        varType=type1;
+    else if (isInt(type2) && isChar(type1))
+        varType=type2;
+    else if (isFloat(type1) && (isInt(type2) || isChar(type2)))
+        varType=type1;
+    else if (isFloat(type2) && (isInt(type1) || isChar(type1)))
+        varType=type2;
+    else // forbid different pointer types, different structs
+        asmFail("illegal cast in ternary (left, right incompatible)",node);
+    
+    type1 = writeAsm(node->child2,level,0, loop);
+    doCast(type1,varType, node);   // promote left if necessary
+
     fprintf(fps,"jmp _end%d\n",label);  // jump over else since conditional was true
     
     fprintf(fps,"_else%d:\n",label);
 
     type2 = writeAsm(node->child3,level,0, loop);
+    doCast(type2,varType, node); // promote right if necessary
     
-    fprintf(fps,"_end%d:\n",label);
-
-    varType=type1;  // TODO make correct type (wider of type1 and type2)
+    fprintf(fps,"_end%d:\n",label);    
   }
         
   /*
@@ -3663,7 +3718,10 @@ _post_conditional:            ; we need this label to jump over e3
 
     fprintf(fps,"_start%d:\n",label);
 
-    writeAsm(node->child2,level,0, loop); // cond
+    if (node->child2->type==EMPTY)
+        fprintf(fps,"mov eax,1\n");
+    else
+        writeAsm(node->child2,level,0, loop); // cond
 
     fprintf(fps,"cmp eax, 0\n");
     fprintf(fps,"je _end%d\n",label);
@@ -3718,6 +3776,7 @@ _post_conditional:            ; we need this label to jump over e3
   /*
   RETURN
   We don't know what the return type ought to be so can't do coercion
+  TODO: fix this
   if thing being returned is float, push it onto the st(0)
   */
 
@@ -4129,8 +4188,7 @@ ed: if (found==0)
     {
         if (isInt(type2))   // narrow int to char
         {
-            printf("Cannot narrow int to char\n");
-            exit(1);
+            asmFail("Cannot narrow int to char", node);
         }
         fprintf(fps,"mov [ecx],al\n");
     }
@@ -4454,7 +4512,16 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
   */
   
   else if (node->type==INT_LITERAL){
-    fprintf(fps,"mov eax,%s\n",node->id);
+    fprintf(fps,"mov eax,");
+    char *p=node->id;
+    // avoid writing trailing U,L
+    while (*p!='\0' && toupper(*p)!='U' && toupper(*p)!='L')
+    {
+        fprintf(fps,"%c",*p);
+        ++p;
+    }
+    fprintf(fps,"\n");
+    
     strcpy(varType.data,"int");    
   }
   else if (node->type==FLOAT_LITERAL)
