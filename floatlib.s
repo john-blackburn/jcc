@@ -137,3 +137,22 @@ _float2int:
    pop ebp
    ret
    
+.globl _float2double
+_float2double:
+   push ebp
+   mov ebp,esp
+   
+   sub esp,8   
+
+   FLD dword ptr [ebp+8]
+   FSTP qword ptr [ebp-8]
+
+   mov eax,[ebp-8]  # lo 4 bytes
+   mov edx,[ebp-4]  # hi 4 bytes
+   
+   # result in EDX:EAX
+
+   mov esp,ebp
+   pop ebp
+   ret
+   

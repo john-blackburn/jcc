@@ -3831,6 +3831,7 @@ _post_conditional:            ; we need this label to jump over e3
     int i;
     int tot=0;
     int size, paddedSize;
+    int isDouble;
 
     strcpy(varType.data,"int");  // default return is int
     struct Var *p=varEnd;
@@ -3849,6 +3850,7 @@ _post_conditional:            ; we need this label to jump over e3
     {
       type1 = writeAsm(node->line[i],level,0, loop);  // type of the expression
 
+      isDouble=0;
       if (p!=NULL)   // function has been defined so try to coerce args
       {          
           struct Node *pFunc = p->structNode;  // func on AST
@@ -3867,6 +3869,13 @@ _post_conditional:            ; we need this label to jump over e3
 //              printf("coerce %s -> %s\n", type1.data, type2.data);
               doCast(type1, type2, node);  //  coercion
           }
+          else if (isFloat(type1))  // vararg and float so promote to double
+          {
+              fprintf(fps,"push eax\n");
+              fprintf(fps,"call _float2double\n");
+              fprintf(fps,"add esp,4\n");                  
+              isDouble=1;
+          }
       }
 
       if (isArray(type1)) 
@@ -3877,7 +3886,12 @@ _post_conditional:            ; we need this label to jump over e3
       paddedSize= getPaddedSize(size);
       tot += paddedSize;
       
-      if (paddedSize==4)
+      if (isDouble)
+      {
+          fprintf(fps,"push edx\n");   // hi byte
+          fprintf(fps,"push eax\n");   // lo byte at lower memory
+      }
+      else if (paddedSize==4) // int, pointer, array, char (we push 4 bytes)
         fprintf(fps,"push eax\n");
       else
       {
