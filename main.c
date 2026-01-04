@@ -2,6 +2,8 @@
 Usage: see "usage" variable below
 
 TODO:
+for conditionals don't just assume the expression is int eg if (1.0) if ('1')
+do should compare to 0 never to 1. < etc should return vartype char?
 coerce function return values
 More initialise arrays: 
     char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. 
@@ -3554,9 +3556,15 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   
   else if (node->type==IF){
     int label = ++s_label;
-    writeAsm(node->child,level,0, loop);
+    type1 = writeAsm(node->child,level,0, loop);
 
-    fprintf(fps,"cmp eax, 0\n");          // If cond is false, jump either to end or else
+    if (isInt(type1))
+        fprintf(fps,"cmp eax, 0\n");          // If cond is false, jump either to end or else
+    else if (isChar(type1))
+        fprintf(fps,"cmp al, 0\n");
+    else
+        asmFail("Conditional expression must be int or char",node);
+    
     if (node->child3==NULL)
       fprintf(fps,"je _end%d\n",label);
     else
@@ -3590,9 +3598,15 @@ _post_conditional:            ; we need this label to jump over e3
   {
     int label = ++s_label;
     
-    writeAsm(node->child,level,0, loop);
+    type1 = writeAsm(node->child,level,0, loop);
 
-    fprintf(fps,"cmp eax, 0\n");          // If cond is false, jump to else
+    if (isInt(type1))
+        fprintf(fps,"cmp eax, 0\n");          // If cond is false, jump to else
+    else if (isChar(type1))
+        fprintf(fps,"cmp al, 0\n");
+    else
+        asmFail("Conditional expression must be int or char",node);
+    
     fprintf(fps,"je _else%d\n",label);
 
     // generate code for left and right just to figure out types
@@ -3642,9 +3656,15 @@ _post_conditional:            ; we need this label to jump over e3
     fprintf(fps,"_cont%d:\n",label);
     fprintf(fps,"_start%d:\n",label);
 
-    writeAsm(node->child,level,0, loop);
+    type1 = writeAsm(node->child,level,0, loop);
 
-    fprintf(fps,"cmp eax, 0\n");
+    if (isInt(type1))
+        fprintf(fps,"cmp eax, 0\n");
+    else if (isChar(type1))
+        fprintf(fps,"cmp al, 0\n");
+    else
+        asmFail("Conditional expression must be int or char",node);
+    
     fprintf(fps,"je _end%d\n",label);
 
     writeAsm(node->child2,level,0, label);  // body
@@ -3700,10 +3720,16 @@ _post_conditional:            ; we need this label to jump over e3
 
     writeAsm(node->child,level,0, label);   // body
 
-    writeAsm(node->child2,level,0, loop);
-    fprintf(fps,"cmp eax, 1\n");
+    type1 = writeAsm(node->child2,level,0, loop);
 
-    fprintf(fps,"je _start%d\n",label);
+    if (isInt(type1))
+        fprintf(fps,"cmp eax, 0\n");
+    else if (isChar(type1))
+        fprintf(fps,"cmp al, 0\n");
+    else
+        asmFail("Conditional expression must be int or char",node);
+
+    fprintf(fps,"jne _start%d\n",label);
     fprintf(fps,"_end%d:\n",label);
   }
 
@@ -3719,11 +3745,22 @@ _post_conditional:            ; we need this label to jump over e3
     fprintf(fps,"_start%d:\n",label);
 
     if (node->child2->type==EMPTY)
+    {
         fprintf(fps,"mov eax,1\n");
+        strcpy(type1.data,"int");
+    }
     else
-        writeAsm(node->child2,level,0, loop); // cond
+    {
+        type1 = writeAsm(node->child2,level, 0, loop); // cond
+    }
 
-    fprintf(fps,"cmp eax, 0\n");
+    if (isInt(type1))
+        fprintf(fps,"cmp eax, 0\n");
+    else if (isChar(type1))
+        fprintf(fps,"cmp al, 0\n");
+    else
+        asmFail("Expression must be int or char",node);
+
     fprintf(fps,"je _end%d\n",label);
 
     writeAsm(node->child4,level,0, label);  // body
@@ -4509,15 +4546,14 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     if (isChar(type1))
     {
         fprintf(fps,"cmp al,0\n");
-        fprintf(fps,"sete al\n");
     }
     else
     {
         fprintf(fps,"cmp eax,0\n");    // set ZF on if exp == 0, set it off otherwise
-        fprintf(fps,"mov eax,0\n");    // zero out EAX (doesn't change FLAGS)
-        fprintf(fps,"sete al\n");
     }
-    varType = type1;
+    fprintf(fps,"mov eax,0\n");    // zero out EAX (doesn't change FLAGS)
+    fprintf(fps,"sete al\n");
+    strcpy(varType.data,"int");
   }
   
   /*
@@ -4801,16 +4837,16 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
         else
             fprintf(fps,"setle al\n");
     }
-    else if (nodetype==BINARY_GREATER_THAN || varType.isUnsigned)
+    else if (nodetype==BINARY_GREATER_THAN)
     {
-        if (isFloat(varType))
+        if (isFloat(varType) || varType.isUnsigned)
             fprintf(fps,"seta al\n");
         else
             fprintf(fps,"setg al\n");
     }
-    else if (nodetype==BINARY_GREATER_THAN_OR_EQUAL || varType.isUnsigned)
+    else if (nodetype==BINARY_GREATER_THAN_OR_EQUAL)
     {
-        if (isFloat(varType))
+        if (isFloat(varType) || varType.isUnsigned)
             fprintf(fps,"setae al\n");
         else
             fprintf(fps,"setge al\n");
