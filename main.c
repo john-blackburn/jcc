@@ -485,13 +485,17 @@ int lineno;
 struct TypeDef *typeDefEnd = 0;
 struct EnumConst *enumConstEnd = 0;
 
-FILE* fps;
+FILE* fps;  // text
+FILE* fpd;  // data
 
 // forward declarations
 struct Node *parse_decl(int type);
 struct Node *parse_exp(); 
 
 char* ops[]={"add","sub","imul","idiv","idiv","and","or","xor"};
+
+int PTR_SIZE=4;
+int z80=0;
 
 // ######################################################################
 
@@ -2851,9 +2855,9 @@ int sizeOf(struct Type t, struct Node* node)
     }
     
     if (endsWith(s.data, '*'))
-        return 4*nElem;
+        return PTR_SIZE*nElem;
     else if (strcmp(s.data, "int") == 0 || strcmp(s.data, "float")==0)
-        return 4*nElem;
+        return PTR_SIZE*nElem;
     else if (strcmp(s.data, "char") == 0)
         return nElem;
     else if (startsWith(s.data, "struct") || startsWith(s.data, "union"))
@@ -3034,7 +3038,7 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
         fprintf(fps,"push eax\n"); // the float
         fprintf(fps,"push ecx\n");  // function arg, the int
         fprintf(fps,"call _int2float\n"); // result in eax now float
-        fprintf(fps,"add esp,4\n");
+        fprintf(fps,"add esp,%d\n",PTR_SIZE);
         fprintf(fps,"mov ecx,eax\n");
         fprintf(fps,"pop eax\n");  // orig eax
         fprintf(fps,"push ecx\n");
@@ -3049,7 +3053,7 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
     {
         fprintf(fps,"push eax\n");  // function arg, the int
         fprintf(fps,"call _int2float\n"); // result in eax now float
-        fprintf(fps,"add esp,4\n");
+        fprintf(fps,"add esp,%d\n",PTR_SIZE);
         fprintf(fps,"push ecx\n");
         fprintf(fps,"push eax\n");
         fprintf(fps,"call _f%s\n",op);
@@ -3118,7 +3122,7 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
 
         fprintf(fps,"sub eax,ecx\n");
         fprintf(fps,"cdq\n");
-        fprintf(fps,"mov ecx, %d\n",sizeOf(removePointer(type1),node));
+        fprintf(fps,"mov ecx,%d\n",sizeOf(removePointer(type1),node));
         fprintf(fps,"idiv eax,ecx\n");
         strcpy(varType.data,"int");
     }
@@ -3151,9 +3155,8 @@ void findSubStructs(struct Node *node, int level, int loop)
 
 int getPaddedSize(int size)
 {
-    return (size%4 == 0) ? size : (1+size/4)*4;
+    return (size%PTR_SIZE == 0) ? size : (1+size/PTR_SIZE)*PTR_SIZE;
 }
-
 
 // varType is required type
 void doCast(struct Type type1, struct Type varType, struct Node* node)
@@ -3175,13 +3178,13 @@ void doCast(struct Type type1, struct Type varType, struct Node* node)
       {
           fprintf(fps,"push eax\n");
           fprintf(fps,"call _int2float\n");
-          fprintf(fps,"add esp,4\n");
+          fprintf(fps,"add esp,%d\n",PTR_SIZE);
       }
       else if (isFloat(type1) && isInt(varType))  // widen float -> int
       {
           fprintf(fps,"push eax\n");
           fprintf(fps,"call _float2int\n");
-          fprintf(fps,"add esp,4\n");
+          fprintf(fps,"add esp,%d\n",PTR_SIZE);
       }
       else if (isInt(type1) && isChar(varType))  // narrow
       {
@@ -3288,40 +3291,40 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
   {
     if (!node->varType.isExtern)
     {
-        fprintf(fps,".data\n");
+        fprintf(fpd,".data\n");
 
         if (node->child==NULL)
         {
-            if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
-            fprintf(fps,"_%s:\n",node->id);
-            fprintf(fps,".skip %d\n",getPaddedSize(sizeOf(node->varType, node)));
+            if (!node->varType.isStatic) fprintf(fpd,".globl _%s\n",node->id);
+            fprintf(fpd,"_%s:\n",node->id);
+            fprintf(fpd,".skip %d\n",getPaddedSize(sizeOf(node->varType, node)));
         }
         else if (node->child->type==INT_LITERAL)
         {
-            if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
-            fprintf(fps,"_%s:\n",node->id);
-            fprintf(fps,".long %s\n",node->child->id);
+            if (!node->varType.isStatic) fprintf(fpd,".globl _%s\n",node->id);
+            fprintf(fpd,"_%s:\n",node->id);
+            fprintf(fpd,".long %s\n",node->child->id);
         }
         else if (node->child->type==CHAR_LITERAL)
         {
-            if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
-            fprintf(fps,"_%s:\n",node->id);
-            fprintf(fps,".byte '%s'\n",node->child->id);
-            fprintf(fps,".balign 4\n");
+            if (!node->varType.isStatic) fprintf(fpd,".globl _%s\n",node->id);
+            fprintf(fpd,"_%s:\n",node->id);
+            fprintf(fpd,".byte '%s'\n",node->child->id);
+            fprintf(fpd,".balign 4\n");
         }
         else if (node->child->type==FLOAT_LITERAL)
         {
-            if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
-            fprintf(fps,"_%s:\n",node->id);
-            fprintf(fps,".float %s\n",node->child->id);
+            if (!node->varType.isStatic) fprintf(fpd,".globl _%s\n",node->id);
+            fprintf(fpd,"_%s:\n",node->id);
+            fprintf(fpd,".float %s\n",node->child->id);
         }
         else if (node->child->type==STRING_LITERAL)
         {
-            fprintf(fps,"%s_string:\n",node->id);
-            fprintf(fps,".asciz \"%s\"\n", node->child->id);
-            if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
-            fprintf(fps,"_%s:\n",node->id);
-            fprintf(fps,".long %s_string\n",node->id);
+            fprintf(fpd,"%s_string:\n",node->id);
+            fprintf(fpd,".asciz \"%s\"\n", node->child->id);
+            if (!node->varType.isStatic) fprintf(fpd,".globl _%s\n",node->id);
+            fprintf(fpd,"_%s:\n",node->id);
+            fprintf(fpd,".long %s_string\n",node->id);
         }
         else if (node->child->type==BLOCK)
         {
@@ -3338,18 +3341,18 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 //            printf("type1=%s\n",type1.data);
             if (isInt(type1))
             {
-                if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
-                fprintf(fps,"_%s:\n",node->id);
+                if (!node->varType.isStatic) fprintf(fpd,".globl _%s\n",node->id);
+                fprintf(fpd,"_%s:\n",node->id);
                 int i;
                 for (i=0; i < node->child->nlines; i++)
                 {
-                    fprintf(fps,".long %s\n", node->child->line[i]->id);
+                    fprintf(fpd,".long %s\n", node->child->line[i]->id);
                 }
             }
             else if (isChar(type1))
             {
-                if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
-                fprintf(fps,"_%s:\n",node->id);
+                if (!node->varType.isStatic) fprintf(fpd,".globl _%s\n",node->id);
+                fprintf(fpd,"_%s:\n",node->id);
                 int i;
                 for (i=0; i < node->child->nlines; i++)
                 {
@@ -3359,12 +3362,12 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
             }
             else if (isFloat(type1))
             {
-                if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
-                fprintf(fps,"_%s:\n",node->id);
+                if (!node->varType.isStatic) fprintf(fpd,".globl _%s\n",node->id);
+                fprintf(fpd,"_%s:\n",node->id);
                 int i;
                 for (i=0;i<node->child->nlines;i++)
                 {
-                    fprintf(fps,".float %s\n", node->child->line[i]->id);
+                    fprintf(fpd,".float %s\n", node->child->line[i]->id);
                 }
             }
             else if (strcmp(type1.data,"char*")==0) // char*
@@ -3372,14 +3375,14 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
                 int i;
                 for (i=0; i < node->child->nlines; i++)
                 {
-                    fprintf(fps,"%s_string%d:\n",node->id,i);
-                    fprintf(fps,".asciz \"%s\"\n", node->child->line[i]->id);
+                    fprintf(fpd,"%s_string%d:\n",node->id,i);
+                    fprintf(fpd,".asciz \"%s\"\n", node->child->line[i]->id);
                 }            
-                if (!node->varType.isStatic) fprintf(fps,".globl _%s\n",node->id);
+                if (!node->varType.isStatic) fprintf(fpd,".globl _%s\n",node->id);
                 fprintf(fps,"_%s:\n",node->id);
                 for (i=0;i<node->child->nlines;i++)
                 {
-                    fprintf(fps,".long %s_string%d\n",node->id,i);
+                    fprintf(fpd,".long %s_string%d\n",node->id,i);
                 }
             }
             else
@@ -3437,7 +3440,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
 
     // create arguments as local variables (data is on stack but lets point to it)
     int i=0;
-    int tot= retStruct ? 12 : 8;   // start at 12 if func returns Struct
+    int tot= retStruct ? 3*PTR_SIZE : 2*PTR_SIZE;   // start at 12 if func returns Struct
     while(node->line[i]->type==ARG)
     {
       if (isVoid(node->line[i]->varType)) {i++; break;}
@@ -3453,7 +3456,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
       varEnd->prev=oldVarEnd;
       i++;
       if (isArray(varEnd->varType))
-          tot += 4;
+          tot += PTR_SIZE;
       else
           tot += getPaddedSize(sizeOf(varEnd->varType, node));
     }
@@ -3467,7 +3470,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     fprintf(fps,"push ebp\n");
     fprintf(fps,"mov ebp,esp\n");
 
-    fprintf(fps,"sub esp, offset locals_%s\n",node->id); // clear space for locals (equ filled in later)
+    fprintf(fps,"sub esp,offset locals_%s\n",node->id); // clear space for locals (equ filled in later)
 
     for ( 0 ; i<node->nlines; i++)
     {
@@ -3559,9 +3562,9 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     type1 = writeAsm(node->child,level,0, loop);
 
     if (isInt(type1))
-        fprintf(fps,"cmp eax, 0\n");          // If cond is false, jump either to end or else
+        fprintf(fps,"cmp eax,0\n");          // If cond is false, jump either to end or else
     else if (isChar(type1))
-        fprintf(fps,"cmp al, 0\n");
+        fprintf(fps,"cmp al,0\n");
     else
         asmFail("Conditional expression must be int or char",node);
     
@@ -3601,9 +3604,9 @@ _post_conditional:            ; we need this label to jump over e3
     type1 = writeAsm(node->child,level,0, loop);
 
     if (isInt(type1))
-        fprintf(fps,"cmp eax, 0\n");          // If cond is false, jump to else
+        fprintf(fps,"cmp eax,0\n");          // If cond is false, jump to else
     else if (isChar(type1))
-        fprintf(fps,"cmp al, 0\n");
+        fprintf(fps,"cmp al,0\n");
     else
         asmFail("Conditional expression must be int or char",node);
     
@@ -3612,12 +3615,17 @@ _post_conditional:            ; we need this label to jump over e3
     // generate code for left and right just to figure out types
     // dump to file jcc_temp.s which we will discard (pretty dumb!)
     FILE *oldFps=fps;
+    FILE *oldFpd=fpd;
+
     fps=fopen("jcc_temp.s","w");
+    fpd=fopen("jcc_temp.d","w");
     type1 = writeAsm(node->child2,level,0, loop);
     type2 = writeAsm(node->child3,level,0, loop);
     fclose(fps);
+    fclose(fpd);
     
     fps=oldFps;
+    fpd=oldFpd;
     
     // Type of ternary is wider of the two (probably I should reuse this logic elsewhere)
     if (strcmp(type1.data, type2.data)==0)
@@ -3659,9 +3667,9 @@ _post_conditional:            ; we need this label to jump over e3
     type1 = writeAsm(node->child,level,0, loop);
 
     if (isInt(type1))
-        fprintf(fps,"cmp eax, 0\n");
+        fprintf(fps,"cmp eax,0\n");
     else if (isChar(type1))
-        fprintf(fps,"cmp al, 0\n");
+        fprintf(fps,"cmp al,0\n");
     else
         asmFail("Conditional expression must be int or char",node);
     
@@ -3723,9 +3731,9 @@ _post_conditional:            ; we need this label to jump over e3
     type1 = writeAsm(node->child2,level,0, loop);
 
     if (isInt(type1))
-        fprintf(fps,"cmp eax, 0\n");
+        fprintf(fps,"cmp eax,0\n");
     else if (isChar(type1))
-        fprintf(fps,"cmp al, 0\n");
+        fprintf(fps,"cmp al,0\n");
     else
         asmFail("Conditional expression must be int or char",node);
 
@@ -3755,9 +3763,9 @@ _post_conditional:            ; we need this label to jump over e3
     }
 
     if (isInt(type1))
-        fprintf(fps,"cmp eax, 0\n");
+        fprintf(fps,"cmp eax,0\n");
     else if (isChar(type1))
-        fprintf(fps,"cmp al, 0\n");
+        fprintf(fps,"cmp al,0\n");
     else
         asmFail("Expression must be int or char",node);
 
@@ -3827,14 +3835,14 @@ _post_conditional:            ; we need this label to jump over e3
     // if returning a struct copy it to the hidden pointer (first arg at ebp+8)
     if (isStruct(type1))
     {
-        fprintf(fps,"mov ecx,[ebp+8]\n");
+        fprintf(fps,"mov ecx,[ebp+%d]\n",2*PTR_SIZE);
         // memcpy(ecx,eax,sizeOf(type1));
         fprintf(fps,"push %d\n",sizeOf(type1, node));
         fprintf(fps,"push eax\n");
         fprintf(fps,"push ecx\n");
         fprintf(fps,"call _memcpy\n");
-        fprintf(fps,"add esp,12\n");        
-        fprintf(fps,"mov eax,[ebp+8]\n");
+        fprintf(fps,"add esp,%d\n",3*PTR_SIZE);
+        fprintf(fps,"mov eax,[ebp+%d]\n",2*PTR_SIZE);
     }
 
     if (isFloat(type1))
@@ -3910,13 +3918,13 @@ _post_conditional:            ; we need this label to jump over e3
           {
               fprintf(fps,"push eax\n");
               fprintf(fps,"call _float2double\n");
-              fprintf(fps,"add esp,4\n");                  
+              fprintf(fps,"add esp,%d\n", PTR_SIZE);                  
               isDouble=1;
           }
       }
 
       if (isArray(type1)) 
-          size=4;
+          size=PTR_SIZE;
       else
           size = sizeOf(type1, node);
 
@@ -3928,7 +3936,7 @@ _post_conditional:            ; we need this label to jump over e3
           fprintf(fps,"push edx\n");   // hi byte
           fprintf(fps,"push eax\n");   // lo byte at lower memory
       }
-      else if (paddedSize==4) // int, pointer, array, char (we push 4 bytes)
+      else if (paddedSize==PTR_SIZE) // int, pointer, array, char (we push 4 bytes)
         fprintf(fps,"push eax\n");
       else
       {
@@ -3941,7 +3949,7 @@ _post_conditional:            ; we need this label to jump over e3
         fprintf(fps,"push eax\n");
         fprintf(fps,"push ecx\n");
         fprintf(fps,"call _memcpy\n");
-        fprintf(fps,"add esp,12\n");
+        fprintf(fps,"add esp,%d\n",3*PTR_SIZE);
 
       }
     }
@@ -3967,7 +3975,7 @@ _post_conditional:            ; we need this label to jump over e3
         
         fprintf(fps,"lea eax,[ebp%+d]\n",g_offset);
         fprintf(fps,"push eax\n");
-        tot+=4;
+        tot+=PTR_SIZE;
     }
 
     // call the function
@@ -4059,7 +4067,7 @@ _post_conditional:            ; we need this label to jump over e3
             fprintf(fps,"push eax\n");
             fprintf(fps,"push ecx\n");
             fprintf(fps,"call _memcpy\n");
-            fprintf(fps,"add esp,12\n");
+            fprintf(fps,"add esp,%d\n",3*PTR_SIZE);
 
             varType = type1;
         }        
@@ -4216,7 +4224,7 @@ ed: if (found==0)
         fprintf(fps,"push eax\n");
         fprintf(fps,"push ecx\n");
         fprintf(fps,"call _memcpy\n");
-        fprintf(fps,"add esp,12\n");
+        fprintf(fps,"add esp,%d\n",3*PTR_SIZE);
 
         return type1;
     }
@@ -4249,7 +4257,7 @@ ed: if (found==0)
         {
             fprintf(fps,"push eax\n");
             fprintf(fps,"call _float2int\n");
-            fprintf(fps,"add esp,4\n");
+            fprintf(fps,"add esp,%d\n",PTR_SIZE);
         }
         else if (isChar(type2))  // RHS = char so widen
             fprintf(fps,"movzx eax,al\n");
@@ -4267,7 +4275,7 @@ ed: if (found==0)
         {
             fprintf(fps,"push eax\n");
             fprintf(fps,"call _int2float\n");
-            fprintf(fps,"add esp,4\n");
+            fprintf(fps,"add esp,%d\n",PTR_SIZE);
         }
         fprintf(fps,"mov [ecx],eax\n");
     }
@@ -4338,8 +4346,8 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
             fprintf(fps,"push eax\n");
             fprintf(fps,"push ecx\n");
             fprintf(fps,"call _float2int\n");
-            fprintf(fps,"add esp,4\n");
-            fprintf(fps,"mov ecx, eax\n");
+            fprintf(fps,"add esp,%d\n",PTR_SIZE);
+            fprintf(fps,"mov ecx,eax\n");
             fprintf(fps,"pop eax\n");
         }
         else if (isChar(varType))  // RHS = char so widen
@@ -4361,8 +4369,8 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
             fprintf(fps,"push eax\n");
             fprintf(fps,"push ecx\n");
             fprintf(fps,"call _int2float\n");
-            fprintf(fps,"add esp,4\n");
-            fprintf(fps,"mov ecx, eax\n");
+            fprintf(fps,"add esp,%d\n",PTR_SIZE);
+            fprintf(fps,"mov ecx,eax\n");
             fprintf(fps,"pop eax\n");
         }
         fprintf(fps,"mov [eax],ecx\n");
@@ -4450,7 +4458,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     {
         fprintf(fps,"push eax\n");
         fprintf(fps,"call _fneg\n");
-        fprintf(fps,"add esp,4\n");
+        fprintf(fps,"add esp,%d\n",PTR_SIZE);
     }
     else
         fprintf(fps,"neg eax\n");
@@ -4482,7 +4490,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
         fprintf(fps,"push ecx\n");
         fprintf(fps,"push eax\n");        
         fprintf(fps,"call _f%s\n", (node->type==INC) ? "add": "sub");
-        fprintf(fps,"add esp,8\n");
+        fprintf(fps,"add esp,%d\n",2*PTR_SIZE);
         fprintf(fps,"pop ecx\n");  // lvalue
         fprintf(fps,"mov [ecx],eax\n");
     }
@@ -4518,7 +4526,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
         fprintf(fps,"push ecx\n");
         fprintf(fps,"push eax\n");        
         fprintf(fps,"call _f%s\n", (node->type==INC_AFTER) ? "add": "sub");
-        fprintf(fps,"add esp,8\n");
+        fprintf(fps,"add esp,%d\n",2*PTR_SIZE);
         fprintf(fps,"pop ecx\n");  // lvalue
         fprintf(fps,"mov [ecx],eax\n");
         fprintf(fps,"mov eax,edx\n");
@@ -4586,11 +4594,11 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
   else if (node->type==STRING_LITERAL){
     int label = ++s_label;
 
-    fprintf(fps,".data\n");
-    fprintf(fps,"_string%d:\n",label);
-    fprintf(fps,".asciz \"%s\"\n",node->id);
-    fprintf(fps,".text\n");
-    fprintf(fps,"mov eax, offset _string%d\n",label);
+    fprintf(fpd,".data\n");
+    fprintf(fpd,"_string%d:\n",label);
+    fprintf(fpd,".asciz \"%s\"\n",node->id);
+    fprintf(fpd,".text\n");
+    fprintf(fps,"mov eax,offset _string%d\n",label);
     strcpy(varType.data,"char*");
   }
     
@@ -4821,7 +4829,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
 
 //    fprintf(fps,"cmp eax, ecx\n");    // set ZF on if e1 == e2, set it off otherwise
 
-    fprintf(fps,"mov eax, 0\n");      //zero out EAX (doesn't change FLAGS)
+    fprintf(fps,"mov eax,0\n");      //zero out EAX (doesn't change FLAGS)
 
     if (nodetype==BINARY_LESS_THAN)
     {        
@@ -4872,16 +4880,16 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     type1 = writeAsm(node->child,level,0, loop);
 
     if (isChar(type1))
-        fprintf(fps,"cmp al, 0\n");
+        fprintf(fps,"cmp al,0\n");
     else
-        fprintf(fps,"cmp eax, 0\n");          // check if e1 is 0
+        fprintf(fps,"cmp eax,0\n");          // check if e1 is 0
             
     fprintf(fps,"je _else%d\n",label);    // e1 is 0, so we need to evaluate _else
 
     if (isChar(type1))
-        fprintf(fps,"mov al, 1\n");
+        fprintf(fps,"mov al,1\n");
     else
-        fprintf(fps,"mov eax, 1\n");          // we didn't jump, so e1 is 1 and therefore result is 1
+        fprintf(fps,"mov eax,1\n");          // we didn't jump, so e1 is 1 and therefore result is 1
 
     fprintf(fps,"jmp _end%d\n",label);
     fprintf(fps,"_else%d:\n",label);
@@ -4890,13 +4898,13 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
 
     if (isChar(type2))
     {
-        fprintf(fps,"cmp al, 0\n");
-        fprintf(fps,"mov al, 0\n");
+        fprintf(fps,"cmp al,0\n");
+        fprintf(fps,"mov al,0\n");
     }
     else
     {
-        fprintf(fps,"cmp eax, 0\n");          // check if e2 is true
-        fprintf(fps,"mov eax, 0\n");          // zero out EAX without changing ZF
+        fprintf(fps,"cmp eax,0\n");          // check if e2 is true
+        fprintf(fps,"mov eax,0\n");          // zero out EAX without changing ZF
     }
 
     fprintf(fps,"setne al\n");           // set AL register (the low byte of EAX) to 1 iff e2 != 0
@@ -4913,16 +4921,16 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     type1 = writeAsm(node->child,level,0, loop);
 
     if (isChar(type1))
-        fprintf(fps,"cmp al, 0\n");
+        fprintf(fps,"cmp al,0\n");
     else
-        fprintf(fps,"cmp eax, 0\n");          // check if e1 is 0
+        fprintf(fps,"cmp eax,0\n");          // check if e1 is 0
         
     fprintf(fps,"jne _else%d\n",label);   // e1 isnt 0, so we need to evaluate _else
 
     if (isChar(type1))
-        fprintf(fps,"mov al, 0\n");
+        fprintf(fps,"mov al,0\n");
     else
-        fprintf(fps,"mov eax, 0\n");          // we didn't jump, so e1 is 0 and therefore result is 0
+        fprintf(fps,"mov eax,0\n");          // we didn't jump, so e1 is 0 and therefore result is 0
 
     fprintf(fps,"jmp _end%d\n",label);
     fprintf(fps,"_else%d:\n",label);
@@ -4931,13 +4939,13 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
 
     if (isChar(type2))
     {
-        fprintf(fps,"cmp al, 0\n");
-        fprintf(fps,"mov al, 0\n");
+        fprintf(fps,"cmp al,0\n");
+        fprintf(fps,"mov al,0\n");
     }
     else
     {
-        fprintf(fps,"cmp eax, 0\n");          // check if e2 is 0
-        fprintf(fps,"mov eax, 0\n");          // zero out EAX without changing ZF
+        fprintf(fps,"cmp eax,0\n");          // check if e2 is 0
+        fprintf(fps,"mov eax,0\n");          // zero out EAX without changing ZF
     }
       
     fprintf(fps,"setne al\n");           // set AL register (the low byte of EAX) to 1 iff e2 != 0
@@ -5027,6 +5035,8 @@ int main(int argc, char **argv)
   int parseOnly=0;
   int compileOnly=0;
   int exeSet=0;
+  z80=0;
+  PTR_SIZE=4;
   
   char* fname = NULL;
   char exename[64]; // name of exe eg foo.exe
@@ -5049,6 +5059,11 @@ int main(int argc, char **argv)
           parseOnly=1;
       else if (strcmp(argv[i],"-c")==0)
           compileOnly=1;
+      else if (strcmp(argv[i],"-z80")==0)
+      {
+          z80=1;
+          PTR_SIZE=2;
+      }
       else if (argv[i][0]=='-' && argv[i][1]=='o')
       {
           strcpy(exename,&argv[i][2]);
@@ -5070,6 +5085,7 @@ int main(int argc, char **argv)
     
   char name[64];    // base name, eg foo.c
   char sname[64];   // name of s file eg foo.s
+  char dname[64];   // name of d file eg foo.d (contains data statements like .long)
   char iname[64]; // name of postprocessed source eg foo.i
   char oname[64]; // foo.o file
 
@@ -5103,6 +5119,13 @@ int main(int argc, char **argv)
   strcpy(sname,name);
   sname[i]='\0';
   strcat(sname,".s");
+
+  if (z80)
+  {
+      strcpy(dname,name);
+      dname[i]='\0';
+      strcat(dname,".d");
+  }
 
   if (!exeSet)
   {
@@ -5306,11 +5329,19 @@ int main(int argc, char **argv)
   // ----------------------------------------------------------------------
 
   fps=fopen(sname,"w");
+
+  if (z80)
+      fpd=fopen(dname,"w");
+  else
+      fpd=fps;      
+
   fprintf(fps,".intel_syntax noprefix\n");
 
   writeAsm(tree,0,0,0);
 
   fclose(fps);
+  
+  if (z80) return 0;
   
   // ----------------------------------------------------------------------
   // Assemble generated ASM code into .o file

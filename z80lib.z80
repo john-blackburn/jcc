@@ -1,0 +1,676 @@
+_printf:
+ret
+
+_putchar:
+ret
+
+; ----------------------------------------------------
+; FADD
+; HL=(IY+4)*(IY+6)
+;     BHL    CDE
+; cdecl: arguments are passed on stack, returned as HL
+; eg HL=2, DE=3, push de, push hl (right to left), call fadd, HL=5
+;
+; 0 01111 00|00000000 = 1.0  3C00
+;+0 01110 00|00000000 = 0.5  3800
+
+;   00000100|00000000 mantissa 1.0
+;+  00000010|00000000 mantissa 0.5
+;   00000110|00000000
+; 0 01111 10|00000000 = 1.5. (3E00) lead 1 removed, keep big exponent
+; ----------------------------------------------------
+
+_fadd:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld b,(iy+5)
+    ld l,(iy+4)
+    ld h,(iy+5)
+
+    ld c,(iy+7)
+    ld e,(iy+6)
+    ld d,(iy+7)
+    
+    ld a,d
+    res 7,a  ; for -0
+    or e
+    jr nz,de_nz
+    
+    ret  ; de= +0 or -0 so return hl
+
+de_nz:
+
+    ld a,h
+    res 7,a ; for -0
+    or l
+    jr nz,hl_nz
+    
+    push de
+    pop hl
+    
+    ret  ; hl is +0 or -0 so return hl=de
+    
+hl_nz:    
+    ld a,h
+    and %00000011 ; hl is mantissa
+    ld h,a
+    set 2,h ; put leading 1
+
+    bit 7,b
+    jr z,_fadd_pos1  ; positive
+
+    ld a,h
+    cpl
+    ld h,a
+
+    ld a,l
+    cpl
+    ld l,a
+
+    inc hl ; 2's complement
+
+_fadd_pos1:
+
+    ld a,d
+    and %00000011 ; de is mantissa
+    ld d,a
+    set 2,d ; put leading 1
+
+    bit 7,c
+    jr z,_fadd_pos2  ; positive
+
+    ld a,d
+    cpl
+    ld d,a
+
+    ld a,e
+    cpl
+    ld e,a
+
+    inc de ; 2's complement
+
+_fadd_pos2:
+    res 7,b ; exponent
+    srl b
+    srl b
+
+    res 7,c ; exponent
+    srl c
+    srl c
+
+    ; hl exponent must be bigger or same
+    ld a,b
+    cp c
+    jr nc, _fadd_noswap
+
+    ex de,hl
+
+    ld a,b
+    ld b,c
+    ld c,a
+
+_fadd_noswap:
+    ld a,b   ; how many places to right shift de
+    sub c
+
+    jr z, _fadd_skip
+
+    ; make de smaller
+_fadd_loop:
+    sra d
+    rr e
+    dec a
+    jr nz, _fadd_loop
+
+_fadd_skip:
+    add hl,de
+
+    ; if result is negative, 2s complement
+    ld c,0    ; result is positive (don't need DE's exponent any more)
+    bit 7,h
+    jr z,_fadd_skip2
+
+    ld a,h
+    cpl
+    ld h,a
+
+    ld a,l
+    cpl
+    ld l,a
+
+    inc hl ; 2's complement
+    
+    ld c,%10000000 ; result is negative get sign bit ready
+
+_fadd_skip2:
+    ; find the lead 1 and shift as needed
+    bit 3,h
+    jr nz,h3   ; eg add 1+1 get 10 need to shift right
+
+    bit 2,h
+    jr nz,_fadd_end   ; 1 is in the right place, do nothing
+
+    bit 1,h    ; need to shift left 1 place
+    jr nz,h1
+    
+    bit 0,h    ; need to shift left 2 places
+    jr nz,h0
+
+    bit 7,l    ; etc
+    jr nz,l7
+
+    bit 6,l
+    jr nz,l6
+
+    bit 5,l
+    jr nz,l5
+
+    bit 4,l
+    jr nz,l4
+
+    bit 3,l
+    jr nz,l3
+
+    bit 2,l
+    jr nz,l2
+
+    bit 1,l
+    jr nz,l1
+
+    bit 0,l
+    jr nz,l0
+    
+    ; numbers were identical
+    
+    ld hl,0    ; return +0
+    ret
+
+    jr _fadd_end
+
+h3:
+    sra h
+    rr l
+    inc b
+    jr _fadd_end
+l0:
+    sla l
+    rl h
+    dec b
+l1:
+    sla l
+    rl h
+    dec b
+l2:
+    sla l
+    rl h
+    dec b
+l3:
+    sla l
+    rl h
+    dec b
+l4:
+    sla l
+    rl h
+    dec b
+l5:
+    sla l
+    rl h
+    dec b
+l6:
+    sla l
+    rl h
+    dec b
+l7:
+    sla l
+    rl h
+    dec b
+h0:
+    sla l
+    rl h
+    dec b
+h1:
+    sla l
+    rl h
+    dec b
+
+_fadd_end:
+    ld a,h
+    and %00000011  ; get rid of leading 1
+
+    sla b
+    sla b
+
+    or b ; exponent
+    or c ; sign
+
+    ld h,a
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; ----------------------------------------------------
+; IMUL_HLDE
+; imul hl,de
+; hl = hl*de
+; ----------------------------------------------------
+
+imul_hlde:
+    ld b,0
+    bit 7,h
+    jr z,imul_hlde0
+
+    ld a,h
+    cpl
+    ld h,a
+    ld a,l
+    cpl
+    ld l,a
+    inc hl
+
+    inc b
+
+imul_hlde0:
+    bit 7,d
+    jr z,imul_hlde1
+
+    ld a,d
+    cpl
+    ld d,a
+    ld a,e
+    cpl
+    ld e,a
+    inc de
+
+    inc b
+
+imul_hlde1:
+
+    call mul_hlde
+
+    dec b   ; if b=1, need to negate result
+    ret nz
+
+    ld a,h
+    cpl
+    ld h,a
+
+    ld a,l
+    cpl
+    ld h,l
+
+    inc hl
+
+    ret
+
+; ----------------------------------------------------
+; MUL_HLDE
+; mul hl,de
+; hl = hl*de
+; de: 00000001 00101100 300
+; hl: 00000000 01100011  99
+
+;     00000001 00101100
+;     00000010 01011000
+;     00100101 10000000
+;     01001011 00000000
+;
+;     01110100 00000100 29700
+; destroys de, ix
+; ----------------------------------------------------
+
+mul_hlde:
+    ld ix,0
+    bit 0,l
+    jr z,mul_hlde1
+    add ix,de
+
+mul_hlde1:
+    sla e
+    rl d
+    bit 1,l
+    jr z,mul_hlde2
+    add ix,de
+
+mul_hlde2:
+    sla e
+    rl d
+    bit 2,l
+    jr z,mul_hlde3
+    add ix,de
+
+mul_hlde3:
+    sla e
+    rl d
+    bit 3,l
+    jr z,mul_hlde4
+    add ix,de
+
+mul_hlde4:
+    sla e
+    rl d
+    bit 4,l
+    jr z,mul_hlde5
+    add ix,de
+
+mul_hlde5:
+    sla e
+    rl d
+    bit 5,l
+    jr z,mul_hlde6
+    add ix,de
+
+mul_hlde6:
+    sla e
+    rl d
+    bit 6,l
+    jr z,mul_hlde7
+    add ix,de
+
+mul_hlde7:
+    sla e
+    rl d
+    bit 7,l
+    jr z,mul_hlde8
+    add ix,de
+
+; ----------------------------------------------------
+
+mul_hlde8:
+    sla e
+    rl d
+    bit 0,h
+    jr z,mul_hlde9
+    add ix,de
+
+mul_hlde9:
+    sla e
+    rl d
+    bit 1,h
+    jr z,mul_hlde10
+    add ix,de
+
+mul_hlde10:
+    sla e
+    rl d
+    bit 2,h
+    jr z,mul_hlde11
+    add ix,de
+
+mul_hlde11:
+    sla e
+    rl d
+    bit 3,h
+    jr z,mul_hlde12
+    add ix,de
+
+mul_hlde12:
+    sla e
+    rl d
+    bit 4,h
+    jr z,mul_hlde13
+    add ix,de
+
+mul_hlde13:
+    sla e
+    rl d
+    bit 5,h
+    jr z,mul_hlde14
+    add ix,de
+
+mul_hlde14:
+    sla e
+    rl d
+    bit 6,h
+    jr z,mul_hlde15
+    add ix,de
+
+mul_hlde15:
+    sla e
+    rl d
+    bit 7,h
+    jr z,mul_hlde16
+    add ix,de
+
+mul_hlde16:
+    push ix
+    pop hl
+
+    ret
+
+; ----------------------------------------------------
+; IMUL_LE
+; imul l,e
+; l = l*e
+
+; 11110100 = F4 = -12
+; 00001001 = 9
+
+; 10010100 = 94 = -108
+
+; destroys a,b
+; ----------------------------------------------------
+
+imul_le:
+    ld b,0
+    bit 7,l
+    jr z,imul_le0
+    ld a,l
+    neg   ;  don't put in first column or ignored!
+    ld l,a
+    inc b
+
+imul_le0:
+    bit 7,e
+    jr z,imul_le1
+    ld a,e
+    neg
+    ld e,a
+    inc b
+
+imul_le1:
+    call mul_le
+    dec b   ; if b=1, need to negate result
+    ret nz
+    ld a,l
+    neg
+    ld l,a
+    ret
+
+; ----------------------------------------------------
+; MUL_LE
+; mul l,e
+; l = l*e
+; l: 00001100 12
+; e: 00010101 21
+
+;    00001100 12
+;    00110000
+;    11000000
+     
+;    11111100 252
+; destroys a
+; ----------------------------------------------------
+
+mul_le:
+    ld a,0
+
+    bit 0,e
+    jr z,mul_le1
+    add a,l
+
+mul_le1:
+    sla l
+    bit 1,e
+    jr z,mul_le2
+    add a,l
+
+mul_le2:
+    sla l
+    bit 2,e
+    jr z,mul_le3
+    add a,l
+
+mul_le3:
+    sla l
+    bit 3,e
+    jr z,mul_le4
+    add a,l
+
+mul_le4:
+    sla l
+    bit 4,e
+    jr z,mul_le5
+    add a,l
+
+mul_le5:
+    sla l
+    bit 5,e
+    jr z,mul_le6
+    add a,l
+
+mul_le6:
+    sla l
+    bit 6,e
+    jr z,mul_le7
+    add a,l
+
+mul_le7:
+    sla l
+    bit 7,e
+    jr z,mul_le8
+    add a,l
+
+mul_le8:
+    ld l,a
+
+    ret
+
+; -------------------------------------------------
+; equal and not equal
+; -------------------------------------------------
+
+sete:
+    ld l,1
+    ret z
+    ld l,0
+    ret
+
+setne:
+    ld l,1
+    ret nz
+    ld l,0
+    ret
+
+; -------------------------------------------------
+; unsigned comparison, < <= > >=
+; -------------------------------------------------
+
+; A >= B (JAE)
+; L=1 if NC
+setae:
+    ld l,1
+    ret nc
+    ld l,0
+    ret
+
+; A < B (JB)
+; L=1 if C
+setb:
+    ld l,1
+    ret c
+    ld l,0
+    ret
+
+; A <= B (JBE)
+; L=1 if C or Z
+setbe:
+    ld l,1
+    ret c
+    ret z
+    ld l,0
+    ret
+
+; A > B	(JA)
+; L=1 if NC and NZ
+seta:
+    ld l,0
+    ret c
+    ret z
+    ld l,1
+    ret
+
+; -------------------------------------------------
+; signed comparison, < <= > >=
+; -------------------------------------------------
+
+; A > B (JG)
+; L=1 if NZ and S, P/V different
+
+setg:
+    ld l,0
+    ret z
+    jp pe,setg1
+    ld l,1   ; P/V=0
+    ret m    ; S=1
+    ld l,0
+    ret
+setg1:     ; P/V=1
+    ld l,1
+    ret p    ; S=0
+    ld l,0
+    ret
+
+; A >= B (JGE)
+; L=1 if Z or S, P/V different
+
+setge:
+    ld l,1
+    ret z
+    jp pe,setge1
+    ld l,1   ; P/V=0
+    ret m    ; S=1
+    ld l,0
+    ret
+setge1:     ; P/V=1
+    ld l,1
+    ret p    ; S=0
+    ld l,0
+    ret
+
+; A < B (JL)
+; L=1 if NZ and S, P/V same
+
+setl:
+    ld l,0
+    ret z
+    jp pe,setl1
+    ld l,1   ; P/V=0
+    ret p    ; S=0
+    ld l,0
+    ret
+setl1:     ; P/V=1
+    ld l,1
+    ret m    ; S=1
+    ld l,0
+    ret
+
+; A <= B (JLE)
+; L=1 if Z or S, P/V same
+
+setle:
+    ld l,1
+    ret z
+    jp pe,setle1
+    ld l,1   ; P/V=0
+    ret p    ; S=0
+    ld l,0
+    ret
+setle1:     ; P/V=1
+    ld l,1
+    ret m    ; S=1
+    ld l,0
+    ret

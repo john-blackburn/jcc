@@ -1,0 +1,364 @@
+eax -> hl
+ecx -> de
+al -> l
+cl -> e (low byte of de)
+ebp -> iy
+esp -> sp
+
+a, bc, ix: temp storage
+
+iy is restored on return, alternate registers not used
+
+.globl
+    (nothing)
+
+not al
+    ld a,l
+    cpl
+    ld l,a
+
+not eax
+    ld a,h
+    cpl
+    ld h,a
+    ld a,l
+    cpl
+    ld l,a
+
+setXX al
+    call setXX
+
+neg al
+    ld a,l
+    neg
+    ld l,a
+    
+neg eax
+    push hl
+    pop bc
+    ld hl,0
+    or a
+    sbc hl,bc
+
+inc byte ptr [eax]
+    inc (hl)
+
+; dont corrupt hl
+inc dword ptr [eax]
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    inc bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+
+dec byte ptr [eax]
+    dec (hl)
+
+dec dword ptr [eax]
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    dec bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+
+; dont corrupt de
+add dword ptr [eax],number
+    push hl
+    push hl
+    pop ix
+    ld c,(ix+0)
+    ld b,(ix+1)
+    push bc
+    pop hl
+    ld bc,number
+    add hl,bc
+    ld (ix+0),l
+    ld (ix+1),h
+    pop hl
+
+; dont corrupt hl
+add esp,number
+    push hl
+    ld hl,0
+    add hl,sp
+    ld bc,number
+    add hl,bc
+    ld sp,hl
+    pop hl
+
+add esp,2
+    pop bc
+
+add eax,ecx
+    add hl,de
+
+add al,cl
+    ld a,l
+    add a,e
+    ld l,a
+
+and eax,ecx
+    ld a,h
+    or d
+    ld h,a
+    ld a,l
+    or e
+    ld l,a
+
+and al,cl
+    ld a,l
+    and e
+    ld l,a
+
+or eax,ecx
+
+or al,cl
+    ld a,l
+    or e
+    ld l,a
+    
+xor eax,ecx
+
+xor al,cl
+    ld a,l
+    xor e
+    ld l,a
+
+push ebp
+    push iy
+
+push eax
+    push hl
+    
+pop ecx
+    pop de
+    
+pop eax
+    pop hl
+
+pop ebp
+    pop iy
+
+sub dword ptr [eax],number
+    push hl
+    push hl
+    pop ix
+    ld c,(ix+0)
+    ld b,(ix+1)
+    push bc
+    pop hl
+    ld bc,number
+    or a
+    sbc hl,bc
+    ld (ix+0),l
+    ld (ix+1),h
+    pop hl
+
+sub esp,offset equ
+    ld hl,0
+    add hl,sp
+    ld bc,equ
+    or a
+    sbc hl,bc
+    ld sp,hl
+
+sub esp,number
+    ld hl,0
+    add hl,sp
+    ld bc,number
+    or a
+    sbc hl,bc
+    ld sp,hl
+
+sub eax,ecx
+    or a
+    sbc hl,de
+
+sub al,cl
+    ld a,l
+    sub e
+    ld l,a
+    
+imul eax,ecx
+    call imul_hlde
+
+imul al,cl
+    call imul_le
+
+idiv eax,ecx
+    call idiv_hlde
+
+idiv al,cl
+    call idiv_le
+
+mul eax,ecx
+    call mul_hlde
+
+mul al,cl
+    call mul_le
+
+div eax,ecx
+    call div_hlde
+
+div al,cl
+    call div_le
+    
+ret
+    ret
+    
+cmp eax,0
+    ld a,h
+    or l
+
+cmp eax,ecx
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+
+; dont corrupt hl
+cmp eax,number
+    push hl
+    or a
+    ld bc,number
+    sbc hl,bc
+    pop hl
+
+cmp al,0
+    ld a,l
+    cp 0
+    
+cmp al,'char'
+    ld a,l
+    cp 'char'
+    
+cmp al,cl
+    ld a,l
+    cp e
+
+je label
+    jp z,label
+
+jne label
+    jp nz,label
+
+jmp label
+    jp label
+
+lea eax,[ebp+number]
+    push iy
+    pop hl
+    ld bc,number
+    add hl,bc
+
+call label
+    call label
+        
+movzx eax,al
+    ld h,0
+
+; dont corrupt eax
+imul ecx,number
+    ld bc,number
+    call imul
+
+idiv ecx,number
+    ld bc,number
+    call idiv
+
+mov esp,ebp
+    ld sp,iy
+
+mov ebp,esp
+    ld iy,0
+    add iy,sp
+    
+mov [ebp+number],eax
+    ld (iy+number),l
+    ld (iy+number+1),h
+
+mov eax,[ebp+NN]
+    ld l,(iy+NN)
+    ld h,(iy+NN+1)
+    
+mov eax,[eax]
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+
+mov eax,ecx
+    push de
+    pop hl
+
+mov eax,offset label
+    ld hl,label
+
+mov eax,label
+    ld hl,(label)
+
+mov eax,number
+    ld hl,number
+
+mov [eax],cl
+    ld (hl),e
+
+mov [eax],ecx
+    ld (hl),e
+    inc hl
+    ld (hl),d
+    dec hl
+
+mov ecx,eax
+    push hl
+    pop de
+
+; dont corrupt hl
+mov ecx,[eax]
+    ld e,(hl)
+    inc hl
+    ld d,(hl)
+    dec hl
+
+mov ecx,edx
+    push bc
+    pop de
+
+mov ecx,number
+    ld de,number
+
+mov [ecx],al
+    ld a,l
+    ld (de),a
+
+mov [ecx],eax
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+
+mov al,[eax]
+    ld l,(hl)
+
+mov al,cl
+    ld l,e
+
+mov al,'c'
+    ld l,'c'
+    
+mov al,number
+    ld l,number
+
+mov al,label
+    ld l,(label)
+
+mov al,[ebp+d]
+    ld l,(iy+d)
+
+mov cl,[eax]
+    ld e,(hl)
