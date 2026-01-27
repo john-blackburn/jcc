@@ -4,6 +4,31 @@ ret
 _putchar:
 ret
 
+_fsub
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    ld l,(iy+4)
+    ld h,(iy+5)
+
+    ld e,(iy+6)
+    ld d,(iy+7)
+    
+    ld a,d
+    xor %10000000
+    ld d,a
+    
+    push de
+    push hl
+    call _fadd
+    pop bc
+    pop bc
+    
+    ld sp,iy
+    pop iy
+    ret
+    
 ; ----------------------------------------------------
 ; FADD
 ; HL=(IY+4)*(IY+6)
@@ -549,6 +574,60 @@ mul_le8:
 
     ret
 
+; -------------------------------------------------
+; DIV_LE
+; div l,e
+; l = l/e
+;
+; l: 00010000 16
+; e: 00000011  3
+; e':   11000
+; -------------------------------------------------
+
+div_le:
+    ld a,l
+    cp 0
+    ret z  ;  eg 0/3
+    
+    cp e
+    ld l,0
+    ret c  ; e > l, eg 1/3
+    
+    ld l,a
+
+    ld b,1   ; bit we will OR with
+    ld c,0   ; result
+    ld d,e   ; initial small number
+div_le_loop:
+    ld a,l
+    cp e
+    jr c,div_le_done
+    jr z,div_le_done
+    sla e
+    sla b
+    jr div_le_loop
+div_le_done:
+    ld a,l
+    cp e
+    jr c,div_le_skip
+    ld a,c
+    or b
+    ld c,a
+    ld a,l
+    sub e
+    jr z,div_le_finish   ;  hit zero we're done
+    ld l,a
+div_le_skip:
+    ld a,d
+    cp e
+    jr z,div_le_finish ; back where we started, done
+    srl e
+    srl b
+    jr div_le_done
+div_le_finish:
+    ld l,c
+    ret
+    
 ; -------------------------------------------------
 ; equal and not equal
 ; -------------------------------------------------
