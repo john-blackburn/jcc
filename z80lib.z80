@@ -4,7 +4,325 @@ ret
 _putchar:
 ret
 
-_fsub
+;----------------------------------------------------
+;_FMUL:
+; HL=(IY+4)*(IY+6)
+;     BHL    CDE
+; return HL
+; destroys A, BC, DE
+; 0 01111 10 | 00000000 BC
+; 0 01111 10 | 00000000 DE (1.5)
+;----------------------------------------------------
+
+_fmul:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld h,(iy+5)
+    ld c,(iy+4)   ; BC is first factor
+    ld b,(iy+5)  
+
+    ld l,(iy+7)
+    ld e,(iy+6)   ; DE is seconds factor
+    ld d,(iy+7)
+    
+    push hl ; store exponents
+    
+    ld a,b
+    and %00000011 ; bc is mantissa
+    ld b,a
+    set 2,b ; put leading 1
+    
+    ld a,d
+    and %00000011 ; de is mantissa
+    ld d,a
+    set 2,d ; put leading 1
+
+    ld hl,0 ; result
+
+    bit 0,e
+    jr z,_fmul1
+    
+    add hl,bc
+    
+_fmul1:
+
+    sra h
+    rr l
+
+    bit 1,e
+    jr z,_fmul2
+    
+    add hl,bc
+
+_fmul2:
+
+    sra h
+    rr l
+
+    bit 2,e
+    jr z,_fmul3
+    
+    add hl,bc
+
+_fmul3:
+
+    sra h
+    rr l
+
+    bit 3,e
+    jr z,_fmul4
+    
+    add hl,bc
+
+_fmul4:
+
+    sra h
+    rr l
+
+    bit 4,e
+    jr z,_fmul5
+    
+    add hl,bc
+
+_fmul5:
+
+    sra h
+    rr l
+
+    bit 5,e
+    jr z,_fmul6
+    
+    add hl,bc
+
+_fmul6:
+
+    sra h
+    rr l
+
+    bit 6,e
+    jr z,_fmul7
+    
+    add hl,bc
+
+_fmul7:
+
+    sra h
+    rr l
+
+    bit 7,e
+    jr z,_fmul8
+    
+    add hl,bc
+
+_fmul8:
+
+    sra h
+    rr l
+
+    bit 0,d
+    jr z,_fmul9
+    
+    add hl,bc
+
+_fmul9:
+
+    sra h
+    rr l
+
+    bit 1,d
+    jr z,_fmul10
+    
+    add hl,bc
+    
+_fmul10:
+
+    sra h
+    rr l
+
+    bit 2,d
+    jr z,_fmul11
+    
+    add hl,bc
+
+_fmul11:    
+
+    pop bc ; get exponents back
+    push bc
+    pop de ; copy of exponents
+    
+    ld a,b
+    and %01111100
+    ld b,a
+    sra b
+    sra b   ; b is factor1 exponent
+    
+    ld a,d
+    and %10000000
+    ld d,a  ; d is factor1 sign
+    
+    ld a,c
+    and %01111100
+    ld c,a
+    sra c
+    sra c   ; c is factor2 exponent
+    
+    ld a,e
+    and %10000000
+    ld e,a  ; e is factor2 sign
+    
+    ld a,b
+    add a,c
+    sub 15  ; exponent offset
+    bit 3,h  ; is there a 1 at bit position 11? If so, shift
+    
+    jr z,_fmul_skip
+    
+    inc a      ; exponent must be 1 more
+    sra h
+    rr l       ; shift hl right so 1 at bit 10
+
+_fmul_skip:
+
+    sla a
+    sla a   ; result exponent back in place
+
+    or d    ; bolt on signs
+    xor e
+    
+    ld d,a
+    
+    ld a,h
+    and %00000011   ; get rid of leading 1
+    or d            ; put on exponent and sign
+    
+    ld h,a
+
+    ld sp,iy
+    pop iy
+
+    ret
+    
+;----------------------------------------------------
+;_FDIV:
+; HL=(IY+4)/(IY+6)
+;     BHL    CDE
+; return HL
+; destroys A, BC, DE
+;----------------------------------------------------
+
+_fdiv:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld b,(iy+5)
+    ld l,(iy+4)
+    ld h,(iy+5)  
+
+    ld c,(iy+7)
+    ld e,(iy+6)
+    ld d,(iy+7)
+    
+    push bc ; store exponents
+    
+    ld a,h
+    and %00000011 ; hl is mantissa
+    ld h,a
+    set 2,h ; put leading 1. HL stores numerator mantissa
+    
+    ld a,d
+    and %00000011 ; de is mantissa
+    ld d,a
+    set 2,d ; put leading 1. DE stores denom mantissa
+    
+    ld bc,0   ; result mantissa
+    ld a,10   ; number of mantissa bits (11 for 16 bit float inc lead 1)
+_fdiv_loop:    
+
+    or a
+    sbc hl,de
+    
+    jr nc, _fdiv_L1
+    add hl,de  ; de greater than total so undo sub
+    
+    jr _fdiv_end
+_fdiv_L1:
+    inc c   ; de less than or equal total so inc res
+_fdiv_end:    
+
+    add hl,hl   ; shift hl (remainder)
+
+    sla c   ; shift result
+    rl b
+
+    dec a
+    jr nz,_fdiv_loop
+    
+    push bc
+    pop hl    ; result in HL
+    
+    pop bc ; get exponents back
+    push bc
+    pop de ; copy of exponents
+    
+    ld a,b
+    and %01111100
+    ld b,a
+    sra b
+    sra b   ; b is num exponent
+    
+    ld a,d
+    and %10000000
+    ld d,a  ; d is num sign
+    
+    ld a,c
+    and %01111100
+    ld c,a
+    sra c
+    sra c   ; c is denom exponent
+    
+    ld a,e
+    and %10000000
+    ld e,a  ; e is denom sign
+    
+    ld a,b
+    sub c
+    add a,15  ; exponent offset
+    bit 2,h  ; is there a 1 at bit position 10?
+    
+    jr nz, _fdiv_skip
+    
+    dec a      ; exponent must be 1 less
+    add hl,hl  ; shift hl left so 1 at bit 10
+    
+_fdiv_skip:
+
+    sla a
+    sla a   ; result exponent back in place
+
+    or d    ; set to that of numerator
+    xor e   ; xor with denominator sign for result
+    
+    ld d,a
+    
+    ld a,h
+    and %00000011   ; get rid of leading 1
+    or d            ; put on exponent and sign
+    
+    ld h,a
+
+    ld sp,iy
+    pop iy
+        
+    ret
+
+; ----------------------------------------------------
+; FSUB
+; ----------------------------------------------------
+
+_fsub:
     push iy
     ld iy,0
     add iy,sp
@@ -575,13 +893,197 @@ mul_le8:
     ret
 
 ; -------------------------------------------------
+; IDIV_LE
+; -------------------------------------------------
+
+idiv_le:
+    ld c,0
+    bit 7,l
+    jr z,idiv_le0
+    ld a,l
+    neg   ;  don't put in first column or ignored!
+    ld l,a
+    inc c
+
+idiv_le0:
+    bit 7,e
+    jr z,idiv_le1
+    ld a,e
+    neg
+    ld e,a
+    inc c
+
+idiv_le1:
+    call div_le2
+    dec c   ; if c=1, need to negate result
+    ret nz
+    ld a,l
+    neg
+    ld l,a
+    ret
+    
+; -------------------------------------------------
+; DIV_LE2
+; div l,e
+; l = l/e
+; destroys a,b
+;a        l
+;00000000 00010101 (21)
+;     111 (7)
+;00000000 10101000 shift left x3
+;     111
+;00001010 10000000 shift left x4
+;     111
+;00000011 10000001 a>e, so a=a-e, inc l
+;     111
+;00000111 00000010 shift left (all orig 1 gone from l)
+;     111
+;00000000 00000011 a=e, so a=a-e=0 inc l to 3 (result)
+
+;a        l
+;00000000 10000000  (128)
+;      11 (3)
+;00000100 00000000 shift x3
+;      11
+;00000001 00000001 a>e so a=a-e, inc l
+;      11
+;00000100 00000100 shift x2
+;      11
+;00000001 00000101 a>e so a=a-e, inc l
+;      11
+;00000100 00010100 shift x2
+;      11
+;00000001 00010101 a>e so a=a-e, inc l
+;      11
+;00000010 00101010 shift l=2A=42 (result)
+; -------------------------------------------------
+
+div_le2:
+    xor a   ; a=0
+    ld b,8
+_loop:
+    sla l
+    rla
+    cp e
+    jr c,_skip
+    sub e
+    inc l
+_skip:
+    djnz _loop
+    ret
+
+; ----------------------------------------------------
+; IDIV_HLDE
+; idiv hl,de
+; hl = hl/de
+; remainder in ix
+; ----------------------------------------------------
+
+idiv_hlde:
+    ld c,0
+    bit 7,h
+    jr z,idiv_hlde0
+
+    ld a,h  ; hl = -hl
+    cpl
+    ld h,a
+    ld a,l
+    cpl
+    ld l,a
+    inc hl
+
+    inc c
+
+idiv_hlde0:
+    bit 7,d
+    jr z,idiv_hlde1
+
+    ld a,d  ; de = -de
+    cpl
+    ld d,a
+    ld a,e
+    cpl
+    ld e,a
+    inc de
+
+    inc c
+
+idiv_hlde1:
+
+    push bc
+    call div_hlde
+    pop bc
+
+    dec c   ; if c=1, need to negate result
+    ret nz
+
+    ld a,h ; hl = -hl
+    cpl
+    ld h,a
+
+    ld a,l
+    cpl
+    ld h,l
+
+    inc hl
+
+    ret
+
+; -------------------------------------------------
+; DIV_HLDE
+; div hl,de
+; hl=hl/de
+; remainder in IX
+; destroys a,bc
+; -------------------------------------------------
+
+BC_Div_DE:
+;BC/DE ==> BC, remainder in HL
+;1382cc
+;23 bytes
+
+  ld hl,0    ;Accumulator
+  ld a,16    ;Loop counter
+
+div_loop:
+  ;shift the bits from BC (numerator) into HL (accumulator)
+  sla c
+  rl b
+  adc hl,hl
+
+  ;Check if remainder >= denominator (HL>=DE)
+  or a   ; clear C, might not be needed...?
+  sbc hl,de
+  jr c,div_loop_readjust
+  inc c  ;  same as inc bc since low bit is always zero (could use set 7,c)
+  jr div_loop_done
+
+div_loop_readjust:
+; remainder is not >= denominator, so we have to add DE back to HL
+  add hl,de
+
+div_loop_done:
+  dec a
+  jr nz,div_loop
+  ret
+
+div_hlde:
+    push hl
+    pop bc
+    call BC_div_DE ; result in BC
+    push hl
+    pop ix    ; remainder in IX
+    push bc
+    pop hl    ; result in HL
+    ret
+    
+; -------------------------------------------------
 ; DIV_LE
 ; div l,e
 ; l = l/e
-;
-; l: 00010000 16
-; e: 00000011  3
-; e':   11000
+
+; 10000000 -128
+;       11    3
 ; -------------------------------------------------
 
 div_le:
