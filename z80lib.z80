@@ -7,11 +7,13 @@ ret
 ;----------------------------------------------------
 ;_FMUL:
 ; HL=(IY+4)*(IY+6)
-;     BHL    CDE
+;     HBC    LDE
 ; return HL
 ; destroys A, BC, DE
 ; 0 01111 10 | 00000000 BC
 ; 0 01111 10 | 00000000 DE (1.5)
+;
+; low bit of DE set? Add BC into total in HL and shift HL right
 ;----------------------------------------------------
 
 _fmul:
@@ -27,6 +29,25 @@ _fmul:
     ld e,(iy+6)   ; DE is seconds factor
     ld d,(iy+7)
     
+    ; special cases
+    ld a,b
+    res 7,a   ; -0 is zero
+    or c
+    jr nz, _fmul_bc_nz
+    
+    ld hl,0   ; first factor is 0, return 0
+    ret
+
+_fmul_bc_nz:    
+    ld a,e
+    res 7,a   ; -0 is zero
+    or d
+    jr nz, _fmul_de_nz
+    
+    ld hl,0  ; second factor is 0 return 0
+    ret
+
+_fmul_de_nz:    
     push hl ; store exponents
     
     ld a,b
@@ -210,6 +231,18 @@ _fmul_skip:
 ;     BHL    CDE
 ; return HL
 ; destroys A, BC, DE
+;
+; 0 01111 10 | 00000000 1.5 HL
+; 0 01110 00 | 00000000 0.5 DE
+;
+;        110 | 00000000 mantissa 1.5 HL
+;      - 100 | 00000000 mantissa 0.5 DE
+;         10 | 00000000 HL
+; subtract, not carry so inc BC (result), shift BC left, shift HL left
+;        100 | 00000000 HL   BC = 0000000000000010
+;      - 100 | 00000000 DE
+;        000   00000000      BC = 0000000000000110
+; HL remains 0, BC eventually 110 | 00000000 (1+1/2)*2 = 3
 ;----------------------------------------------------
 
 _fdiv:
@@ -225,6 +258,20 @@ _fdiv:
     ld e,(iy+6)
     ld d,(iy+7)
     
+    ; special cases
+    ld a,h
+    res 7,a   ; -0 is also special
+    or l
+    ret z ; first factor is 0, return 0
+    
+    ld a,d
+    or e
+    jr nz, _fdiv_de_nz
+    
+    ld hl,%0111110000000000 ; second factor is zero, return infinity
+    ret
+    
+_fdiv_de_nz:    
     push bc ; store exponents
     
     ld a,h
@@ -358,7 +405,7 @@ _fsub:
 ;+0 01110 00|00000000 = 0.5  3800
 
 ;   00000100|00000000 mantissa 1.0
-;+  00000010|00000000 mantissa 0.5
+;+  00000010|00000000 mantissa 0.5 (shifted right)
 ;   00000110|00000000
 ; 0 01111 10|00000000 = 1.5. (3E00) lead 1 removed, keep big exponent
 ; ----------------------------------------------------
@@ -375,27 +422,24 @@ _fadd:
     ld c,(iy+7)
     ld e,(iy+6)
     ld d,(iy+7)
-    
-    ld a,d
-    res 7,a  ; for -0
-    or e
-    jr nz,de_nz
-    
-    ret  ; de= +0 or -0 so return hl
 
-de_nz:
+    ; special cases    
+    ld a,d
+    res 7,a  ; return if -0
+    or e
+    ret z ; de= +0 or -0 so return hl
 
     ld a,h
     res 7,a ; for -0
     or l
-    jr nz,hl_nz
+    jr nz,_hl_nz
     
     push de
     pop hl
     
     ret  ; hl is +0 or -0 so return hl=de
     
-hl_nz:    
+_hl_nz:    
     ld a,h
     and %00000011 ; hl is mantissa
     ld h,a
@@ -490,40 +534,40 @@ _fadd_skip:
 _fadd_skip2:
     ; find the lead 1 and shift as needed
     bit 3,h
-    jr nz,h3   ; eg add 1+1 get 10 need to shift right
+    jr nz,_fadd_h3   ; eg add 1+1 get 10 need to shift right
 
     bit 2,h
     jr nz,_fadd_end   ; 1 is in the right place, do nothing
 
     bit 1,h    ; need to shift left 1 place
-    jr nz,h1
+    jr nz,_fadd_h1
     
     bit 0,h    ; need to shift left 2 places
-    jr nz,h0
+    jr nz,_fadd_h0
 
     bit 7,l    ; etc
-    jr nz,l7
+    jr nz,_fadd_l7
 
     bit 6,l
-    jr nz,l6
+    jr nz,_fadd_l6
 
     bit 5,l
-    jr nz,l5
+    jr nz,_fadd_l5
 
     bit 4,l
-    jr nz,l4
+    jr nz,_fadd_l4
 
     bit 3,l
-    jr nz,l3
+    jr nz,_fadd_l3
 
     bit 2,l
-    jr nz,l2
+    jr nz,_fadd_l2
 
     bit 1,l
-    jr nz,l1
+    jr nz,_fadd_l1
 
     bit 0,l
-    jr nz,l0
+    jr nz,_fadd_l0
     
     ; numbers were identical
     
@@ -532,48 +576,48 @@ _fadd_skip2:
 
     jr _fadd_end
 
-h3:
+_fadd_h3:
     sra h
     rr l
     inc b
     jr _fadd_end
-l0:
+_fadd_l0:
     sla l
     rl h
     dec b
-l1:
+_fadd_l1:
     sla l
     rl h
     dec b
-l2:
+_fadd_l2:
     sla l
     rl h
     dec b
-l3:
+_fadd_l3:
     sla l
     rl h
     dec b
-l4:
+_fadd_l4:
     sla l
     rl h
     dec b
-l5:
+_fadd_l5:
     sla l
     rl h
     dec b
-l6:
+_fadd_l6:
     sla l
     rl h
     dec b
-l7:
+_fadd_l7:
     sla l
     rl h
     dec b
-h0:
+_fadd_h0:
     sla l
     rl h
     dec b
-h1:
+_fadd_h1:
     sla l
     rl h
     dec b
@@ -596,15 +640,15 @@ _fadd_end:
     ret
 
 ; ----------------------------------------------------
-; IMUL_HLDE
+; _imul_HLDE
 ; imul hl,de
 ; hl = hl*de
 ; ----------------------------------------------------
 
-imul_hlde:
+_imul_hlde:
     ld b,0
     bit 7,h
-    jr z,imul_hlde0
+    jr z,_imul_hlde0
 
     ld a,h
     cpl
@@ -616,9 +660,9 @@ imul_hlde:
 
     inc b
 
-imul_hlde0:
+_imul_hlde0:
     bit 7,d
-    jr z,imul_hlde1
+    jr z,_imul_hlde1
 
     ld a,d
     cpl
@@ -630,9 +674,9 @@ imul_hlde0:
 
     inc b
 
-imul_hlde1:
+_imul_hlde1:
 
-    call mul_hlde
+    call _mul_hlde
 
     dec b   ; if b=1, need to negate result
     ret nz
@@ -659,126 +703,126 @@ imul_hlde1:
 ;     00000001 00101100
 ;     00000010 01011000
 ;     00100101 10000000
-;     01001011 00000000
+;    +01001011 00000000
 ;
 ;     01110100 00000100 29700
 ; destroys de, ix
 ; ----------------------------------------------------
 
-mul_hlde:
+_mul_hlde:
     ld ix,0
     bit 0,l
-    jr z,mul_hlde1
+    jr z,_mul_hlde1
     add ix,de
 
-mul_hlde1:
+_mul_hlde1:
     sla e
     rl d
     bit 1,l
-    jr z,mul_hlde2
+    jr z,_mul_hlde2
     add ix,de
 
-mul_hlde2:
+_mul_hlde2:
     sla e
     rl d
     bit 2,l
-    jr z,mul_hlde3
+    jr z,_mul_hlde3
     add ix,de
 
-mul_hlde3:
+_mul_hlde3:
     sla e
     rl d
     bit 3,l
-    jr z,mul_hlde4
+    jr z,_mul_hlde4
     add ix,de
 
-mul_hlde4:
+_mul_hlde4:
     sla e
     rl d
     bit 4,l
-    jr z,mul_hlde5
+    jr z,_mul_hlde5
     add ix,de
 
-mul_hlde5:
+_mul_hlde5:
     sla e
     rl d
     bit 5,l
-    jr z,mul_hlde6
+    jr z,_mul_hlde6
     add ix,de
 
-mul_hlde6:
+_mul_hlde6:
     sla e
     rl d
     bit 6,l
-    jr z,mul_hlde7
+    jr z,_mul_hlde7
     add ix,de
 
-mul_hlde7:
+_mul_hlde7:
     sla e
     rl d
     bit 7,l
-    jr z,mul_hlde8
+    jr z,_mul_hlde8
     add ix,de
 
 ; ----------------------------------------------------
 
-mul_hlde8:
+_mul_hlde8:
     sla e
     rl d
     bit 0,h
-    jr z,mul_hlde9
+    jr z,_mul_hlde9
     add ix,de
 
-mul_hlde9:
+_mul_hlde9:
     sla e
     rl d
     bit 1,h
-    jr z,mul_hlde10
+    jr z,_mul_hlde10
     add ix,de
 
-mul_hlde10:
+_mul_hlde10:
     sla e
     rl d
     bit 2,h
-    jr z,mul_hlde11
+    jr z,_mul_hlde11
     add ix,de
 
-mul_hlde11:
+_mul_hlde11:
     sla e
     rl d
     bit 3,h
-    jr z,mul_hlde12
+    jr z,_mul_hlde12
     add ix,de
 
-mul_hlde12:
+_mul_hlde12:
     sla e
     rl d
     bit 4,h
-    jr z,mul_hlde13
+    jr z,_mul_hlde13
     add ix,de
 
-mul_hlde13:
+_mul_hlde13:
     sla e
     rl d
     bit 5,h
-    jr z,mul_hlde14
+    jr z,_mul_hlde14
     add ix,de
 
-mul_hlde14:
+_mul_hlde14:
     sla e
     rl d
     bit 6,h
-    jr z,mul_hlde15
+    jr z,_mul_hlde15
     add ix,de
 
-mul_hlde15:
+_mul_hlde15:
     sla e
     rl d
     bit 7,h
-    jr z,mul_hlde16
+    jr z,_mul_hlde16
     add ix,de
 
-mul_hlde16:
+_mul_hlde16:
     push ix
     pop hl
 
@@ -797,25 +841,25 @@ mul_hlde16:
 ; destroys a,b
 ; ----------------------------------------------------
 
-imul_le:
+_imul_le:
     ld b,0
     bit 7,l
-    jr z,imul_le0
+    jr z,_imul_le0
     ld a,l
     neg   ;  don't put in first column or ignored!
     ld l,a
     inc b
 
-imul_le0:
+_imul_le0:
     bit 7,e
-    jr z,imul_le1
+    jr z,_imul_le1
     ld a,e
     neg
     ld e,a
     inc b
 
-imul_le1:
-    call mul_le
+_imul_le1:
+    call _mul_le
     dec b   ; if b=1, need to negate result
     ret nz
     ld a,l
@@ -838,56 +882,56 @@ imul_le1:
 ; destroys a
 ; ----------------------------------------------------
 
-mul_le:
+_mul_le:
     ld a,0
 
     bit 0,e
-    jr z,mul_le1
+    jr z,_mul_le1
     add a,l
 
-mul_le1:
+_mul_le1:
     sla l
     bit 1,e
-    jr z,mul_le2
+    jr z,_mul_le2
     add a,l
 
-mul_le2:
+_mul_le2:
     sla l
     bit 2,e
-    jr z,mul_le3
+    jr z,_mul_le3
     add a,l
 
-mul_le3:
+_mul_le3:
     sla l
     bit 3,e
-    jr z,mul_le4
+    jr z,_mul_le4
     add a,l
 
-mul_le4:
+_mul_le4:
     sla l
     bit 4,e
-    jr z,mul_le5
+    jr z,_mul_le5
     add a,l
 
-mul_le5:
+_mul_le5:
     sla l
     bit 5,e
-    jr z,mul_le6
+    jr z,_mul_le6
     add a,l
 
-mul_le6:
+_mul_le6:
     sla l
     bit 6,e
-    jr z,mul_le7
+    jr z,_mul_le7
     add a,l
 
-mul_le7:
+_mul_le7:
     sla l
     bit 7,e
-    jr z,mul_le8
+    jr z,_mul_le8
     add a,l
 
-mul_le8:
+_mul_le8:
     ld l,a
 
     ret
@@ -896,25 +940,25 @@ mul_le8:
 ; IDIV_LE
 ; -------------------------------------------------
 
-idiv_le:
+_idiv_le:
     ld c,0
     bit 7,l
-    jr z,idiv_le0
+    jr z,_idiv_le0
     ld a,l
     neg   ;  don't put in first column or ignored!
     ld l,a
     inc c
 
-idiv_le0:
+_idiv_le0:
     bit 7,e
-    jr z,idiv_le1
+    jr z,_idiv_le1
     ld a,e
     neg
     ld e,a
     inc c
 
-idiv_le1:
-    call div_le2
+_idiv_le1:
+    call _div_le
     dec c   ; if c=1, need to negate result
     ret nz
     ld a,l
@@ -923,10 +967,10 @@ idiv_le1:
     ret
     
 ; -------------------------------------------------
-; DIV_LE2
+; DIV_LE
 ; div l,e
 ; l = l/e
-; destroys a,b
+; remainder in a, destroys b
 ;a        l
 ;00000000 00010101 (21)
 ;     111 (7)
@@ -956,20 +1000,21 @@ idiv_le1:
 ;00000001 00010101 a>e so a=a-e, inc l
 ;      11
 ;00000010 00101010 shift l=2A=42 (result)
+; from http://z80-heaven.wikidot.com/advanced-math#toc21
 ; -------------------------------------------------
 
-div_le2:
+_div_le:
     xor a   ; a=0
     ld b,8
-_loop:
+_div_le_loop:
     sla l
     rla
     cp e
-    jr c,_skip
+    jr c,_div_le_skip
     sub e
     inc l
-_skip:
-    djnz _loop
+_div_le_skip:
+    djnz _div_le_loop
     ret
 
 ; ----------------------------------------------------
@@ -979,10 +1024,10 @@ _skip:
 ; remainder in ix
 ; ----------------------------------------------------
 
-idiv_hlde:
+_idiv_hlde:
     ld c,0
     bit 7,h
-    jr z,idiv_hlde0
+    jr z,_idiv_hlde0
 
     ld a,h  ; hl = -hl
     cpl
@@ -994,9 +1039,9 @@ idiv_hlde:
 
     inc c
 
-idiv_hlde0:
+_idiv_hlde0:
     bit 7,d
-    jr z,idiv_hlde1
+    jr z,_idiv_hlde1
 
     ld a,d  ; de = -de
     cpl
@@ -1008,10 +1053,10 @@ idiv_hlde0:
 
     inc c
 
-idiv_hlde1:
+_idiv_hlde1:
 
     push bc
-    call div_hlde
+    call _div_hlde
     pop bc
 
     dec c   ; if c=1, need to negate result
@@ -1035,9 +1080,10 @@ idiv_hlde1:
 ; hl=hl/de
 ; remainder in IX
 ; destroys a,bc
+; from http://z80-heaven.wikidot.com/advanced-math#toc29
 ; -------------------------------------------------
 
-BC_Div_DE:
+_BC_Div_DE:
 ;BC/DE ==> BC, remainder in HL
 ;1382cc
 ;23 bytes
@@ -1045,7 +1091,7 @@ BC_Div_DE:
   ld hl,0    ;Accumulator
   ld a,16    ;Loop counter
 
-div_loop:
+_div_loop:
   ;shift the bits from BC (numerator) into HL (accumulator)
   sla c
   rl b
@@ -1054,23 +1100,23 @@ div_loop:
   ;Check if remainder >= denominator (HL>=DE)
   or a   ; clear C, might not be needed...?
   sbc hl,de
-  jr c,div_loop_readjust
+  jr c,_div_loop_readjust
   inc c  ;  same as inc bc since low bit is always zero (could use set 7,c)
-  jr div_loop_done
+  jr _div_loop_done
 
-div_loop_readjust:
+_div_loop_readjust:
 ; remainder is not >= denominator, so we have to add DE back to HL
   add hl,de
 
-div_loop_done:
+_div_loop_done:
   dec a
-  jr nz,div_loop
+  jr nz,_div_loop
   ret
 
-div_hlde:
+_div_hlde:
     push hl
     pop bc
-    call BC_div_DE ; result in BC
+    call _BC_div_DE ; result in BC
     push hl
     pop ix    ; remainder in IX
     push bc
@@ -1078,69 +1124,16 @@ div_hlde:
     ret
     
 ; -------------------------------------------------
-; DIV_LE
-; div l,e
-; l = l/e
-
-; 10000000 -128
-;       11    3
+; equal and not equal comparison
 ; -------------------------------------------------
 
-div_le:
-    ld a,l
-    cp 0
-    ret z  ;  eg 0/3
-    
-    cp e
-    ld l,0
-    ret c  ; e > l, eg 1/3
-    
-    ld l,a
-
-    ld b,1   ; bit we will OR with
-    ld c,0   ; result
-    ld d,e   ; initial small number
-div_le_loop:
-    ld a,l
-    cp e
-    jr c,div_le_done
-    jr z,div_le_done
-    sla e
-    sla b
-    jr div_le_loop
-div_le_done:
-    ld a,l
-    cp e
-    jr c,div_le_skip
-    ld a,c
-    or b
-    ld c,a
-    ld a,l
-    sub e
-    jr z,div_le_finish   ;  hit zero we're done
-    ld l,a
-div_le_skip:
-    ld a,d
-    cp e
-    jr z,div_le_finish ; back where we started, done
-    srl e
-    srl b
-    jr div_le_done
-div_le_finish:
-    ld l,c
-    ret
-    
-; -------------------------------------------------
-; equal and not equal
-; -------------------------------------------------
-
-sete:
+_sete:
     ld l,1
     ret z
     ld l,0
     ret
 
-setne:
+_setne:
     ld l,1
     ret nz
     ld l,0
@@ -1152,7 +1145,7 @@ setne:
 
 ; A >= B (JAE)
 ; L=1 if NC
-setae:
+_setae:
     ld l,1
     ret nc
     ld l,0
@@ -1160,7 +1153,7 @@ setae:
 
 ; A < B (JB)
 ; L=1 if C
-setb:
+_setb:
     ld l,1
     ret c
     ld l,0
@@ -1168,7 +1161,7 @@ setb:
 
 ; A <= B (JBE)
 ; L=1 if C or Z
-setbe:
+_setbe:
     ld l,1
     ret c
     ret z
@@ -1177,7 +1170,7 @@ setbe:
 
 ; A > B	(JA)
 ; L=1 if NC and NZ
-seta:
+_seta:
     ld l,0
     ret c
     ret z
@@ -1191,15 +1184,15 @@ seta:
 ; A > B (JG)
 ; L=1 if NZ and S, P/V different
 
-setg:
+_setg:
     ld l,0
     ret z
-    jp pe,setg1
+    jp pe,_setg1
     ld l,1   ; P/V=0
     ret m    ; S=1
     ld l,0
     ret
-setg1:     ; P/V=1
+_setg1:     ; P/V=1
     ld l,1
     ret p    ; S=0
     ld l,0
@@ -1208,15 +1201,15 @@ setg1:     ; P/V=1
 ; A >= B (JGE)
 ; L=1 if Z or S, P/V different
 
-setge:
+_setge:
     ld l,1
     ret z
-    jp pe,setge1
+    jp pe,_setge1
     ld l,1   ; P/V=0
     ret m    ; S=1
     ld l,0
     ret
-setge1:     ; P/V=1
+_setge1:     ; P/V=1
     ld l,1
     ret p    ; S=0
     ld l,0
@@ -1225,15 +1218,15 @@ setge1:     ; P/V=1
 ; A < B (JL)
 ; L=1 if NZ and S, P/V same
 
-setl:
+_setl:
     ld l,0
     ret z
-    jp pe,setl1
+    jp pe,_setl1
     ld l,1   ; P/V=0
     ret p    ; S=0
     ld l,0
     ret
-setl1:     ; P/V=1
+_setl1:     ; P/V=1
     ld l,1
     ret m    ; S=1
     ld l,0
@@ -1242,15 +1235,15 @@ setl1:     ; P/V=1
 ; A <= B (JLE)
 ; L=1 if Z or S, P/V same
 
-setle:
+_setle:
     ld l,1
     ret z
-    jp pe,setle1
+    jp pe,_setle1
     ld l,1   ; P/V=0
     ret p    ; S=0
     ld l,0
     ret
-setle1:     ; P/V=1
+_setle1:     ; P/V=1
     ld l,1
     ret m    ; S=1
     ld l,0

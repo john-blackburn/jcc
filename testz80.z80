@@ -1,0 +1,59 @@
+    org 40000
+
+    ld hl,%0011111000000000 ; 1.5
+    ld de,%0011111000000000 ; 1.5
+    push de
+    push hl
+    call _fmul
+    pop bc
+    pop bc
+
+    ld hl,%0011111000000000 ; 1.5
+    ld de,%0011111100000000 ; 1.75
+    push de
+    push hl
+    call _fdiv
+    pop bc
+    pop bc
+    
+    ld l,-128   ; 0x80 = 128
+    ld e,3
+    call _div_le ; should be -42 (D6) but 42 (2A)
+
+    ld l,-16   ; 0xF0 = 240
+    ld e,3
+    call _div_le ; should be -5 (FB) but 80 (0x50)
+
+    ld l,-16
+    ld e,3
+    call _idiv_le  ; FB
+    
+    ld l,12
+    ld e,21
+    call _mul_le  ; result in l=252
+
+    ld l,-12
+    ld e,9
+    call _mul_le  ; result in l=-108 FF94 (mul_le does signed correctly)
+
+    ld hl,99
+    ld de,300
+    call _mul_hlde ; result in hl=0x7404 = 29700
+
+    ld hl,-2
+    ld de,-3
+    call _mul_hlde ; result 6
+
+    ld hl,%0011110000000000   ;  1.0
+    ld de,%0011100000000000   ;  0.5
+    push de
+    push hl
+    call _fadd
+    pop bc
+    pop bc      ; clean up
+
+    push hl
+    pop bc   ; return 3E00 = 1.5 to BASIC
+    ret
+
+include "z80lib.z80"
