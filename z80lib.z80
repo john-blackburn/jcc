@@ -1,7 +1,4 @@
-_printf:
-ret
-
-_putchar:
+_strlen
 ret
 
 ;----------------------------------------------------
@@ -1182,69 +1179,69 @@ _seta:
 ; -------------------------------------------------
 
 ; A > B (JG)
-; L=1 if NZ and S, P/V different
+; L=1 if Z=0 and S=P/V
 
 _setg:
     ld l,0
     ret z
     jp pe,_setg1
     ld l,1   ; P/V=0
-    ret m    ; S=1
+    ret p    ; S=0
     ld l,0
     ret
 _setg1:     ; P/V=1
     ld l,1
-    ret p    ; S=0
+    ret m    ; S=1
     ld l,0
     ret
 
 ; A >= B (JGE)
-; L=1 if Z or S, P/V different
+; L=1 if Z=1 or S=P/V
 
 _setge:
     ld l,1
     ret z
     jp pe,_setge1
     ld l,1   ; P/V=0
-    ret m    ; S=1
+    ret p    ; S=0
     ld l,0
     ret
 _setge1:     ; P/V=1
     ld l,1
-    ret p    ; S=0
+    ret m    ; S=1
     ld l,0
     ret
 
 ; A < B (JL)
-; L=1 if NZ and S, P/V same
+; L=1 if Z=0 and S != P/V
 
 _setl:
     ld l,0
     ret z
     jp pe,_setl1
     ld l,1   ; P/V=0
-    ret p    ; S=0
+    ret m    ; S=1
     ld l,0
     ret
 _setl1:     ; P/V=1
     ld l,1
-    ret m    ; S=1
+    ret p    ; S=0
     ld l,0
     ret
 
 ; A <= B (JLE)
-; L=1 if Z or S, P/V same
+; L=1 if Z=1 or S != P/V
 
 _setle:
     ld l,1
     ret z
     jp pe,_setle1
     ld l,1   ; P/V=0
-    ret p    ; S=0
+    ret m    ; S=1
     ld l,0
     ret
 _setle1:     ; P/V=1
     ld l,1
-    ret m    ; S=1
+    ret p    ; S=0
     ld l,0
     ret

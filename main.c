@@ -3,7 +3,6 @@ Usage: see "usage" variable below
 
 TODO:
 for conditionals don't just assume the expression is int eg if (1.0) if ('1')
-do should compare to 0 never to 1. < etc should return vartype char?
 coerce function return values
 More initialise arrays: 
     char foo[]={'f','o','o'}="foo". int foo[]={1,2,3}. 
@@ -12,7 +11,6 @@ comma operator (WON'T DO)
 function pointers (WON'T DO)
 double (WON'T DO) but when calling vararg, promote float to double
 const, long, register, short, volatile (parsed but ignored: WON'T DO)
-short int (2 bytes on AX) (WON'T DO)
 bit fields (WON'T DO)
 struct, typedef and prototype in function body
 inline for GNU C (don't compile inline functions)
@@ -3018,8 +3016,8 @@ int isVoid(struct Type t)
 
 struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct Node* node)
 {
-    if (type1.isUnsigned+type2.isUnsigned == 1)
-        asmFail("Binary operation between signed and unsigned",node);
+//    if (type1.isUnsigned+type2.isUnsigned == 1)
+//        asmFail("Binary operation between signed and unsigned",node);
     
     struct Type varType=newVartype();
 
@@ -3066,27 +3064,31 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
     {
         fprintf(fps,"movzx eax,al\n");
         fprintf(fps,"%s eax,ecx\n", op);
-        varType=type2;
-//        strcpy(varType.data,"int");
+        strcpy(varType.data,"int");
+        if (type1.isUnsigned && type2.isUnsigned)
+            varType.isUnsigned=1;
     }
     else if (isInt(type1) && isChar(type2))
     {
         fprintf(fps,"movzx ecx,cl\n");
         fprintf(fps,"%s eax,ecx\n", op);
-        varType=type1;
-//        strcpy(varType.data,"int");
+        strcpy(varType.data,"int");
+        if (type1.isUnsigned && type2.isUnsigned)
+            varType.isUnsigned=1;
     }
     else if (isChar(type1) && isChar(type2))
     {
         fprintf(fps,"%s al,cl\n", op);
-//        strcpy(varType.data,"char");
-        varType=type1;
+        strcpy(varType.data,"char");
+        if (type1.isUnsigned && type2.isUnsigned)
+            varType.isUnsigned=1;
     }
     else if (isInt(type1) && isInt(type2))
     {
         fprintf(fps,"%s eax,ecx\n", op);
-        varType=type1;
-//        strcpy(varType.data,"int");
+        strcpy(varType.data,"int");
+        if (type1.isUnsigned && type2.isUnsigned)
+            varType.isUnsigned=1;
     }
     else if (strstr("add,sub", op)!=NULL && isPointer(type1) && isInt(type2))
     {
@@ -4318,6 +4320,13 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
 //    printf("types=%s %s\n", type1.data,type2.data);
 
     op = ops[node->type - PLUS_EQUALS];
+    if (type1.isUnsigned)
+    {
+        if (node->type==ASTERISK_EQUALS)
+            op="mul";
+        else if (node->type==SLASH_EQUALS || node->type==PERCENT_EQUALS)
+            op="div";
+    }
 
     varType = writeBinOp(op, type1, type2, node);
 
@@ -4452,8 +4461,13 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
   
   else if (node->type==UNARY_MINUS){
     type1 = writeAsm(node->child,level,0, loop);
+    varType = type1;
+
     if (isChar(type1))
+    {
         fprintf(fps,"neg al\n");
+        varType.isUnsigned=0;   // negative so must be signed
+    }
     else if (isFloat(type1))
     {
         fprintf(fps,"push eax\n");
@@ -4461,9 +4475,10 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
         fprintf(fps,"add esp,%d\n",PTR_SIZE);
     }
     else
+    {
         fprintf(fps,"neg eax\n");
-        
-    varType = type1;
+        varType.isUnsigned=0;   // negative so must be signed        
+    }
   }
   else if (node->type==UNARY_PLUS)
   {
@@ -4581,6 +4596,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     fprintf(fps,"\n");
     
     strcpy(varType.data,"int");    
+    varType.isUnsigned=1;   // positive integer is unsigned
   }
   else if (node->type==FLOAT_LITERAL)
   {
@@ -4730,8 +4746,11 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     fprintf(fps,"push eax\n");
     type1 = writeAsm(node->child,level,0, loop);
     fprintf(fps,"pop ecx\n");
-    
-    varType = writeBinOp("imul", type1, type2, node);
+
+    if (type1.isUnsigned && type2.isUnsigned)  // must be int or char
+        varType = writeBinOp("mul", type1, type2, node);
+    else
+        varType = writeBinOp("imul", type1, type2, node);
         
 //    fprintf(fps,"imul eax,ecx\n");
   }
@@ -4742,7 +4761,10 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     fprintf(fps,"pop ecx\n");
     fprintf(fps,"cdq\n");
 
-    varType = writeBinOp("idiv", type1, type2, node);
+    if (type1.isUnsigned && type2.isUnsigned)
+        varType = writeBinOp("div", type1, type2, node);
+    else
+        varType = writeBinOp("idiv", type1, type2, node);
 
 //    fprintf(fps,"idiv eax,ecx\n");
   }
@@ -4753,7 +4775,10 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     fprintf(fps,"pop ecx\n");
     fprintf(fps,"cdq\n");
 
-    varType = writeBinOp("idiv", type1, type2, node);
+    if (type1.isUnsigned && type2.isUnsigned)
+        varType = writeBinOp("div", type1, type2, node);
+    else
+        varType = writeBinOp("idiv", type1, type2, node);
     
     fprintf(fps,"mov eax,edx\n");
   }
@@ -4820,10 +4845,10 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     type1 = writeAsm(node->child,level,0, loop);
     fprintf(fps,"pop ecx\n");         // pop e1 from the stack into ecx - e2 is already in eax
     
-    if (type1.isUnsigned + type2.isUnsigned == 1)
-    {
-        asmFail("Comparison of signed and unsigned integer", node);
-    }
+    // if (type1.isUnsigned + type2.isUnsigned == 1)
+    // {
+        // asmFail("Comparison of signed and unsigned integer", node);
+    // }
 
     varType = writeBinOp("cmp", type1, type2, node);
 

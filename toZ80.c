@@ -101,15 +101,16 @@ int process(FILE* fp, FILE* fpz)
         // labels
         if (endsWith(line,':'))
         {
-            fprintf(fpz,"%s",line);
+            fprintf(fpz,"%s\n",line);
+            continue;
         }
-        
+                        
 // ----------------------------------------------------------
 // .SET .SKIP .LONG .BYTE .ASCIZ
 // ----------------------------------------------------------
         
         // .set -> equ
-        else if (startsWith(line,".set"))
+        if (startsWith(line,".set"))
         {
             i=getInd(line,',');
             getSubstr(label,line,5,i-1);
@@ -119,23 +120,23 @@ int process(FILE* fp, FILE* fpz)
         else if (startsWith(line,".skip"))
         {
             getSubstr(num,line,6,-1);
-            fprintf(fpz,"ds %s",num);
+            fprintf(fpz,"    ds %s",num);
         }
         else if (startsWith(line,".long"))
         {
             getSubstr(num,line,6,-1);
-            fprintf(fpz,"dw %s",num);
+            fprintf(fpz,"    dw %s",num);
         }
         else if (startsWith(line,".byte"))
         {
             getSubstr(num,line,6,-1);
-            fprintf(fpz,"db %s",num);
+            fprintf(fpz,"    db %s",num);
         }
         else if (startsWith(line,".asciz"))
         {
             getSubstr(num,line,7,-1);
             printf("%s",num);
-            fprintf(fpz,"db %s,0",num);
+            fprintf(fpz,"    db %s,0",num);
         }
         
 // ----------------------------------------------------------
@@ -146,7 +147,7 @@ int process(FILE* fp, FILE* fpz)
         {
             getSubstr(label,line,3,4);
             if (label[1]==' ') label[1]='\0';
-            fprintf(fpz,"call set%s",label);
+            fprintf(fpz,"    call _set%s",label);
         }
 
 // ----------------------------------------------------------
@@ -154,7 +155,7 @@ int process(FILE* fp, FILE* fpz)
 // ----------------------------------------------------------
         
         else if (startsWith(line,"movzx eax,al"))
-            fprintf(fpz,"ld h,0");
+            fprintf(fpz,"    ld h,0");
 
 // ----------------------------------------------------------
 // CALL, JE, JNE, JMP, RET
@@ -163,29 +164,29 @@ int process(FILE* fp, FILE* fpz)
         else if (startsWith(line,"call"))
         {
             getSubstr(label,line,5,-1);
-            fprintf(fpz,"call %s",label);
+            fprintf(fpz,"    call %s",label);
         }
 
         else if (startsWith(line,"je"))
         {
             getSubstr(label,line,3,-1);
-            fprintf(fpz,"jp z,%s",label);
+            fprintf(fpz,"    jp z,%s",label);
         }
 
         else if (startsWith(line,"jne"))
         {
             getSubstr(label,line,4,-1);
-            fprintf(fpz,"jp nz,%s",label);
+            fprintf(fpz,"    jp nz,%s",label);
         }
 
         else if (startsWith(line,"jmp"))
         {
             getSubstr(label,line,4,-1);
-            fprintf(fpz,"jp %s",label);
+            fprintf(fpz,"    jp %s",label);
         }
 
         else if (startsWith(line,"ret"))
-            fprintf(fpz,"ret");
+            fprintf(fpz,"    ret");
 
 // ----------------------------------------------------------
 // LEA
@@ -197,10 +198,11 @@ int process(FILE* fp, FILE* fpz)
             {
                 i=getInd(line,']');
                 getSubstr(num,line,12,i-1);
-                fprintf(fpz, "push iy\n"
-                        "pop hl\n"
-                        "ld bc,%s\n"
-                        "add hl,bc",num);
+                fprintf(fpz,
+                        "    push iy\n"
+                        "    pop hl\n"
+                        "    ld bc,%s\n"
+                        "    add hl,bc",num);
             }            
         }
 
@@ -216,15 +218,16 @@ int process(FILE* fp, FILE* fpz)
                 inc=0;
             
             if (inStr(line,4,"byte ptr [eax]"))
-                fprintf(fpz,"%s (hl)", inc ? "inc":"dec");
+                fprintf(fpz,"    %s (hl)", inc ? "inc":"dec");
             else if (inStr(line,4,"dword ptr [eax]"))
-                fprintf(fpz,"ld c,(hl)\n"
-                       "inc hl\n"
-                       "ld b,(hl)\n"
-                       "%s bc\n"
-                       "ld (hl),b\n"
-                       "dec hl\n"
-                       "ld (hl),c", inc ? "inc":"dec");
+                fprintf(fpz,
+                       "    ld c,(hl)\n"
+                       "    inc hl\n"
+                       "    ld b,(hl)\n"
+                       "    %s bc\n"
+                       "    ld (hl),b\n"
+                       "    dec hl\n"
+                       "    ld (hl),c", inc ? "inc":"dec");
         }
 
 // ----------------------------------------------------------
@@ -242,27 +245,29 @@ int process(FILE* fp, FILE* fpz)
             {
                 i=getInd(line,',');
                 getSubstr(num,line,i+1,-1);
-                fprintf(fpz, "push hl\n"
-                        "push hl\n"
-                        "pop ix\n"
-                        "ld c,(ix+0)\n"
-                        "ld b,(ix+1)\n"
-                        "push bc\n"
-                        "pop hl\n"
-                        "ld bc,%s\n"
-                        "%s"
-                        "ld (ix+0),l\n"
-                        "ld (ix+1),h\n"
-                        "pop hl", num, add ? "add hl,bc":"or a\nsbc hl,bc");
+                fprintf(fpz,
+                        "    push hl\n"
+                        "    push hl\n"
+                        "    pop ix\n"
+                        "    ld c,(ix+0)\n"
+                        "    ld b,(ix+1)\n"
+                        "    push bc\n"
+                        "    pop hl\n"
+                        "    ld bc,%s\n"
+                        "    %s"
+                        "    ld (ix+0),l\n"
+                        "    ld (ix+1),h\n"
+                        "    pop hl", num, add ? "add hl,bc":"or a\n    sbc hl,bc");
             }
             else if (inStr(line,4,"esp,offset"))
             {
                 getSubstr(label,line,15,-1);
-                fprintf(fpz,"ld hl,0\n"
-                            "add hl,sp\n"
-                            "ld bc,%s\n"
-                            "%s\n"
-                            "ld sp,hl", label, add ? "add hl,bc":"or a\nsbc hl,bc");
+                fprintf(fpz,
+                        "    ld hl,0\n"
+                        "    add hl,sp\n"
+                        "    ld bc,%s\n"
+                        "    %s\n"
+                        "    ld sp,hl", label, add ? "add hl,bc":"or a\n    sbc hl,bc");
             }        
             else if (inStr(line,4,"esp"))
             {
@@ -270,20 +275,21 @@ int process(FILE* fp, FILE* fpz)
                 n=strtol(num, &endptr, 0);
                 if (n<=20)
                     for (i=0;i<n/2;i++)
-                        fprintf(fpz,"pop bc%s", (i==n/2-1) ? "":"\n");
+                        fprintf(fpz,"    pop bc%s",(i==n/2-1) ? "":"\n");
                 else
                 {
-                    fprintf(fpz,"push hl\n",
-                                "ld hl,0\n"
-                                "add hl,sp\n"
-                                "ld bc,%s\n"
-                                "%s\n"
-                                "ld sp,hl",
-                                "pop hl\n", num, add ? "add hl,bc":"or a\nsbc hl,bc");
+                    fprintf(fpz,
+                            "    push hl\n",
+                            "    ld hl,0\n"
+                            "    add hl,sp\n"
+                            "    ld bc,%s\n"
+                            "    %s\n"
+                            "    ld sp,hl",
+                            "    pop hl\n", num, add ? "add hl,bc":"or a\n    sbc hl,bc");
                 }
             }
             else if (inStr(line,4,"eax,ecx"))
-                fprintf(fpz,"%s",add ? "add hl,de":"or a\nsbc hl,de");
+                fprintf(fpz,"%s",add ? "    add hl,de":"or a\n    sbc hl,de");
         }
 
 // ----------------------------------------------------------
@@ -293,16 +299,18 @@ int process(FILE* fp, FILE* fpz)
         else if (startsWith(line,"not"))
         {
             if (inStr(line,4,"al"))
-                fprintf(fpz,"ld a,l\n"
-                            "cpl\n"
-                            "ld l,a");
+                fprintf(fpz,
+                        "    ld a,l\n"
+                        "    cpl\n"
+                        "    ld l,a");
             else if (inStr(line,4,"eax"))
-                fprintf(fpz,"ld a,h\n"
-                    "cpl\n"
-                    "ld h,a\n"
-                    "ld a,l\n"
-                    "cpl\n"
-                    "ld l,a");
+                fprintf(fpz,
+                        "    ld a,h\n"
+                        "    cpl\n"
+                        "    ld h,a\n"
+                        "    ld a,l\n"
+                        "    cpl\n"
+                        "    ld l,a");
         }
 
 // ----------------------------------------------------------
@@ -312,15 +320,17 @@ int process(FILE* fp, FILE* fpz)
         else if (startsWith(line,"neg"))
         {
             if (inStr(line,4,"al"))
-                fprintf(fpz,"ld a,l\n"
-                            "neg\n"
-                            "ld l,a");
+                fprintf(fpz,
+                        "    ld a,l\n"
+                        "    neg\n"
+                        "    ld l,a");
             else if (inStr(line,4,"eax"))
-                fprintf(fpz, "push hl\n"
-                        "pop bc\n"
-                        "ld hl,0\n"
-                        "or a\n"
-                        "sbc hl,bc\n");
+                fprintf(fpz,
+                        "    push hl\n"
+                        "    pop bc\n"
+                        "    ld hl,0\n"
+                        "    or a\n"
+                        "    sbc hl,bc\n");
         }
 
 // ----------------------------------------------------------
@@ -337,17 +347,41 @@ int process(FILE* fp, FILE* fpz)
                 op=3;
             
             if (inStr(line,4,"eax,ecx"))
-            fprintf(fpz,"ld a,h\n"
-                    "%s d\n"
-                    "ld h,a\n"
-                    "ld a,l\n"
-                    "%s e\n"
-                    "ld l,a", ops[op], ops[op]);
+            fprintf(fpz,
+                    "    ld a,h\n"
+                    "    %s d\n"
+                    "    ld h,a\n"
+                    "    ld a,l\n"
+                    "    %s e\n"
+                    "    ld l,a", ops[op], ops[op]);
             else if (inStr(line,4,"al,cl"))
-                fprintf(fpz,"ld a,l\n"
-                            "%s e\n"
-                            "ld l,a", ops[op]);
+                fprintf(fpz,
+                        "    ld a,l\n"
+                        "    %s e\n"
+                        "    ld l,a", ops[op]);
         }
+
+// ----------------------------------------------------------
+// [I]MUL, [I]DIV
+// ----------------------------------------------------------
+
+        else if (startsWith(line,"imul eax") || startsWith(line,"mul eax"))
+            fprintf(fpz,"    call _mul_hlde");
+
+        else if (startsWith(line,"imul al") || startsWith(line,"mul al"))
+            fprintf(fpz,"    call _mul_le");
+
+        else if (startsWith(line,"idiv eax"))
+            fprintf(fpz,"    call _idiv_hlde");
+
+        else if (startsWith(line,"idiv al"))
+            fprintf(fpz,"    call _idiv_le");
+
+        else if (startsWith(line,"div eax"))
+            fprintf(fpz,"    call _div_hlde");
+
+        else if (startsWith(line,"div al"))
+            fprintf(fpz,"    call _div_le");
 
 // ----------------------------------------------------------
 // PUSH
@@ -357,9 +391,9 @@ int process(FILE* fp, FILE* fpz)
         {
             getSubstr(reg,line,5,7);  // reg=line[5:7]
             if (strcmp(reg,"ebp")==0)
-                fprintf(fpz,"push iy");
+                fprintf(fpz,"    push iy");
             else if (strcmp(reg,"eax")==0)
-                fprintf(fpz,"push hl");
+                fprintf(fpz,"    push hl");
             else
                 fprintf(fpz,"unknown push");
         }
@@ -372,11 +406,11 @@ int process(FILE* fp, FILE* fpz)
         {
             getSubstr(reg,line,4,6);
             if (strcmp(reg,"ebp")==0)
-                fprintf(fpz,"pop iy");
+                fprintf(fpz,"    pop iy");
             else if (strcmp(reg,"eax")==0)
-                fprintf(fpz,"pop hl");
+                fprintf(fpz,"    pop hl");
             else if (strcmp(reg,"ecx")==0)
-                fprintf(fpz,"pop de");
+                fprintf(fpz,"    pop de");
             else
                 fprintf(fpz,"unknown pop");
         }
@@ -388,33 +422,39 @@ int process(FILE* fp, FILE* fpz)
         else if (startsWith(line,"cmp"))
         {
             if (startsWith(line,"cmp eax,0"))
-                fprintf(fpz, "ld a,h\n"
-                        "or l");
+                fprintf(fpz,
+                        "    ld a,h\n"
+                        "    or l");
             else if (startsWith(line,"cmp eax,ecx"))
-                fprintf(fpz, "push hl\n"
-                        "or a\n"
-                        "sbc hl,de\n"
-                        "pop hl");
+                fprintf(fpz,
+                        "    push hl\n"
+                        "    or a\n"
+                        "    sbc hl,de\n"
+                        "    pop hl");
             else if (startsWith(line,"cmp al,0"))
-                fprintf(fpz,"ld a,l\n"
-                            "cp 0");
+                fprintf(fpz,
+                        "    ld a,l\n"
+                        "    cp 0");
             else if (startsWith(line,"cmp al,cl"))
-                fprintf(fpz,"ld a,l\n"
-                            "cp e");
+                fprintf(fpz,
+                        "    ld a,l\n"
+                        "    cp e");
             else if (startsWith(line,"cmp eax,"))
             {
                 getSubstr(num,line,8,-1);
-                fprintf(fpz, "push hl\n"
-                        "or a\n"
-                        "ld bc,%s\n"
-                        "sbc hl,bc\n"
-                        "pop hl",num);
+                fprintf(fpz,
+                        "    push hl\n"
+                        "    or a\n"
+                        "    ld bc,%s\n"
+                        "    sbc hl,bc\n"
+                        "    pop hl",num);
             }
             else if (startsWith(line,"cmp al,"))
             {
                 getSubstr(num,line,7,-1);
-                fprintf(fpz, "ld a,l\n"
-                             "cp %s",num);
+                fprintf(fpz,
+                        "    ld a,l\n"
+                        "    cp %s",num);
             }
             
         }
@@ -426,11 +466,11 @@ int process(FILE* fp, FILE* fpz)
         else if (startsWith(line, "mov"))
         {
             if (inStr(line,4,"esp"))
-                fprintf(fpz,"ld sp,iy");
+                fprintf(fpz,"    ld sp,iy");
             else if (inStr(line,4,"ebp"))
             {
-                fprintf(fpz,"ld iy,0\n");
-                fprintf(fpz,"add iy,sp");
+                fprintf(fpz,"    ld iy,0\n");
+                fprintf(fpz,"    add iy,sp");
             }
             // mov [ebp+number],eax
             else if (inStr(line,4,"[ebp"))
@@ -438,8 +478,8 @@ int process(FILE* fp, FILE* fpz)
                 i=getInd(line,']');
                 getSubstr(num,line,8,i-1);
                 n=strtol(num, &endptr, 0);
-                fprintf(fpz,"ld (iy%+d),l\n",n);
-                fprintf(fpz,"ld (iy%+d),h",n+1);
+                fprintf(fpz,"    ld (iy%+d),l\n",n);
+                fprintf(fpz,"    ld (iy%+d),h",n+1);
             }
             else if (inStr(line,4,"eax"))
             {
@@ -449,29 +489,30 @@ int process(FILE* fp, FILE* fpz)
                     i=getInd(line,']');
                     getSubstr(num,line,12,i-1);
                     n=strtol(num, &endptr, 0);
-                    fprintf(fpz,"ld l,(iy%+d)\n",n);
-                    fprintf(fpz,"ld h,(iy%+d)",n+1);
+                    fprintf(fpz,"    ld l,(iy%+d)\n",n);
+                    fprintf(fpz,"    ld h,(iy%+d)",n+1);
                 }
                 // mov eax,[eax]
                 else if (inStr(line,7,",[eax]"))
                 {
-                    fprintf(fpz,"ld c,(hl)\n");
-                    fprintf(fpz,"inc hl\n");
-                    fprintf(fpz,"ld b,(hl)\n");
-                    fprintf(fpz,"push bc\n");
-                    fprintf(fpz,"pop hl");
+                    fprintf(fpz,"    ld c,(hl)\n");
+                    fprintf(fpz,"    inc hl\n");
+                    fprintf(fpz,"    ld b,(hl)\n");
+                    fprintf(fpz,"    push bc\n");
+                    fprintf(fpz,"    pop hl");
                 }
                 // mov eax,ecx
                 else if (inStr(line,7,",ecx"))
                 {
-                    fprintf(fpz,"push de\n"
-                                "pop hl");
+                    fprintf(fpz,
+                            "    push de\n"
+                            "    pop hl");
                 }
                 // mov eax,offset label
                 else if (inStr(line,7,",offset"))
                 {
                     getSubstr(label,line,15,-1);
-                    fprintf(fpz,"ld hl,%s",label);
+                    fprintf(fpz,"    ld hl,%s",label);
                 }
                 // mov eax,label
                 // mov eax,number
@@ -480,12 +521,12 @@ int process(FILE* fp, FILE* fpz)
                     if (isdigit(line[8]))
                     {
                         getSubstr(num,line,8,-1);
-                        fprintf(fpz,"ld hl,%s",num);
+                        fprintf(fpz,"    ld hl,%s",num);
                     }
                     else
                     {
                         getSubstr(label,line,8,-1);
-                        fprintf(fpz,"ld hl,(%s)",label);                        
+                        fprintf(fpz,"    ld hl,(%s)",label);                        
                     }
                 }
                 
@@ -494,14 +535,14 @@ int process(FILE* fp, FILE* fpz)
             {
                 // mov [eax],cl
                 if (inStr(line,10,"cl"))
-                    fprintf(fpz,"ld (hl),e");
+                    fprintf(fpz,"    ld (hl),e");
                 // mov [eax],ecx
                 else  if (inStr(line,10,"ecx"))
                 {
-                    fprintf(fpz,"ld (hl),e\n");
-                    fprintf(fpz,"inc hl\n");
-                    fprintf(fpz,"ld (hl),d\n");
-                    fprintf(fpz,"dec hl");
+                    fprintf(fpz,"    ld (hl),e\n");
+                    fprintf(fpz,"    inc hl\n");
+                    fprintf(fpz,"    ld (hl),d\n");
+                    fprintf(fpz,"    dec hl");
                 }
             }
             else if (inStr(line,4,"ecx"))
@@ -509,39 +550,42 @@ int process(FILE* fp, FILE* fpz)
                 // mov ecx,eax
                 if (inStr(line,8,"eax"))
                 {
-                    fprintf(fpz,"push hl\n");
-                    fprintf(fpz,"pop de");
+                    fprintf(fpz,"    push hl\n");
+                    fprintf(fpz,"    pop de");
                 }
                 else if (inStr(line,8,"[eax]"))
                 {
-                    fprintf(fpz,"ld e,(hl)\n"
-                           "inc hl\n"
-                           "ld d,(hl)\n"
-                           "dec hl");
+                    fprintf(fpz,
+                            "    ld e,(hl)\n"
+                            "    inc hl\n"
+                            "    ld d,(hl)\n"
+                            "    dec hl");
                 }
                 // mov ecx,edx
                 else if (inStr(line,8,"edx"))
                 {
-                    fprintf(fpz,"push bc\n"
-                                "pop de");
+                    fprintf(fpz,
+                            "    push bc\n"
+                            "    pop de");
                 }
                 // mov ecx,number
                 else
                 {
                     getSubstr(num,line,8,-1);
-                    fprintf(fpz,"ld de,%s",num);
+                    fprintf(fpz,"    ld de,%s",num);
                 }
             } // begin with [ecx]
             else if (inStr(line,4,"[ecx]"))
             {
                 if (inStr(line,10,"al"))
-                    fprintf(fpz,"ld (de),a");
+                    fprintf(fpz,"    ld (de),a");
                 else if (inStr(line,10,"eax"))
                 {
-                    fprintf(fpz,"push de\n"
-                                "pop ix\n"
-                                "ld (ix+0),l\n"
-                                "ld (ix+1),h");
+                    fprintf(fpz,
+                            "    push de\n"
+                            "    pop ix\n"
+                            "    ld (ix+0),l\n"
+                            "    ld (ix+1),h");
                 }
             }
             else if (inStr(line,4,"al"))
@@ -550,25 +594,27 @@ int process(FILE* fp, FILE* fpz)
                 {
                     i=getInd(line,']');
                     getSubstr(num,line,11,i-1);
-                    fprintf(fpz,"ld l,(iy%s)",num);
+                    fprintf(fpz,"    ld l,(iy%s)",num);
                 }
                 else if (inStr(line,7,"[eax]"))
-                    fprintf(fpz,"ld l,(hl)");
+                    fprintf(fpz,"    ld l,(hl)");
                 else if (inStr(line,7,"cl"))
-                    fprintf(fpz,"ld l,e");
+                    fprintf(fpz,"    ld l,e");
                 else
                 {
                     getSubstr(num,line,7,-1);
                     if (isdigit(line[7]))
-                        fprintf(fpz,"ld l,%s",num);
+                        fprintf(fpz,"    ld l,%s",num);
+                    else if (inStr(line,7,"'\\n'"))
+                        fprintf(fpz,"    ld l,10 ; newline");
                     else if (line[7]=='\'')
-                        fprintf(fpz,"ld l,%s",num);
+                        fprintf(fpz,"    ld l,%s",num);
                     else
-                        fprintf(fpz,"ld l,(%s)",num);                    
+                        fprintf(fpz,"    ld l,(%s)",num);                    
                 }
             }
             else if (inStr(line,4,"cl"))
-                fprintf(fpz,"ld e,(hl)");
+                fprintf(fpz,"    ld e,(hl)");
         }  // end mov
 
 

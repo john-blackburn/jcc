@@ -11,7 +11,7 @@ iy is restored on return, alternate registers not used
 
 .globl
     (nothing)
-
+    
 not al
     ld a,l
     cpl
@@ -183,23 +183,17 @@ sub al,cl
     sub e
     ld l,a
     
-imul eax,ecx
-    call imul_hlde
+[i]mul eax,ecx
+    call mul_hlde
 
-imul al,cl
-    call imul_le
+[i]mul al,cl
+    call mul_le
 
 idiv eax,ecx
     call idiv_hlde
 
 idiv al,cl
     call idiv_le
-
-mul eax,ecx
-    call mul_hlde
-
-mul al,cl
-    call mul_le
 
 div eax,ecx
     call div_hlde
@@ -269,7 +263,7 @@ imul ecx,number
 idiv ecx,number
     ld bc,number
     call idiv
-
+    
 mov esp,ebp
     ld sp,iy
 
@@ -304,6 +298,10 @@ mov eax,label
 
 mov eax,number
     ld hl,number
+
+mov eax,edx
+    push ix
+    pop hl
 
 mov [eax],cl
     ld (hl),e
