@@ -1,0 +1,392 @@
+_puts:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld l,(iy+4)   ; pointer to text
+    ld h,(iy+5)
+
+    push hl
+    pop ix
+
+_puts_start:
+    ld a,(ix+0)
+    cp 0
+        
+    jp z, _puts_done
+    
+    cp '\'
+    jr nz,_puts_not_nl
+
+    ld a,(ix+1)
+    cp 'n'
+    
+    jr nz, not_nl
+
+    ld hl,(_putchar_pos)    
+    ld bc,32    ; \n
+    add hl,bc
+    ld a,l
+    and %11100000
+    ld l,a
+    ld (_putchar_pos),hl
+    
+    inc ix
+    inc ix
+    
+    jr _puts_start
+
+_puts_not_nl:
+    ld a,(ix+0)
+    ld hl,(_putchar_pos)
+
+    call asc   ; bc points to glyph
+
+    ld a,00111001b  ; ink 1, paper 7, not bright, not flash
+    call print
+    
+    inc hl
+    inc ix
+
+    ld (_putchar_pos),hl
+    
+    jp _puts_start    
+
+_puts_done:
+    ld sp,iy
+    pop iy
+
+    ret
+
+; ========================================================
+
+; set Z if 'd' or 'p'
+_isdp:
+    cp 'd'
+    ret z
+    cp 'p'
+    ret
+    
+_printf_buf ds 4
+_printf:
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    ld l,(iy+4)   ; pointer to text
+    ld h,(iy+5)
+
+    push hl
+    pop ix
+    
+    push iy
+    pop hl
+
+    ld bc,6
+    add hl,bc
+    push hl     ; store arg to use for conversions
+
+start:
+    ld a,(ix+0)
+    cp 0
+        
+    jp z, done
+    
+    cp '\'
+    jr nz, not_nl
+
+    ld a,(ix+1)
+    cp 'n'
+    
+    jr nz, not_nl
+
+    ld hl,(_putchar_pos)    
+    ld bc,32    ; \n
+    add hl,bc
+    ld a,l
+    and %11100000
+    ld l,a
+    ld (_putchar_pos),hl
+    
+    inc ix
+    inc ix
+    
+    jr start
+    
+not_nl:
+
+    ld a,(ix+0)
+    cp '%'
+    jr nz,not_percent
+
+    ld a,(ix+1)    
+    call _isdp
+    jr nz,not_percentd
+    
+; %d, %p
+
+    pop hl    
+    ld e,(hl)   ; next arg
+    inc hl
+    ld d,(hl)
+    inc hl
+    push hl
+    
+    ld hl,_printf_buf
+    
+    ld a,d
+    call u8toh
+    
+    ld a,e
+    call u8toh
+
+    ld hl,(_putchar_pos)
+    
+    ld a,(_printf_buf)
+    call asc
+    ld a,00111001b
+    call print    
+    inc hl
+
+    ld a,(_printf_buf+1)
+    call asc
+    ld a,00111001b
+    call print
+    inc hl
+
+    ld a,(_printf_buf+2)
+    call asc
+    ld a,00111001b
+    call print    
+    inc hl
+
+    ld a,(_printf_buf+3)
+    call asc
+    ld a,00111001b
+    call print
+    inc hl
+    
+    ld (_putchar_pos),hl
+    
+    inc ix
+    inc ix
+    
+    jp start
+    
+not_percentd:
+
+    cp 's'     ; %s
+    
+    jr nz,not_percent
+    
+; %s
+
+    pop hl
+    ld e,(hl)
+    inc hl
+    ld d,(hl)
+    inc hl
+    push hl
+
+    push ix  ; store
+    push de    
+
+    call _puts
+
+    pop de    ; clean stack
+    pop ix
+    
+    inc ix
+    inc ix
+        
+    jp start
+            
+not_percent:
+
+    ld a,(ix+0)
+    ld hl,(_putchar_pos)
+
+    call asc   ; bc points to glyph
+
+    ld a,00111001b  ; ink 1, paper 7, not bright, not flash
+    call print
+    
+    inc hl
+    inc ix
+
+    ld (_putchar_pos),hl
+    
+    jp start    
+
+done:
+    pop hl
+    
+    ld sp,iy
+    pop iy
+
+    ret
+    
+; =======================================================
+
+_putchar_pos: dw 0
+_putchar:
+
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    ld hl,(_putchar_pos)
+    
+    ld a,(iy+4)   ; ascii
+    
+    cp 10
+    jr nz, skip
+    
+    ld bc,32
+    add hl,bc
+    ld a,l
+    and %11100000
+    ld l,a
+    ld (_putchar_pos),hl
+
+    ld sp,iy
+    pop iy
+
+    ret
+    
+skip:
+    
+    call asc   ; bc points to glyph
+
+    ld a,00111001b  ; ink 1, paper 7, not bright, not flash
+    call print
+    
+    inc hl
+    
+    ld (_putchar_pos),hl
+    
+    ld sp,iy
+    pop iy
+
+    ret
+
+; ----------------------------------------------------------------
+; convert A to hex string and store in string at HL. Increase HL
+; destroys BC
+; ----------------------------------------------------------------
+
+u8toh:
+        ld c,-16
+        call u8toh1
+        ld c,-1
+u8toh1: ld  b,'0'-1 ; 47
+u8toh2: inc b
+        add a,c
+        jr c,u8toh2
+        sub c
+
+        push af
+        ld a,b    ; if (a>=58) a+=7; (jump past if a<58)
+        cp 58     ; a=48 carry ... a=57 carry, a=58 no carry
+        jr c, u8toh3
+        add a,7     ; 65 - 58
+u8toh3: ld b,a
+        pop af
+
+        ld (hl),b               ; digit in b
+        inc hl
+        ret
+
+; ----------------------------------------------------------------
+; SPECTRUM SPECIFIC and affects IX
+; These print routines from Cliffhanger in INPUT magazine.
+; I could have used ROM RSTs but don't like them!
+; "me" prints text string (data: IX) length "B" on the screen at position "HL", colour "A". 
+; increases ix and hl so can be called multiple times to print more text
+; "cl" clears the screen but doesn't change attributes
+; "print" draws a single UDG at HL, colour A, glyph data at BC. Can also be used for simple Sprites
+; ----------------------------------------------------------------
+
+me    push bc
+      push af
+      ld a,(ix+0)
+      call asc
+      pop af
+      call print
+      inc hl
+      inc ix
+      pop bc
+      djnz me
+      ret
+
+asc   push hl        ; helper routine used by "me"
+      ld hl,15608    ; beginning of char set glyphs in Spectrum ROM
+      ld de,8
+      ld b,31
+      sub b
+ash   add hl,de
+      dec a
+      jr nz,ash
+      push hl
+      pop bc
+      pop hl
+      ret
+
+cl    ld ix,16384    ; beginning of screen memory
+      ld hl,6144     ; length of screen memory excl. attributes
+      ld a,0
+clp   ld (ix+0),a
+      inc ix
+      dec hl
+      push hl
+      ld de,0
+      sbc hl,de
+      pop hl
+      jr nz,clp
+      ret
+
+print push af         ; helper used by "me" and extensively below
+      push hl         ; Draw single UDG at HL, colour a, gfx data at BC
+      push bc
+      push hl
+      pop de
+      ld a,d
+      cp 1
+      jr c,next
+      push de
+      ld de,1792
+      add hl,de
+      pop de
+      ld a,d
+      cp 1
+      jr z,next
+      push de
+      ld de,1792
+      add hl,de
+      pop de
+next  push de
+      ld de,16384
+      add hl,de
+      pop de
+      ld a,8
+      pop bc
+      push af
+rpt   ld a,(bc)   ; INPUT used 'rept' but we can't as it seems to be an assembler directive
+      ld (hl),a
+      inc h
+      inc bc
+      pop af
+      dec a
+      jr z,exit
+      push af
+      jr rpt
+exit  pop hl
+      pop af      ; passed in value of A
+      push de
+      ld de,22528 ; beginning of attributes area
+      add hl,de
+      pop de
+      ld (hl),a
+      push de
+      pop hl
+      ret

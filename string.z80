@@ -1,0 +1,22 @@
+_strlen:
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    ld c,(iy+4)
+    ld b,(iy+5)
+    ld hl,0
+
+_strlen_loop:    
+    ld a,(bc)
+    cp 0
+    jr z,_strlen_done
+    inc bc
+    inc hl
+    jr _strlen_loop
+
+_strlen_done:
+    ld sp,iy
+    pop iy
+
+    ret

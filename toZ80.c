@@ -289,7 +289,7 @@ int process(FILE* fp, FILE* fpz)
                 }
             }
             else if (inStr(line,4,"eax,ecx"))
-                fprintf(fpz,"%s",add ? "    add hl,de":"or a\n    sbc hl,de");
+                fprintf(fpz,"%s",add ? "    add hl,de":"    or a\n    sbc hl,de");
         }
 
 // ----------------------------------------------------------
@@ -340,11 +340,11 @@ int process(FILE* fp, FILE* fpz)
         else if (startsWith(line,"and") || startsWith(line,"or") || startsWith(line,"xor"))
         {
             if (startsWith(line,"and"))
-                op=1;
+                op=0;
             else if (startsWith(line,"or"))
-                op=2;
+                op=1;
             else
-                op=3;
+                op=2;
             
             if (inStr(line,4,"eax,ecx"))
             fprintf(fpz,
@@ -668,6 +668,8 @@ int main(int argc, char **argv)
     fclose(fps);
 
     fprintf(fpz,"include \"z80lib.z80\"\n");
+    fprintf(fpz,"include \"stdio.z80\"\n");
+    fprintf(fpz,"include \"string.z80\"\n");
 
     fclose(fpz);
     

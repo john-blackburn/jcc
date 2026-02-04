@@ -3839,11 +3839,13 @@ _post_conditional:            ; we need this label to jump over e3
     {
         fprintf(fps,"mov ecx,[ebp+%d]\n",2*PTR_SIZE);
         // memcpy(ecx,eax,sizeOf(type1));
-        fprintf(fps,"push %d\n",sizeOf(type1, node));
-        fprintf(fps,"push eax\n");
-        fprintf(fps,"push ecx\n");
-        fprintf(fps,"call _memcpy\n");
-        fprintf(fps,"add esp,%d\n",3*PTR_SIZE);
+        
+        fprintf(fps,"mov edi,ecx\n");
+        fprintf(fps,"mov esi,eax\n");
+        fprintf(fps,"mov ecx,%d\n",sizeOf(type1,node));
+        fprintf(fps,"cld\n");
+        fprintf(fps,"rep movsb\n");
+        
         fprintf(fps,"mov eax,[ebp+%d]\n",2*PTR_SIZE);
     }
 
@@ -3946,13 +3948,12 @@ _post_conditional:            ; we need this label to jump over e3
 
         // memcpy(esp,eax,sizeOf(type1));
         
-        fprintf(fps,"mov ecx,esp\n");       // store esp as we are about to change it
-        fprintf(fps,"push %d\n",size);
-        fprintf(fps,"push eax\n");
-        fprintf(fps,"push ecx\n");
-        fprintf(fps,"call _memcpy\n");
-        fprintf(fps,"add esp,%d\n",3*PTR_SIZE);
-
+        fprintf(fps,"mov edi,esp\n");
+        fprintf(fps,"mov esi,eax\n");
+        fprintf(fps,"mov ecx,%d\n",size);
+        fprintf(fps,"cld\n");
+        fprintf(fps,"rep movsb\n");
+        
       }
     }
 
@@ -4064,12 +4065,14 @@ _post_conditional:            ; we need this label to jump over e3
         if (isStructOrUnion(type1))
         {
             // memcpy(ebp-offset,eax,sizeOf(type1));
+            
             fprintf(fps,"lea ecx,[ebp%+d]\n",g_offset);
-            fprintf(fps,"push %d\n",sizeOf(type1, node));
-            fprintf(fps,"push eax\n");
-            fprintf(fps,"push ecx\n");
-            fprintf(fps,"call _memcpy\n");
-            fprintf(fps,"add esp,%d\n",3*PTR_SIZE);
+
+            fprintf(fps,"mov edi,ecx\n");
+            fprintf(fps,"mov esi,eax\n");
+            fprintf(fps,"mov ecx,%d\n",sizeOf(type1,node));
+            fprintf(fps,"cld\n");
+            fprintf(fps,"rep movsb\n");
 
             varType = type1;
         }        
@@ -4222,12 +4225,13 @@ ed: if (found==0)
             exit(1);
         }
         // memcpy(ecx,eax,sizeOf(type1));
-        fprintf(fps,"push %d\n",sizeOf(type1, node));
-        fprintf(fps,"push eax\n");
-        fprintf(fps,"push ecx\n");
-        fprintf(fps,"call _memcpy\n");
-        fprintf(fps,"add esp,%d\n",3*PTR_SIZE);
-
+        
+        fprintf(fps,"mov edi,ecx\n");
+        fprintf(fps,"mov esi,eax\n");
+        fprintf(fps,"mov ecx,%d\n",sizeOf(type1,node));
+        fprintf(fps,"cld\n");
+        fprintf(fps,"rep movsb\n");
+        
         return type1;
     }
 
