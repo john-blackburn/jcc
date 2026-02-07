@@ -1,4 +1,14 @@
     org 40000
+    
+    ld hl,123
+    push hl
+    call _int2float
+    pop bc
+    
+    push hl
+    call _float2int
+    pop bc
+    ret
 
     ld hl,%0011111000000000 ; 1.5
     ld de,%0011111000000000 ; 1.5

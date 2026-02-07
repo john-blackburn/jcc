@@ -493,6 +493,7 @@ struct Node *parse_exp();
 char* ops[]={"add","sub","imul","idiv","idiv","and","or","xor"};
 
 int PTR_SIZE=4;
+char *float1="3f800000";
 int z80=0;
 
 // ######################################################################
@@ -3849,7 +3850,7 @@ _post_conditional:            ; we need this label to jump over e3
         fprintf(fps,"mov eax,[ebp+%d]\n",2*PTR_SIZE);
     }
 
-    if (isFloat(type1))
+    if (!z80 && isFloat(type1))
     {
         fprintf(fps,"mov [_float_temp],eax\n");
         fprintf(fps,"FLD dword ptr [_float_temp]\n");
@@ -3920,10 +3921,13 @@ _post_conditional:            ; we need this label to jump over e3
           }
           else if (isFloat(type1))  // vararg and float so promote to double
           {
-              fprintf(fps,"push eax\n");
-              fprintf(fps,"call _float2double\n");
-              fprintf(fps,"add esp,%d\n", PTR_SIZE);                  
-              isDouble=1;
+              if (!z80)
+              {
+                  fprintf(fps,"push eax\n");
+                  fprintf(fps,"call _float2double\n");
+                  fprintf(fps,"add esp,%d\n", PTR_SIZE);                  
+                  isDouble=1;
+              }
           }
       }
 
@@ -3937,8 +3941,11 @@ _post_conditional:            ; we need this label to jump over e3
       
       if (isDouble)
       {
-          fprintf(fps,"push edx\n");   // hi byte
-          fprintf(fps,"push eax\n");   // lo byte at lower memory
+          if (!z80)
+          {
+              fprintf(fps,"push edx\n");   // hi byte
+              fprintf(fps,"push eax\n");   // lo byte at lower memory
+          }
       }
       else if (paddedSize==PTR_SIZE) // int, pointer, array, char (we push 4 bytes)
         fprintf(fps,"push eax\n");
@@ -3987,7 +3994,7 @@ _post_conditional:            ; we need this label to jump over e3
 
 
     // if function returns float get return value from st(0) into eax    
-    if (strcmp(varType.data,"float")==0)    
+    if (!z80 && strcmp(varType.data,"float")==0)    
     {
         fprintf(fps,"FSTP dword ptr [_float_temp]\n");
         fprintf(fps,"mov eax,[_float_temp]\n");
@@ -4505,7 +4512,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     {
         fprintf(fps,"push eax\n");  // lvalue
         fprintf(fps,"mov eax,[eax]\n");
-        fprintf(fps,"mov ecx,3f800000\n"); // 1.0
+        fprintf(fps,"mov ecx,%s\n",float1); // 1.0
         fprintf(fps,"push ecx\n");
         fprintf(fps,"push eax\n");        
         fprintf(fps,"call _f%s\n", (node->type==INC) ? "add": "sub");
@@ -4541,7 +4548,7 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
         fprintf(fps,"push eax\n");  // lvalue
         fprintf(fps,"mov eax,[eax]\n");
         fprintf(fps,"mov edx,eax\n");  // store for expression value
-        fprintf(fps,"mov ecx,3f800000\n"); // 1.0
+        fprintf(fps,"mov ecx,%s\n",float1); // 1.0
         fprintf(fps,"push ecx\n");
         fprintf(fps,"push eax\n");        
         fprintf(fps,"call _f%s\n", (node->type==INC_AFTER) ? "add": "sub");
@@ -5066,6 +5073,7 @@ int main(int argc, char **argv)
   int exeSet=0;
   z80=0;
   PTR_SIZE=4;
+  float1="3f800000";
   
   char* fname = NULL;
   char exename[64]; // name of exe eg foo.exe
@@ -5092,6 +5100,7 @@ int main(int argc, char **argv)
       {
           z80=1;
           PTR_SIZE=2;
+          float1="3c00";
       }
       else if (argv[i][0]=='-' && argv[i][1]=='o')
       {

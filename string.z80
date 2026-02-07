@@ -1,3 +1,6 @@
+; strlen
+; strcpy
+
 _strlen:
     push iy
     ld iy,0
@@ -16,6 +19,33 @@ _strlen_loop:
     jr _strlen_loop
 
 _strlen_done:
+    ld sp,iy
+    pop iy
+
+    ret
+
+; strcpy(dest,source)
+_strcpy:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld e,(iy+4)
+    ld d,(iy+5)
+    
+    ld l,(iy+6)
+    ld h,(iy+7)
+
+_strcpy_loop:    
+    ld a,(hl)
+    ld (de),a
+    inc hl
+    inc de
+    
+    cp 0
+    
+    jr nz,_strcpy_loop
+        
     ld sp,iy
     pop iy
 

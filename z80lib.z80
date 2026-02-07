@@ -634,6 +634,232 @@ _fadd_end:
     ret
 
 ; ----------------------------------------------------
+; _fneg
+; ----------------------------------------------------
+    
+_fneg:
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    ld l,(iy+4)
+    ld h,(iy+5)
+    
+    ld a,h
+    xor %10000000
+    ld h,a
+
+    ld sp,iy
+    pop iy
+    ret
+    
+; ----------------------------------------------------
+; _int2float
+; (iy+4)
+;  HL
+; return HL as float
+; ----------------------------------------------------
+
+_first1:
+    ld b,29   ; exponent is 29 2^(29-15) = 16384
+    bit 6,h
+    ret nz
+
+    ld b,28
+    bit 5,h
+    ret nz
+
+    ld b,27
+    bit 4,h
+    ret nz
+
+    ld b,26
+    bit 3,h
+    ret nz
+
+    ld b,25
+    bit 2,h
+    ret nz
+
+    ld b,24
+    bit 1,h
+    ret nz
+    
+    ld b,23
+    bit 0,h
+    ret nz
+
+    ld b,22
+    bit 7,l
+    ret nz
+
+    ld b,21
+    bit 6,l
+    ret nz
+
+    ld b,20
+    bit 5,l
+    ret nz
+
+    ld b,19
+    bit 4,l
+    ret nz
+
+    ld b,18
+    bit 3,l
+    ret nz
+
+    ld b,17
+    bit 2,l
+    ret nz
+
+    ld b,16
+    bit 1,l
+    ret nz
+    
+    ld b,15  ; exponent is 15 2^(15-15)=1
+    ret
+        
+_int2float:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld l,(iy+4)
+    ld h,(iy+5)
+    
+    ld c,0   ; sign bit is 0
+    bit 7,h
+    jr z, i2f_pos
+    
+    ld c,%10000000   ; sign bit is 1
+
+    ld a,h  ; make int positive with 2s complement
+    cpl
+    ld h,a
+    
+    ld a,l
+    cpl
+    ld l,a
+    inc hl
+    
+i2f_pos:
+    
+    call _first1  ; get exponent in b based on first 1 in hl
+    ld a,25
+    sub b         ; b=[15,29]
+    
+    jr z,i2f_shiftdone
+    
+    bit 7,a
+    jr z,i2f_leftloop
+    
+    neg
+
+i2f_rightloop:
+    sra h
+    rr l
+    dec a
+    jr nz,i2f_rightloop    
+    jr i2f_shiftdone
+
+i2f_leftloop:
+    sla l
+    rl h
+    dec a
+    jr nz,i2f_leftloop
+    
+i2f_shiftdone:
+
+    sla b
+    sla b
+    
+    res 2,h   ; remove leading 1
+    
+    ld a,h
+    or b    ; exponent
+    or c    ; sign
+    
+    ld h,a
+
+    ld sp,iy
+    pop iy
+    ret
+
+; ----------------------------------------------------
+; _float2int
+; (iy+4)
+;  BHL
+; return HL as int
+; ----------------------------------------------------
+        
+_float2int:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld b,(iy+5)
+    ld l,(iy+4)
+    ld h,(iy+5)
+    
+    ld c,0    ; negative?
+    bit 7,b
+    jr z,_f2i_pos
+    ld c,1
+_f2i_pos:
+    ld a,b
+    and %01111100
+    ld b,a
+    sra b
+    sra b    ; b is now the exponent value (1-30)
+
+    ld a,h
+    and %00000011
+    ld h,a   ; hl stores actual mantissa
+    set 2,h   ; set leading 1
+    
+    ld a,25
+    sub b    ; a is number of places we need to shift to the right
+            
+    cp 0
+    jr z, shiftdone
+
+    bit 7,a
+    jr z,rightloop
+    neg
+
+leftloop:
+    sla l
+    rl h
+    dec a
+    jr nz,leftloop
+    jr shiftdone
+        
+rightloop:
+    sra h
+    rr l
+    dec a
+    jr nz,rightloop    
+
+shiftdone:    
+    dec c   ; c=1, was negative
+    jr nz,_f2i_end
+    
+    ld a,h  ; make int negative with 2s complement
+    cpl
+    ld h,a
+    
+    ld a,l
+    cpl
+    ld l,a
+    inc hl
+
+_f2i_end:
+    ld sp,iy
+    pop iy
+    ret
+    
+; ----------------------------------------------------
 ; _imul_HLDE
 ; imul hl,de
 ; hl = hl*de

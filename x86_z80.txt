@@ -4,14 +4,34 @@ al -> l
 cl -> e (low byte of de)
 ebp -> iy
 esp -> sp
+edx -> ix (edx returns remainder from [i]div)
 
-a, bc, ix: temp storage
+a, bc: temp storage
 
 iy is restored on return, alternate registers not used
 
 .globl
     (nothing)
+
+rep movsb
+    ldir
     
+mov edi,ecx
+    (nothing)
+
+; dont corrupt hl    
+mov edi,esp
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    
+mov esi,eax
+    (nothing)
+    
+cld
+    (nothing)
+
 not al
     ld a,l
     cpl
@@ -255,14 +275,18 @@ call label
 movzx eax,al
     ld h,0
 
-; dont corrupt eax
-imul ecx,number
-    ld bc,number
-    call imul
+; dont corrupt hl
+[i]mul ecx,number
+    push hl
+    ld hl,number
+    call mul_hlde
+    push hl
+    pop de
+    pop hl
 
-idiv ecx,number
+[i]div ecx,number
     ld bc,number
-    call idiv
+    call idiv_hlde
     
 mov esp,ebp
     ld sp,iy
@@ -324,11 +348,12 @@ mov ecx,[eax]
     dec hl
 
 mov ecx,edx
-    push bc
+    push ix
     pop de
 
 mov ecx,number
     ld de,number
+    ; EXCEPTION: if previous mov esi,eax ld bc,number
 
 mov [ecx],al
     ld a,l
@@ -339,6 +364,10 @@ mov [ecx],eax
     pop ix
     ld (ix+0),l
     ld (ix+1),h
+    
+mov edx,eax
+    push hl
+    pop ix
 
 mov al,[eax]
     ld l,(hl)

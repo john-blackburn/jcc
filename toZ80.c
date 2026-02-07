@@ -68,6 +68,14 @@ int getInd(char *s, char c)
     return -1;
 }
 
+int lineno=0;
+
+void fail(char *msg)
+{
+    printf("%s, line %d\n",msg,lineno);
+    exit(1);
+}
+
 int process(FILE* fp, FILE* fpz)
 {
     
@@ -77,9 +85,12 @@ int process(FILE* fp, FILE* fpz)
     char reg[100], num[100], label[100];
     char *endptr = NULL;
 
+    int wasESI=0;
+    lineno=0;
     while(fgets(line,100,fp)!=NULL)
     {
-        
+        ++lineno;   
+
         // remove newline from end of line
         p=strchr(line,'\n');
         if (p!=NULL) *p='\0';
@@ -137,6 +148,17 @@ int process(FILE* fp, FILE* fpz)
             getSubstr(num,line,7,-1);
             printf("%s",num);
             fprintf(fpz,"    db %s,0",num);
+        }
+        
+// ----------------------------------------------------------
+// CLD and REP MOVSB
+// ----------------------------------------------------------
+        
+        else if (startsWith(line,"rep movsb"))
+            fprintf(fpz,"    ldir");
+        else if (startsWith(line,"cld"))
+        {
+            continue;
         }
         
 // ----------------------------------------------------------
@@ -198,12 +220,15 @@ int process(FILE* fp, FILE* fpz)
             {
                 i=getInd(line,']');
                 getSubstr(num,line,12,i-1);
+                n=strtol(num,&endptr,0);
                 fprintf(fpz,
                         "    push iy\n"
                         "    pop hl\n"
-                        "    ld bc,%s\n"
-                        "    add hl,bc",num);
+                        "    ld bc,%d\n"
+                        "    add hl,bc",n);
             }            
+            else
+                fail("unknown LEA");
         }
 
 // ----------------------------------------------------------
@@ -228,6 +253,8 @@ int process(FILE* fp, FILE* fpz)
                        "    ld (hl),b\n"
                        "    dec hl\n"
                        "    ld (hl),c", inc ? "inc":"dec");
+            else
+                fail("unknown INC or DEC");
         }
 
 // ----------------------------------------------------------
@@ -275,7 +302,7 @@ int process(FILE* fp, FILE* fpz)
                 n=strtol(num, &endptr, 0);
                 if (n<=20)
                     for (i=0;i<n/2;i++)
-                        fprintf(fpz,"    pop bc%s",(i==n/2-1) ? "":"\n");
+                        fprintf(fpz,"    %s bc%s", add ? "pop":"push", (i==n/2-1) ? "":"\n");
                 else
                 {
                     fprintf(fpz,
@@ -290,6 +317,8 @@ int process(FILE* fp, FILE* fpz)
             }
             else if (inStr(line,4,"eax,ecx"))
                 fprintf(fpz,"%s",add ? "    add hl,de":"    or a\n    sbc hl,de");
+            else
+                fail("unknown ADD or SUB");
         }
 
 // ----------------------------------------------------------
@@ -311,6 +340,8 @@ int process(FILE* fp, FILE* fpz)
                         "    ld a,l\n"
                         "    cpl\n"
                         "    ld l,a");
+            else
+                fail("unknown NOT");
         }
 
 // ----------------------------------------------------------
@@ -331,6 +362,8 @@ int process(FILE* fp, FILE* fpz)
                         "    ld hl,0\n"
                         "    or a\n"
                         "    sbc hl,bc\n");
+            else
+                fail("unknown NEG");
         }
 
 // ----------------------------------------------------------
@@ -359,6 +392,8 @@ int process(FILE* fp, FILE* fpz)
                         "    ld a,l\n"
                         "    %s e\n"
                         "    ld l,a", ops[op]);
+            else
+                fail("unknown AND, OR or XOR");
         }
 
 // ----------------------------------------------------------
@@ -382,6 +417,21 @@ int process(FILE* fp, FILE* fpz)
 
         else if (startsWith(line,"div al"))
             fprintf(fpz,"    call _div_le");
+        
+        else if (startsWith(line,"imul ecx,1"))
+        {
+        }
+        
+        else if (startsWith(line,"imul ecx,"))
+        {
+            getSubstr(num,line,9,-1);
+            fprintf(fpz,"    push hl\n"
+                        "    ld hl,%s\n"
+                        "    call _mul_hlde\n"
+                        "    push hl\n"
+                        "    pop de\n"
+                        "    pop hl",num);
+        }
 
 // ----------------------------------------------------------
 // PUSH
@@ -395,7 +445,7 @@ int process(FILE* fp, FILE* fpz)
             else if (strcmp(reg,"eax")==0)
                 fprintf(fpz,"    push hl");
             else
-                fprintf(fpz,"unknown push");
+                fail("unknown PUSH");                
         }
 
 // ----------------------------------------------------------
@@ -412,7 +462,7 @@ int process(FILE* fp, FILE* fpz)
             else if (strcmp(reg,"ecx")==0)
                 fprintf(fpz,"    pop de");
             else
-                fprintf(fpz,"unknown pop");
+                fail("unknown POP");
         }
 
 // ----------------------------------------------------------
@@ -456,7 +506,8 @@ int process(FILE* fp, FILE* fpz)
                         "    ld a,l\n"
                         "    cp %s",num);
             }
-            
+            else
+                fail("unknown CMP");            
         }
 
 // ----------------------------------------------------------
@@ -465,7 +516,23 @@ int process(FILE* fp, FILE* fpz)
 
         else if (startsWith(line, "mov"))
         {
-            if (inStr(line,4,"esp"))
+            if (inStr(line,0,"mov edi,ecx"))
+            {
+                continue;
+            }
+            else if (inStr(line,0,"mov esi,eax"))
+            {
+                wasESI=1;
+                continue;
+            }
+            else if (inStr(line,0,"mov edi,esp"))
+            {
+                fprintf(fpz,"    ld ix,0\n"
+                            "    add ix,sp\n"
+                            "    push ix\n"
+                            "    pop de");
+            }            
+            else if (inStr(line,4,"esp"))
                 fprintf(fpz,"    ld sp,iy");
             else if (inStr(line,4,"ebp"))
             {
@@ -483,8 +550,14 @@ int process(FILE* fp, FILE* fpz)
             }
             else if (inStr(line,4,"eax"))
             {
+                // mov eax,edx
+                if (inStr(line,7,",edx"))
+                {
+                    fprintf(fpz,"    push ix\n"
+                                "    pop hl");
+                }
                 // mov eax,[ebp+NN]
-                if (inStr(line,7,",[ebp"))
+                else if (inStr(line,7,",[ebp"))
                 {
                     i=getInd(line,']');
                     getSubstr(num,line,12,i-1);
@@ -553,6 +626,7 @@ int process(FILE* fp, FILE* fpz)
                     fprintf(fpz,"    push hl\n");
                     fprintf(fpz,"    pop de");
                 }
+                // mov ecx,[eax]
                 else if (inStr(line,8,"[eax]"))
                 {
                     fprintf(fpz,
@@ -565,20 +639,40 @@ int process(FILE* fp, FILE* fpz)
                 else if (inStr(line,8,"edx"))
                 {
                     fprintf(fpz,
-                            "    push bc\n"
+                            "    push ix\n"
                             "    pop de");
                 }
+                // mov ecx,[ebp+8]
+                else if (inStr(line,7,",[ebp"))
+                {
+                    i=getInd(line,']');
+                    getSubstr(num,line,12,i-1);
+                    n=strtol(num, &endptr, 0);
+                    fprintf(fpz,"    ld e,(iy%+d)\n",n);
+                    fprintf(fpz,"    ld d,(iy%+d)",n+1);
+                }
+
                 // mov ecx,number
                 else
                 {
                     getSubstr(num,line,8,-1);
-                    fprintf(fpz,"    ld de,%s",num);
+                    if (wasESI)
+                    {
+                        wasESI=0;
+                        fprintf(fpz,"    ld bc,%s",num);
+                        printf("previous was mov esi,eax, using bc\n");
+                    }
+                    else
+                        fprintf(fpz,"    ld de,%s",num);
                 }
             } // begin with [ecx]
             else if (inStr(line,4,"[ecx]"))
             {
+                // mov [ecx],al
                 if (inStr(line,10,"al"))
-                    fprintf(fpz,"    ld (de),a");
+                    fprintf(fpz,"    ld a,l\n"
+                                "    ld (de),a");
+                // mov [ecx],eax
                 else if (inStr(line,10,"eax"))
                 {
                     fprintf(fpz,
@@ -587,6 +681,11 @@ int process(FILE* fp, FILE* fpz)
                             "    ld (ix+0),l\n"
                             "    ld (ix+1),h");
                 }
+            }
+            else if (inStr(line,4,"edx,eax"))
+            {
+                fprintf(fpz,"    push hl\n"
+                            "    pop ix");
             }
             else if (inStr(line,4,"al"))
             {
@@ -615,8 +714,11 @@ int process(FILE* fp, FILE* fpz)
             }
             else if (inStr(line,4,"cl"))
                 fprintf(fpz,"    ld e,(hl)");
+            else
+                fail("unknown MOV");
         }  // end mov
-
+        else
+            fail("unknown command type");
 
         // trailing comment
         p=strchr(line,'#');
@@ -634,24 +736,57 @@ int process(FILE* fp, FILE* fpz)
 
 int main(int argc, char **argv)
 {    
-    const char *usage="toZ80 name\n";
+    const char *usage="toZ80 name.c\n";
+    char *fname = NULL;
+    int i;
+    char name[64];
 
     if (argc != 2)
     {
         printf("Usage:\n%s\n",usage);
         return 0;
     }
+    
+    fname=argv[1];    
+
+    for (i=strlen(fname)-1; i>=0; i--)
+    {
+        char c = fname[i];
+        if (c=='/' || c=='\\') 
+        {
+            strcpy(name, fname+i+1);
+            break;
+        }
+    }
+
+    if (i<0)
+        strcpy(name,fname);
+
+    for(i=strlen(name);i>=0;i--)
+    {
+        if (name[i]=='.')
+            break;
+    }
+
+    if (i<0) 
+    {
+        printf("toZ80: Expected file ending .c");
+        exit(1);
+    }
 
     char zname[64];
-    strcpy(zname,argv[1]);
+    strcpy(zname,name);
+    zname[i]='\0';
     strcat(zname,".z80");
     
     char dname[64];
-    strcpy(dname,argv[1]);
+    strcpy(dname,name);
+    dname[i]='\0';
     strcat(dname,".d");
 
     char sname[64];
-    strcpy(sname,argv[1]);
+    strcpy(sname,name);
+    sname[i]='\0';
     strcat(sname,".s");
     
 
@@ -670,6 +805,7 @@ int main(int argc, char **argv)
     fprintf(fpz,"include \"z80lib.z80\"\n");
     fprintf(fpz,"include \"stdio.z80\"\n");
     fprintf(fpz,"include \"string.z80\"\n");
+    fprintf(fpz,"_heap:\n");
 
     fclose(fpz);
     
