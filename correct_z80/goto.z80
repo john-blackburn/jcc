@@ -1,0 +1,95 @@
+org 40000
+jp _main
+_string2:
+    db "iteration %d\n",0
+_string3:
+    db "Don't use goto!\n",0
+; =========================================
+; main l=0 o=0 [int] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld hl,0
+    ld (iy-2),l
+    ld (iy-1),h ; declare i (level 1)
+; =========================================
+; i l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+_st:
+    ld hl,10
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end1
+    jp _ed
+_end1:
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    push hl
+    ld hl,_string2
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; i
+    ld e,(hl)
+    inc hl
+    ld d,(hl)
+    dec hl
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    inc bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+    push de
+    pop hl
+    jp _st
+_ed:
+    ld hl,_string3
+    push hl
+    call _printf
+    pop bc
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    push hl
+    pop bc
+    ld sp,iy
+    pop iy
+    ret
+locals_main equ 2
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "string.z80"
+include "ctype.z80"
+include "math.z80"
+_heap:

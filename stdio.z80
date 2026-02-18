@@ -1,6 +1,30 @@
 ; puts
-; putchar
 ; printf
+; sprintf
+; putchar
+; getchar 
+; gets (extra limit argument)
+; sscanf
+
+; stdlib.c:
+; strtol
+; strtod
+; malloc
+; free
+; exit
+
+; math.c:
+; sin
+; cos
+; tan
+; exp
+; log
+; pow
+; sqrt
+
+; -------------------------------------------------------------
+; PUTS(char *p)
+; -------------------------------------------------------------
 
 _puts:
     push iy
@@ -62,7 +86,9 @@ _puts_done:
 
     ret
 
-; ========================================================
+; -------------------------------------------------------------
+; PRINTF
+; -------------------------------------------------------------
 
 ; set Z if 'd' or 'p'
 _isxp:
@@ -179,6 +205,77 @@ not_nl:
     
 not_percentxp:
 
+    cp 'f'   ; %f
+    
+    jr nz,not_percentf
+
+; %f
+
+    pop hl    
+    ld e,(hl)   ; next arg
+    inc hl
+    ld d,(hl)
+    inc hl
+    push hl
+    
+    push de
+    pop hl     ; the float16
+    
+    push ix     ; store
+    
+    ld ix,_printf_buf
+
+    call f16tod
+
+    ld hl,(_putchar_pos)
+
+    ld a,(_printf_buf)   ;  space or minus
+    call asc
+    ld a,00111001b
+    call print
+    inc hl
+    
+    ld a,(_printf_buf+1)   ; first digit might be more than '9'
+    cp '9'+1
+    
+    jr c,skip2
+    
+    ld a,'1'
+    call asc
+    ld a,00111001b
+    call print
+    inc hl
+
+    ld a,(_printf_buf+1)    
+    sub 10
+    
+skip2:
+
+    call asc
+    ld a,00111001b
+    call print
+    inc hl
+    
+    ld a,'.'
+    call asc
+    ld a,00111001b
+    call print
+    inc hl
+    
+    ld (_putchar_pos),hl
+
+    ld ix,_printf_buf+2
+    push ix
+    call _puts
+    pop ix ; clean
+
+    pop ix      ; recover pointer to fmt string
+    inc ix      ; bypass %f
+    inc ix
+    jp start
+    
+not_percentf:
+
     cp 'd'  ; %d
     
     jr nz,not_percentd
@@ -199,7 +296,7 @@ not_percentxp:
     
     ld ix,_printf_buf
 
-    call u16tod
+    call i16tod
     
     pop ix      ; recover pointer to fmt string
     
@@ -335,7 +432,9 @@ done:
 
     ret
     
-; =======================================================
+; -------------------------------------------------------------
+; PUTCHAR
+; -------------------------------------------------------------
 
 _putchar_pos: dw 0
 _putchar:
@@ -378,6 +477,8 @@ _putchar_skip:
     pop iy
 
     ret
+    
+; =====================================================
 
 ; ----------------------------------------------------------------
 ; convert A to hex string and store in string at HL. Increase HL
@@ -410,7 +511,7 @@ u8toh3: ld b,a
 ; convert A to dec string and store in string at HL. Increase HL
 ; destroys A, BC
 ; i8tod: signed char
-; i8tod: unsigned char
+; u8tod: unsigned char
 ; ----------------------------------------------------------------
 
 i8tod:
@@ -486,52 +587,132 @@ u16tod2:
     inc ix
 	ret
 
-; ----------------------------------------------------------------
-; convert HL to hex string and store in string at IX. Increase IX
-; destroys HL, BC, A
-; eg HL=3.5
-; ----------------------------------------------------------------
-
-; a=0                   hl=1.0
-; a=4,  2^4 =   16,    hl=10.0
-; a=7,  2^7 =  128,   hl=100.0
-; a=10, 2^10= 1024,  hl=1000.0
-; a=14, 2^14=16384, hl=10000.0
+; d = log10(2^b) = b log10(2)=0.30103*b
+;
+;  b	d	    floor(d)
+; -14	-4.2	-5  0.00001
+; -13	-3.9	-4
+; -12	-3.6	-4
+; -11	-3.3	-4
+; -10	-3.01	-4	0.0001
+; -9	-2.7	-3
+; -8	-2.4	-3
+; -7	-2.1	-3	0.001
+; -6	-1.8	-2
+; -5	-1.5	-2	
+; -4	-1.2    -2	0.01	2^-4 = 0.0625
+; -3	-0.9	-1	0.1
+; -2	-0.6 	-1	0.1
+; -1	-0.3	-1	0.1
+; 0     0	    0	1
+; 1	    0.3	    0   1
+; 2	    0.6	    0	1
+; 3 	0.9	    0	1
+; 4	    1.2	    1	10
+; 5	    1.5	    1	10
+; 6	    1.8	    1	10
+; 7	    2.1	    2	100
+; 8	    2.4	    2	100
+; 9	    2.7	    2	100
+; 10	3.01	3	1000
+; 11	3.3	    3	1000
+; 12 	3.6	    3	1000
+; 13	3.9	    3  	1000
+; 14	4.12	4	10000
+; 15 	4.5	    4	10000
 
 getdecexp:
-    ld de,0.1
-    cp 0+15
+    ld de,0         ; 0.00001 (shouldn't happen)
+    cp -13+15
     ret c
 
-    ld de,%0 01111 0000000000 ; 1.0
+    ld de,0x068d   ; 0.0001 
+    ld (ix+4),'e'
+    ld (ix+5),'-'
+    ld (ix+6),'4'
+    cp -9+15
+    ret c
+    
+    ld de,0x1418 ; 0.001
+    ld (ix+4),'e'
+    ld (ix+5),'-'
+    ld (ix+6),'3'
+    cp -6+15
+    ret c
+    
+    ld de,0x211e ; 0.01
+    ld (ix+4),'e'
+    ld (ix+5),'-'
+    ld (ix+6),'2'
+    cp -3+15
+    ret c
+    
+    ld de,0x2e66 ; 0.1 0 01011 1001100110
+    ld (ix+4),'e'
+    ld (ix+5),'-'
+    ld (ix+6),'1'
+    cp 0+15
+    ret c
+        
+    ld de,%0011110000000000 ; 1.0
+    ld (ix+4),'e'
+    ld (ix+5),'+'
+    ld (ix+6),'0'
     cp 4+15
     ret c
 
-    ld de,%0 10010 0100000000 ; 10.0
+    ld de,%0100100100000000 ; 10.0
+    ld (ix+4),'e'
+    ld (ix+5),'+'
+    ld (ix+6),'1'
     cp 7+15
     ret c
     
-    ld de,%0 10101 1001000000; 100.0 (1+1/2+1/16)*64 = 64+32+4
+    ld de,%0101011001000000; 100.0 (1+1/2+1/16)*64 = 64+32+4
+    ld (ix+4),'e'
+    ld (ix+5),'+'
+    ld (ix+6),'2'
     cp 10+15
     ret c
 
-    ld de,%0 11000 1111010000  ; 1000.0 (1+1/2+1/4+1/8+1/16+1/64)*512 512+256+128+64+32+8
+    ld de,%0110001111010000  ; 1000.0 (1+1/2+1/4+1/8+1/16+1/64)*512 512+256+128+64+32+8
+    ld (ix+4),'e'
+    ld (ix+5),'+'
+    ld (ix+6),'3'
     cp 14+15
     ret c
     
-    ld de,10000.0
+    ld de,%0111000011100010 ;  10000.0 (1+1/8+1/16+1/32+1/512)*8192 8192+1024+512+256+16
+    ld (ix+4),'e'
+    ld (ix+5),'+'
+    ld (ix+6),'4'
     ret
+    
+; set a (int) to its absolute value
+aabs:
+    bit 7,a
+    ret z
+    neg
+    ret
+
+; ----------------------------------------------------------------
+; convert HL float to dec string and store at IX. Increase IX
+; destroys HL, BC, A
+; eg HL=3.5 (0x4300) -> "3.500e+1"
+; ----------------------------------------------------------------
         
 f16tod:
+
+    ld (ix+0),' '
 
     bit 7,h
     jr z, skipminus
     
-    ld a,'-'
-    ld (ix+0),a
-    inc ix
+    ld (ix+0),'-'
     
 skipminus:
+
+    inc ix
 
     ld a,h
     and %01111100
@@ -540,60 +721,58 @@ skipminus:
         
     call getdecexp   ; eg 2^8 -> 10^2, de=100.0
         
-    push hl
     push de
-    call fdiv  ; hl=hl/10^2 = 3.5 got rid of exponent
+    push hl
+    call _fidiv  ; hl=hl/10^2 = 3.5 got rid of exponent
     pop bc
     pop bc ; clean
 
-    ld b,5
-loop:
+    ld b,4
+f16tod_loop:
     push bc
 
     push hl
-    call float2int  ; hl=3
+    call _float2int  ; hl=3
     ; hl still pushed (3.5)
     ld a,l
+    call aabs
     add a,'0'
     
     ld (ix+0),a   ; ascii
     inc ix
 
     push hl    
-    call int2float ; hl=3.0
+    call _int2float ; hl=3.0
     pop bc
     ex de,hl ; de=3.0
     pop hl ; hl=3.5
     
     push de
     push hl
-    call fsub  ; hl = 0.5
+    call _fsub  ; hl = 0.5
     pop bc
     pop bc ; clean
     
-    ld a,h  ;  nothing left we are done, early return
-    or l
-    ret z
-
     ld d,%01001001
     ld e,0       ; de=10.0
 
     push de
     push hl
-    call fmul  ; hl = 5.0
+    call _fimul  ; hl = 5.0
     pop bc
     pop bc ; clean
 
-    pop bc ; loop counter, max of 5 steps
+    pop bc ; loop counter, 4 sig figs
     
-    djnz loop
-        
+    djnz f16tod_loop
+    
+    ld (ix+3),0  ; end of string
+
     ret
 
 ; ----------------------------------------------------------------
 ; SPECTRUM SPECIFIC and affects IX
 ; These print routines from Cliffhanger in INPUT magazine.
-; I could have used ROM RSTs but don't like them!
 ; "me" prints text string (data: IX) length "B" on the screen at position "HL", colour "A". 
 ; increases ix and hl so can be called multiple times to print more text
 ; "cl" clears the screen but doesn't change attributes
@@ -603,7 +782,7 @@ loop:
 me    push bc
       push af
       ld a,(ix+0)
-      call asc
+      call asc       ; takes A and returns BC, pointer to glyph data
       pop af
       call print
       inc hl
@@ -623,19 +802,6 @@ ash   add hl,de
       push hl
       pop bc
       pop hl
-      ret
-
-cl    ld ix,16384    ; beginning of screen memory
-      ld hl,6144     ; length of screen memory excl. attributes
-      ld a,0
-clp   ld (ix+0),a
-      inc ix
-      dec hl
-      push hl
-      ld de,0
-      sbc hl,de
-      pop hl
-      jr nz,clp
       ret
 
 print push af         ; helper used by "me" and extensively below

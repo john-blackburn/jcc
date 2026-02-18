@@ -1,4 +1,13 @@
     org 40000
+
+    ld hl,%0100001100000000 ; 3.5
+    ld de,%0011110000000000 ; 1.0
+    push de
+    push hl
+    call _fidiv
+    pop bc
+    pop bc
+    ret    
     
     ld hl,123
     push hl
@@ -14,7 +23,7 @@
     ld de,%0011111000000000 ; 1.5
     push de
     push hl
-    call _fmul
+    call _fimul
     pop bc
     pop bc
 
@@ -22,7 +31,7 @@
     ld de,%0011111100000000 ; 1.75
     push de
     push hl
-    call _fdiv
+    call _fidiv
     pop bc
     pop bc
     

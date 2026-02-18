@@ -1,0 +1,211 @@
+org 40000
+jp _main
+; =========================================
+; main l=0 o=0 [int] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld hl,2
+    ld (iy-2),l
+    ld (iy-1),h ; declare i (level 1)
+; =========================================
+; i l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    ld hl,2
+    ld (iy-4),l
+    ld (iy-3),h ; declare j (level 1)
+; =========================================
+; j l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; i
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    inc bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push iy
+    pop hl
+    ld bc,-4
+    add hl,bc ; j
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; j
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    pop de
+    ld a,h
+    and d
+    ld h,a
+    ld a,l
+    and e
+    ld l,a
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+; =========================================
+; k l=1 o=-6 [int] 
+; j l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-6
+    add hl,bc ; k
+    push hl
+    ld hl,0
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+_start1:
+    ld hl,10
+    push hl
+    ld l,(iy-6)
+    ld h,(iy-5) ; k
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _setl
+    ld a,h
+    or l
+    jp z,_end1
+; =========================================
+; z l=2 o=-8 [int] 
+; k l=1 o=-6 [int] 
+; j l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    ld l,(iy-6)
+    ld h,(iy-5) ; k
+    push hl
+    ld hl,3
+    pop de
+    call _mul_hlde
+    push hl
+    push iy
+    pop hl
+    ld bc,-4
+    add hl,bc ; j
+    pop de
+    push hl
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    add hl,de
+    push hl
+    pop de
+    pop hl
+    ld (hl),e
+    inc hl
+    ld (hl),d
+    dec hl
+    push de
+    pop hl
+    ld hl,100
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; j
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _setg
+    ld a,h
+    or l
+    jp z,_end2
+; =========================================
+; q l=3 o=-10 [int] 
+; z l=2 o=-8 [int] 
+; k l=1 o=-6 [int] 
+; j l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    jp _end1
+; ** End of block **
+; =========================================
+; z l=2 o=-8 [int] 
+; k l=1 o=-6 [int] 
+; j l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+_end2:
+; ** End of block **
+; =========================================
+; k l=1 o=-6 [int] 
+; j l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+_cont1:
+    push iy
+    pop hl
+    ld bc,-6
+    add hl,bc ; k
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    inc bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    jp _start1
+_end1:
+    ld l,(iy-4)
+    ld h,(iy-3) ; j
+    push hl
+    pop bc
+    ld sp,iy
+    pop iy
+    ret
+locals_main equ 10
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "string.z80"

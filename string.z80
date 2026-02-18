@@ -1,5 +1,11 @@
 ; strlen
 ; strcpy
+; strcat
+; strcmp
+; strchr
+; strstr
+; memcpy
+; memset
 
 _strlen:
     push iy
@@ -23,6 +29,8 @@ _strlen_done:
     pop iy
 
     ret
+    
+; -------------------------------------------------------
 
 ; strcpy(dest,source)
 _strcpy:
@@ -45,7 +53,272 @@ _strcpy_loop:
     cp 0
     
     jr nz,_strcpy_loop
+
+    ld l,(iy+4)    ; return dest
+    ld h,(iy+5)
+    
+    ld sp,iy
+    pop iy
+
+    ret
+
+; -------------------------------------------------------
+
+; strcat(dest,source)
+_strcat:
+
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld e,(iy+4)
+    ld d,(iy+5)
+    
+    ld l,(iy+6)
+    ld h,(iy+7)
+
+_strcat1
+    ld a,(de)
+    cp 0
+    jr z,_strcat0
+    inc de
+    jr _strcat1
+    
+_strcat0:
+
+    push hl
+    push de
+
+    call _strcpy
+    
+    pop hl
+    pop hl
+    
+    ld l,(iy+4)
+    ld h,(iy+5)   ; return dest
+    
+    ld sp,iy
+    pop iy
+
+    ret
+
+; -------------------------------------------------------
+
+; strcmp(cs,ct)
+;
+; abc0
+; abd0  return -1 (cs<ct)
+;
+; abd0
+; abc0  return 1 (cs>ct)
+;
+; abc0
+; abc0 return 0
+;
+; ab0
+; abc0 return -1 since 'c'>'0' (cs<ct)
+
+_strcmp:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld e,(iy+4)
+    ld d,(iy+5)
+    
+    ld l,(iy+6)
+    ld h,(iy+7)
+
+_strcmp_loop:    
+    ld a,(de)
+    cp (hl)
+    
+    jr nz,_strcmpdiff
+    
+    cp 0    
+    jr z,_strcmp0
         
+    inc hl
+    inc de
+        
+    jr _strcmp_loop
+    
+_strcmp0:
+    ld hl,0
+    jr _strcmpend
+
+_strcmpdiff:
+    ld hl,1
+    jr nc,_strcmpend
+    
+    ld hl,-1
+    
+_strcmpend:
+        
+    ld sp,iy
+    pop iy
+
+    ret
+
+; -------------------------------------------------------
+
+; strchr(cs,c)
+_strchr:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld l,(iy+4)
+    ld h,(iy+5)
+    
+    ld b,(iy+6)
+
+_strchrloop:
+    ld a,(hl)
+    cp b
+    jr z,_strchrend
+    
+    cp 0
+    jr z,_strchr0
+    
+    inc hl
+    
+    jr _strchrloop
+    
+_strchr0:
+    ld hl,0 ; NULL
+    
+_strchrend:
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; -------------------------------------------------------
+
+; cs = mississippi
+; ct =   ssip fail but try again
+;           ssip
+; strstr(cs,ct)
+
+_strstr:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld l,(iy+4)   ; cs
+    ld h,(iy+5)
+
+_strstragain:
+    ld e,(iy+6)   ; ct
+    ld d,(iy+7)
+
+    ld a,(de)   ; first char in ct
+    ld b,a
+    
+_strstrloop:
+    ld a,(hl)
+    
+    cp b
+    jr z,_strstrend ; found match for first char of ct
+    
+    cp 0
+    jr z,_strstr0  ; reached end of HL=cs, no match FAIL
+    
+    inc hl
+    
+    jr _strchrloop
+    
+_strstr0:
+    ld hl,0 ; NULL, early return
+
+    ld sp,iy
+    pop iy
+
+    ret
+    
+_strstrend:
+
+    push hl
+    pop bc    ; make a note of starting point
+
+_strstrloop2:
+    
+    ld a,(de)
+    cp 0
+    jr z,_strstrYES   ; end of de=ct so found match
+    
+    cp (hl)
+    
+    jr nz,_strstrloop2 ; different so fail but try again
+    
+    inc hl
+    inc de
+    
+    jr _strstrend
+    
+_strstrYES:
+
+    push bc     ; return starting point
+    pop hl
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; -------------------------------------------------------
+
+; memcpy(de,hl,bc)
+_memcpy:
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    ld e,(iy+4)
+    ld d,(iy+5)
+    
+    push de
+
+    ld l,(iy+6)
+    ld h,(iy+7)
+
+    ld c,(iy+8)
+    ld b,(iy+9)
+
+    ldir
+    
+    pop hl  ; return de
+    
+    ld sp,iy
+    pop iy
+
+    ret
+
+; -------------------------------------------------------
+
+; memset(de,a,bc)
+_memset:
+
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld e,(iy+4)
+    ld d,(iy+5)
+    
+    ld a,(iy+6)
+
+    ld c,(iy+8)
+    ld b,(iy+9)
+
+_memset0:
+    ld (de),a
+    inc de
+    dec bc
+    jr nz,_memset0
+    
     ld sp,iy
     pop iy
 

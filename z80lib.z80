@@ -10,7 +10,7 @@
 ; low bit of DE set? Add BC into total in HL and shift HL right
 ;----------------------------------------------------
 
-_fmul:
+_fimul:
     push iy
     ld iy,0
     add iy,sp
@@ -30,6 +30,10 @@ _fmul:
     jr nz, _fmul_bc_nz
     
     ld hl,0   ; first factor is 0, return 0
+    
+    ld sp,iy
+    pop iy
+
     ret
 
 _fmul_bc_nz:    
@@ -39,6 +43,10 @@ _fmul_bc_nz:
     jr nz, _fmul_de_nz
     
     ld hl,0  ; second factor is 0 return 0
+
+    ld sp,iy
+    pop iy
+
     ret
 
 _fmul_de_nz:    
@@ -239,7 +247,7 @@ _fmul_skip:
 ; HL remains 0, BC eventually 110 | 00000000 (1+1/2)*2 = 3
 ;----------------------------------------------------
 
-_fdiv:
+_fidiv:
     push iy
     ld iy,0
     add iy,sp
@@ -255,14 +263,27 @@ _fdiv:
     ; special cases
     ld a,h
     res 7,a   ; -0 is also special
-    or l
-    ret z ; first factor is 0, return 0
+    or l     ; is hl=0?
+    jr nz, _fdiv_hl_nz ; first factor is 0, return 0
+    
+    ld hl,0
+    
+    ld sp,iy
+    pop iy
+
+    ret
+
+_fdiv_hl_nz:
     
     ld a,d
     or e
     jr nz, _fdiv_de_nz
     
     ld hl,%0111110000000000 ; second factor is zero, return infinity
+
+    ld sp,iy
+    pop iy
+
     ret
     
 _fdiv_de_nz:    
@@ -373,7 +394,23 @@ _fsub:
 
     ld e,(iy+6)
     ld d,(iy+7)
+
+    ; special case: numbers identical    
+    push hl
+    or a
+    sbc hl,de
+    pop hl
     
+    jr nz,_fsub_nz
+    
+    ld hl,0
+
+    ld sp,iy
+    pop iy
+    ret
+
+_fsub_nz:
+        
     ld a,d
     xor %10000000
     ld d,a
@@ -383,7 +420,7 @@ _fsub:
     call _fadd
     pop bc
     pop bc
-    
+        
     ld sp,iy
     pop iy
     ret
@@ -421,7 +458,13 @@ _fadd:
     ld a,d
     res 7,a  ; return if -0
     or e
-    ret z ; de= +0 or -0 so return hl
+    jr nz,_fadd_nz 
+    
+    ld sp,iy ; de= +0 or -0 so return hl
+    pop iy
+    ret
+    
+_fadd_nz:
 
     ld a,h
     res 7,a ; for -0
@@ -430,7 +473,9 @@ _fadd:
     
     push de
     pop hl
-    
+
+    ld sp,iy
+    pop iy
     ret  ; hl is +0 or -0 so return hl=de
     
 _hl_nz:    
@@ -634,7 +679,7 @@ _fadd_end:
     ret
 
 ; ----------------------------------------------------
-; _fneg
+; _FNEG
 ; ----------------------------------------------------
     
 _fneg:
@@ -649,6 +694,56 @@ _fneg:
     xor %10000000
     ld h,a
 
+    ld sp,iy
+    pop iy
+    ret
+    
+; ----------------------------------------------------
+; FCMP(HL,DE)
+; (iy+4) (iy+6)
+; HL      DE
+; subtract, if A < B, C=1, Z=0, if A=B, C=0, Z=1, else C=Z=0
+; ----------------------------------------------------
+
+_fcmp:
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    ld l,(iy+4)
+    ld h,(iy+5)
+
+    ld e,(iy+6)
+    ld d,(iy+7)
+    
+    push de
+    push hl
+    
+    call _fsub
+    pop bc
+    pop bc
+
+    ld b,0   ; if positive A>B
+    
+    ld a,h
+    or l
+    jr nz,_fcmp_nz
+    
+    ld b,1   ; equal A=B
+    jr _fcmp_pos
+    
+_fcmp_nz:
+
+    bit 7,h
+    jr z,_fcmp_pos
+    
+    ld b,2   ; negative A<B
+    
+_fcmp_pos:
+
+    ld a,1
+    sub b
+    
     ld sp,iy
     pop iy
     ret
@@ -728,6 +823,18 @@ _int2float:
     ld l,(iy+4)
     ld h,(iy+5)
     
+    ; special case hl=0
+    ld a,h
+    or l
+    jr nz,_int2float_nz
+    
+    ld hl,0
+    ld sp,iy
+    pop iy
+    ret
+    
+_int2float_nz:
+    
     ld c,0   ; sign bit is 0
     bit 7,h
     jr z, i2f_pos
@@ -801,6 +908,19 @@ _float2int:
     ld b,(iy+5)
     ld l,(iy+4)
     ld h,(iy+5)
+    
+    ; special case hl=0.0
+    ld a,h
+    res 7,a
+    or l
+    jr nz,_float2int_nz
+    
+    ld hl,0
+    ld sp,iy
+    pop iy
+    ret
+    
+_float2int_nz:
     
     ld c,0    ; negative?
     bit 7,b

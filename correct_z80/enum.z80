@@ -1,0 +1,73 @@
+org 40000
+jp _main
+; =========================================
+; main l=0 o=0 [int] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld hl,3
+    ld (iy-2),l
+    ld (iy-1),h ; declare c (level 1)
+; =========================================
+; c l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    ld hl,3
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; c
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end1
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; c
+    push hl
+    ld hl,1
+    push hl
+    ld hl,4
+    pop de
+    add hl,de
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+_end1:
+    ld l,(iy-2)
+    ld h,(iy-1) ; c
+    push hl
+    pop bc
+    ld sp,iy
+    pop iy
+    ret
+locals_main equ 2
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "string.z80"
+include "ctype.z80"
+include "math.z80"
+_heap:

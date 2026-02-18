@@ -1,0 +1,463 @@
+org 40000
+jp _main
+_string1:
+    db "%d %d\n",0
+; =========================================
+; struct Point l=0 o=0 [] 
+; =========================================
+; =========================================
+; struct Rect l=0 o=0 [] 
+; struct Point l=0 o=0 [] 
+; =========================================
+; =========================================
+; q l=1 o=14 [struct Point] ARG
+; p l=1 o=6 [struct Point] ARG
+; addPoints l=0 o=0 [struct Point] 
+; struct Rect l=0 o=0 [] 
+; struct Point l=0 o=0 [] 
+; =========================================
+_addPoints:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_addPoints
+    or a
+    sbc hl,bc
+    ld sp,hl
+; =========================================
+; tot l=1 o=-8 [struct Point] 
+; q l=1 o=14 [struct Point] ARG
+; p l=1 o=6 [struct Point] ARG
+; addPoints l=0 o=0 [struct Point] 
+; struct Rect l=0 o=0 [] 
+; struct Point l=0 o=0 [] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; tot
+    ld de,0
+    add hl,de ; .x
+    push hl
+    push iy
+    pop hl
+    ld bc,14
+    add hl,bc ; q
+    ld de,0
+    add hl,de ; .x
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,6
+    add hl,bc ; p
+    ld de,0
+    add hl,de ; .x
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    add hl,de
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; tot
+    ld de,2
+    add hl,de ; .y
+    push hl
+    push iy
+    pop hl
+    ld bc,14
+    add hl,bc ; q
+    ld de,2
+    add hl,de ; .y
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,6
+    add hl,bc ; p
+    ld de,2
+    add hl,de ; .y
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    add hl,de
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; tot
+    ld de,4
+    add hl,de ; .l
+    push hl
+    ld hl,0
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; tot
+    ld de,6
+    add hl,de ; .w
+    push hl
+    ld hl,0
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; tot
+    ld e,(iy+4)
+    ld d,(iy+5)
+    ld bc,8
+    ldir
+    ld l,(iy+4)
+    ld h,(iy+5)
+    ld sp,iy
+    pop iy
+    ret
+locals_addPoints equ 8
+; ** End of function **
+; =========================================
+; addPoints l=0 o=0 [struct Point] 
+; struct Rect l=0 o=0 [] 
+; struct Point l=0 o=0 [] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+; =========================================
+; main l=0 o=0 [int] 
+; addPoints l=0 o=0 [struct Point] 
+; struct Rect l=0 o=0 [] 
+; struct Point l=0 o=0 [] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+; =========================================
+; r l=1 o=-16 [struct Rect] 
+; main l=0 o=0 [int] 
+; addPoints l=0 o=0 [struct Point] 
+; struct Rect l=0 o=0 [] 
+; struct Point l=0 o=0 [] 
+; =========================================
+; =========================================
+; s l=1 o=-32 [struct Rect] 
+; r l=1 o=-16 [struct Rect] 
+; main l=0 o=0 [int] 
+; addPoints l=0 o=0 [struct Point] 
+; struct Rect l=0 o=0 [] 
+; struct Point l=0 o=0 [] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-16
+    add hl,bc ; r
+    ld de,0
+    add hl,de ; .top
+    ld de,0
+    add hl,de ; .x
+    push hl
+    ld hl,1
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-16
+    add hl,bc ; r
+    ld de,0
+    add hl,de ; .top
+    ld de,2
+    add hl,de ; .y
+    push hl
+    ld hl,2
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-16
+    add hl,bc ; r
+    ld de,8
+    add hl,de ; .bot
+    ld de,0
+    add hl,de ; .x
+    push hl
+    ld hl,3
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-16
+    add hl,bc ; r
+    ld de,8
+    add hl,de ; .bot
+    ld de,2
+    add hl,de ; .y
+    push hl
+    ld hl,4
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+; =========================================
+; another l=1 o=-40 [struct Point] 
+; s l=1 o=-32 [struct Rect] 
+; r l=1 o=-16 [struct Rect] 
+; main l=0 o=0 [int] 
+; addPoints l=0 o=0 [struct Point] 
+; struct Rect l=0 o=0 [] 
+; struct Point l=0 o=0 [] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-40
+    add hl,bc ; another
+    ld de,0
+    add hl,de ; .x
+    push hl
+    ld hl,10
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-40
+    add hl,bc ; another
+    ld de,2
+    add hl,de ; .y
+    push hl
+    ld hl,20
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; s
+    push hl
+    push iy
+    pop hl
+    ld bc,-16
+    add hl,bc ; r
+    pop de
+    ld bc,16
+    ldir
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; s
+    ld de,0
+    add hl,de ; .top
+    push hl
+    push iy
+    pop hl
+    ld bc,-40
+    add hl,bc ; another
+    pop de
+    ld bc,8
+    ldir
+; =========================================
+; p l=1 o=-48 [struct Point] 
+; another l=1 o=-40 [struct Point] 
+; s l=1 o=-32 [struct Rect] 
+; r l=1 o=-16 [struct Rect] 
+; main l=0 o=0 [int] 
+; addPoints l=0 o=0 [struct Point] 
+; struct Rect l=0 o=0 [] 
+; struct Point l=0 o=0 [] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-48
+    add hl,bc ; p
+    push hl
+    push iy
+    pop hl
+    ld bc,-16
+    add hl,bc ; r
+    ld de,0
+    add hl,de ; .top
+    push bc
+    push bc
+    push bc
+    push bc
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,8
+    ldir
+    push iy
+    pop hl
+    ld bc,-40
+    add hl,bc ; another
+    push bc
+    push bc
+    push bc
+    push bc
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,8
+    ldir
+; =========================================
+; (str return) l=1 o=-56 [struct Point] 
+; p l=1 o=-48 [struct Point] 
+; another l=1 o=-40 [struct Point] 
+; s l=1 o=-32 [struct Rect] 
+; r l=1 o=-16 [struct Rect] 
+; main l=0 o=0 [int] 
+; addPoints l=0 o=0 [struct Point] 
+; struct Rect l=0 o=0 [] 
+; struct Point l=0 o=0 [] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-56
+    add hl,bc
+    push hl
+    call _addPoints
+    pop bc
+    pop bc
+    pop bc
+    pop bc
+    pop bc
+    pop bc
+    pop bc
+    pop bc
+    pop bc
+    pop de
+    ld bc,8
+    ldir
+    push iy
+    pop hl
+    ld bc,-48
+    add hl,bc ; p
+    ld de,2
+    add hl,de ; .y
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,-48
+    add hl,bc ; p
+    ld de,0
+    add hl,de ; .x
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,_string1
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; s
+    ld de,0
+    add hl,de ; .top
+    ld de,0
+    add hl,de ; .x
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; s
+    ld de,8
+    add hl,de ; .bot
+    ld de,2
+    add hl,de ; .y
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    add hl,de
+    push hl
+    pop bc
+    ld sp,iy
+    pop iy
+    ret
+locals_main equ 56
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; addPoints l=0 o=0 [struct Point] 
+; struct Rect l=0 o=0 [] 
+; struct Point l=0 o=0 [] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "string.z80"

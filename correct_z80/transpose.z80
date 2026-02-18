@@ -1,0 +1,655 @@
+org 40000
+jp _main
+_string1:
+    db "%d %d\n",0
+_string2:
+    db "%d %d\n\n",0
+_string3:
+    db "%d %d\n",0
+_string4:
+    db "%d %d\n",0
+; =========================================
+; b l=1 o=4 [int[][2]] ARG
+; transpose l=0 o=0 [int] 
+; printf l=0 o=0 [int] 
+; =========================================
+_transpose:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_transpose
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld hl,1
+    push hl
+    ld hl,0
+    push hl
+    ld l,(iy+4)
+    ld h,(iy+5) ; b
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    ld (iy-2),l
+    ld (iy-1),h ; declare temp (level 1)
+; =========================================
+; temp l=1 o=-2 [int] 
+; b l=1 o=4 [int[][2]] ARG
+; transpose l=0 o=0 [int] 
+; printf l=0 o=0 [int] 
+; =========================================
+    ld hl,1
+    push hl
+    ld hl,0
+    push hl
+    ld l,(iy+4)
+    ld h,(iy+5) ; b
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    push hl
+    ld hl,0
+    push hl
+    ld hl,1
+    push hl
+    ld l,(iy+4)
+    ld h,(iy+5) ; b
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,0
+    push hl
+    ld hl,1
+    push hl
+    ld l,(iy+4)
+    ld h,(iy+5) ; b
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; temp
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,0
+    ld sp,iy
+    pop iy
+    ret
+locals_transpose equ 2
+; ** End of function **
+; =========================================
+; transpose l=0 o=0 [int] 
+; printf l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+; =========================================
+; main l=0 o=0 [int] 
+; transpose l=0 o=0 [int] 
+; printf l=0 o=0 [int] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+; =========================================
+; a l=1 o=-8 [int[2][2]] 
+; main l=0 o=0 [int] 
+; transpose l=0 o=0 [int] 
+; printf l=0 o=0 [int] 
+; =========================================
+    ld hl,0
+    push hl
+    ld hl,0
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    push hl
+    ld hl,1
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,1
+    push hl
+    ld hl,0
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    push hl
+    ld hl,2
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,0
+    push hl
+    ld hl,1
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    push hl
+    ld hl,1
+    push hl
+    ld hl,0
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,3
+    pop de
+    call _mul_hlde
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,1
+    push hl
+    ld hl,1
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    push hl
+    ld hl,0
+    push hl
+    ld hl,1
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,4
+    pop de
+    call _mul_hlde
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,1
+    push hl
+    ld hl,0
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,0
+    push hl
+    ld hl,0
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,_string1
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,1
+    push hl
+    ld hl,1
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,0
+    push hl
+    ld hl,1
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,_string2
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    push hl
+    call _transpose
+    pop bc
+    ld hl,1
+    push hl
+    ld hl,0
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,0
+    push hl
+    ld hl,0
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,_string3
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,1
+    push hl
+    ld hl,1
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,0
+    push hl
+    ld hl,1
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; a
+    pop de
+    push hl
+    ld hl,4
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,_string4
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,0
+    ld sp,iy
+    pop iy
+    ret
+locals_main equ 8
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; transpose l=0 o=0 [int] 
+; printf l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "string.z80"

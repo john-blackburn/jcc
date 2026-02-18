@@ -79,7 +79,7 @@ void fail(char *msg)
 int process(FILE* fp, FILE* fpz)
 {
     
-    char line[100];
+    char line[1000];
     int i,inc,add,op,n;
     char *p;
     char reg[100], num[100], label[100];
@@ -87,7 +87,7 @@ int process(FILE* fp, FILE* fpz)
 
     int wasESI=0;
     lineno=0;
-    while(fgets(line,100,fp)!=NULL)
+    while(fgets(line,1000,fp)!=NULL)
     {
         ++lineno;   
 
@@ -146,7 +146,6 @@ int process(FILE* fp, FILE* fpz)
         else if (startsWith(line,".asciz"))
         {
             getSubstr(num,line,7,-1);
-            printf("%s",num);
             fprintf(fpz,"    db %s,0",num);
         }
         
@@ -178,6 +177,9 @@ int process(FILE* fp, FILE* fpz)
         
         else if (startsWith(line,"movzx eax,al"))
             fprintf(fpz,"    ld h,0");
+
+        else if (startsWith(line,"movzx ecx,cl"))
+            fprintf(fpz,"    ld d,0");
 
 // ----------------------------------------------------------
 // CALL, JE, JNE, JMP, RET
@@ -444,8 +446,10 @@ int process(FILE* fp, FILE* fpz)
                 fprintf(fpz,"    push iy");
             else if (strcmp(reg,"eax")==0)
                 fprintf(fpz,"    push hl");
+            else if (strcmp(reg,"ecx")==0)
+                fprintf(fpz,"    push de");
             else
-                fail("unknown PUSH");                
+                fail("unknown PUSH");
         }
 
 // ----------------------------------------------------------
@@ -795,16 +799,20 @@ int main(int argc, char **argv)
                 "jp _main\n");
     
     FILE* fpd=fopen(dname,"r");
+    printf("processing: %s...\n",dname);
     process(fpd, fpz);
     fclose(fpd);
 
     FILE* fps=fopen(sname,"r");
+    printf("processing: %s...\n",sname);
     process(fps, fpz);
     fclose(fps);
 
     fprintf(fpz,"include \"z80lib.z80\"\n");
     fprintf(fpz,"include \"stdio.z80\"\n");
     fprintf(fpz,"include \"string.z80\"\n");
+    fprintf(fpz,"include \"ctype.z80\"\n");
+    fprintf(fpz,"include \"math.z80\"\n");
     fprintf(fpz,"_heap:\n");
 
     fclose(fpz);

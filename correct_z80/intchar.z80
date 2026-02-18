@@ -1,0 +1,86 @@
+org 40000
+jp _main
+; =========================================
+; main l=0 o=0 [int] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+; =========================================
+; i l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    ld l,'a'
+    ld h,0
+    ld (iy-4),l
+    ld (iy-3),h ; declare c (level 1)
+; =========================================
+; c l=1 o=-4 [char] 
+; i l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; i
+    push hl
+    ld hl,10
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-4
+    add hl,bc ; c
+    push hl
+    ld l,'1'
+    pop de
+    ld a,l
+    ld (de),a
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; i
+    push hl
+    ld l,(iy-4) ; c
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    pop de
+    ld d,0
+    add hl,de
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    push hl
+    pop bc
+    ld sp,iy
+    pop iy
+    ret
+locals_main equ 4
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "string.z80"
+include "ctype.z80"
+include "math.z80"
+_heap:

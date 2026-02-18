@@ -81,6 +81,7 @@ __attribute__((__cdecl__)) __attribute__((__nothrow__)) char *strcpy (char *, co
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) size_t strlen (const char *) __attribute__((__pure__));
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) char *strstr (const char *, const char *) __attribute__((__pure__));
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) char *strtok (char *, const char *);
+__attribute__((__cdecl__)) __attribute__((__nothrow__)) char *strchr (const char *, int) __attribute__((__pure__));
 
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) void *malloc (size_t) __attribute__((__malloc__));
 __attribute__((__cdecl__)) __attribute__((__nothrow__)) void *realloc (void *, size_t);
@@ -495,6 +496,33 @@ char* ops[]={"add","sub","imul","idiv","idiv","and","or","xor"};
 int PTR_SIZE=4;
 char *float1="3f800000";
 int z80=0;
+
+// take a 32 bit float (expressed in hex format in int u)
+// and convert to a 16 bit float, in the low 2 bytes of return value
+unsigned int tof16(unsigned int u)
+{
+    int neg=0;
+    if ((u & (1 << 31)) !=0) neg=1;  // make note if minus
+
+    unsigned int exponent=u;
+    unsigned int mantissa=u;
+
+    exponent &= (~(1 << 31));  // get rid of minus
+    exponent >>= 23;  // actual exponent, offset=127
+
+    mantissa &= 0x007FFFFF;   // get rid of exponent
+
+    mantissa >>= 13;  // 23-10. create f16 mantissa
+    exponent = exponent + 15 - 127; // create f16 exponent with offset=15
+
+    unsigned int res;
+
+    res = exponent << 10;  // put in place
+    res |= mantissa;
+    if (neg) res |= (1 << 31);  // add sign bit
+    
+    return res;
+}
 
 // ######################################################################
 
@@ -3319,7 +3347,13 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
         {
             if (!node->varType.isStatic) fprintf(fpd,".globl _%s\n",node->id);
             fprintf(fpd,"_%s:\n",node->id);
-            fprintf(fpd,".float %s\n",node->child->id);
+            if (z80)
+            {
+                sscanf(node->child->id,"%f",&f2u.f);
+                fprintf(fpd,".long 0x%0x\n",tof16(f2u.u));
+            }
+            else
+                fprintf(fpd,".float %s\n",node->child->id);
         }
         else if (node->child->type==STRING_LITERAL)
         {
@@ -3370,7 +3404,13 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
                 int i;
                 for (i=0;i<node->child->nlines;i++)
                 {
-                    fprintf(fpd,".float %s\n", node->child->line[i]->id);
+                    if (z80)
+                    {
+                        sscanf(node->child->line[i]->id,"%f",&f2u.f);
+                        fprintf(fpd,".long 0x%0x\n",tof16(f2u.u));
+                    }
+                    else
+                        fprintf(fpd,".float %s\n", node->child->line[i]->id);
                 }
             }
             else if (strcmp(type1.data,"char*")==0) // char*
@@ -3499,7 +3539,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
     
     // cdecl convention: if returning float, return it on st(0)
     
-    if (isFloat(node->varType))
+    if (isFloat(node->varType) && !z80)
     {
         fprintf(fps,"mov [_float_temp],eax\n");
         fprintf(fps,"FLD dword ptr [_float_temp]\n");
@@ -4315,7 +4355,8 @@ eg x[f()] += 5 only calls f() once. Figures out lvalue of x[f()] push it, deref 
 add to 5 via writeBinOp. pop lvalue and store result in that memory location
   */
 
-  else if (node->type >= PLUS_EQUALS && node->type <= HAT_EQUALS)
+  else if ((node->type >= PLUS_EQUALS && node->type <= HAT_EQUALS)
+           || node->type == LESSTHAN2_EQUAL || node->type == GREATERTHAN2_EQUAL)      
   {
     type2 = writeAsm(node->child2,level,0, loop);  // value to be added -> ecx
     fprintf(fps,"push eax\n");
@@ -4330,7 +4371,13 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
 
 //    printf("types=%s %s\n", type1.data,type2.data);
 
-    op = ops[node->type - PLUS_EQUALS];
+    if (node->type == LESSTHAN2_EQUAL)
+        op="shl";
+    else if (node->type == GREATERTHAN2_EQUAL)
+        op="shr";
+    else
+        op = ops[node->type - PLUS_EQUALS];
+
     if (type1.isUnsigned)
     {
         if (node->type==ASTERISK_EQUALS)
@@ -4342,9 +4389,15 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     varType = writeBinOp(op, type1, type2, node);
 
     if (node->type == PERCENT_EQUALS)
-        fprintf(fps,"mov ecx,edx\n");
+        if (isChar(varType))
+            fprintf(fps,"mov cl,dl\n");
+        else
+            fprintf(fps,"mov ecx,edx\n");
     else
-        fprintf(fps,"mov ecx,eax\n");  // result in ecx
+        if (isChar(varType))
+            fprintf(fps,"mov cl,al\n");
+        else
+            fprintf(fps,"mov ecx,eax\n");  // result in ecx
 
     fprintf(fps,"pop eax\n");      // eax = lvalue
         
@@ -4401,14 +4454,6 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
         asmFail("unknown assignment arithmetic type", node);
     }
     varType=type1;
-  }
-
-  /* 
-  <<= and >>=
-  */
-
-  else if (node->type == LESSTHAN2_EQUAL || node->type == GREATERTHAN2_EQUAL)
-  {
   }
 
   /*
@@ -4477,7 +4522,6 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     if (isChar(type1))
     {
         fprintf(fps,"neg al\n");
-        varType.isUnsigned=0;   // negative so must be signed
     }
     else if (isFloat(type1))
     {
@@ -4488,7 +4532,6 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     else
     {
         fprintf(fps,"neg eax\n");
-        varType.isUnsigned=0;   // negative so must be signed        
     }
   }
   else if (node->type==UNARY_PLUS)
@@ -4606,8 +4649,13 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     }
     fprintf(fps,"\n");
     
-    strcpy(varType.data,"int");    
-    varType.isUnsigned=1;   // positive integer is unsigned
+    strcpy(varType.data,"int");
+
+    if (strchr(node->id, 'U')!=NULL || strchr(node->id,'u')!=NULL)
+        varType.isUnsigned=1;
+    else
+        varType.isUnsigned=0;
+    
   }
   else if (node->type==FLOAT_LITERAL)
   {
@@ -4615,8 +4663,15 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
       sscanf(node->id, "%f", &f);
       f2u.f=f;
       
-    fprintf(fps,"mov eax,0x%0x # %f\n", f2u.u, f);
-    strcpy(varType.data,"float");
+      if (z80)
+      {
+          fprintf(fps,"mov eax,0x%0x # %f\n", tof16(f2u.u), f);
+      }
+      else
+      {
+          fprintf(fps,"mov eax,0x%0x # %f\n", f2u.u, f);
+      }
+      strcpy(varType.data,"float");
   }
   else if (node->type==STRING_LITERAL){
     int label = ++s_label;
@@ -4791,7 +4846,11 @@ add to 5 via writeBinOp. pop lvalue and store result in that memory location
     else
         varType = writeBinOp("idiv", type1, type2, node);
     
-    fprintf(fps,"mov eax,edx\n");
+    if (isChar(varType))
+        fprintf(fps,"mov al,dl\n");
+    else
+        fprintf(fps,"mov eax,edx\n");
+    
   }
   else if (node->type==BINARY_BITWISE_AND)
   {

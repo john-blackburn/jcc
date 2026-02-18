@@ -1,0 +1,93 @@
+org 40000
+jp _main
+_string1:
+    db "%d %d %d %d\n",0
+; =========================================
+; main l=0 o=0 [int] 
+; printf l=0 o=0 [int] 
+; isspace l=0 o=0 [int] 
+; isdigit l=0 o=0 [int] 
+; isalpha l=0 o=0 [int] 
+; isalnum l=0 o=0 [int] 
+; isspace l=0 o=0 [int] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld l,'A'
+    ld h,0
+    ld (iy-2),l
+    ld (iy-1),h ; declare c (level 1)
+; =========================================
+; c l=1 o=-2 [char] 
+; main l=0 o=0 [int] 
+; printf l=0 o=0 [int] 
+; isspace l=0 o=0 [int] 
+; isdigit l=0 o=0 [int] 
+; isalpha l=0 o=0 [int] 
+; isalnum l=0 o=0 [int] 
+; isspace l=0 o=0 [int] 
+; =========================================
+    ld l,(iy-2) ; c
+    ld h,0
+    push hl
+    call _isalnum
+    pop bc
+    push hl
+    ld l,(iy-2) ; c
+    ld h,0
+    push hl
+    call _isalpha
+    pop bc
+    push hl
+    ld l,(iy-2) ; c
+    ld h,0
+    push hl
+    call _isdigit
+    pop bc
+    push hl
+    ld l,(iy-2) ; c
+    ld h,0
+    push hl
+    call _isspace
+    pop bc
+    push hl
+    ld hl,_string1
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    pop bc
+    pop bc
+    ld hl,0
+    ld sp,iy
+    pop iy
+    ret
+locals_main equ 2
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; printf l=0 o=0 [int] 
+; isspace l=0 o=0 [int] 
+; isdigit l=0 o=0 [int] 
+; isalpha l=0 o=0 [int] 
+; isalnum l=0 o=0 [int] 
+; isspace l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "string.z80"
+include "ctype.z80"
+include "math.z80"
+_heap:

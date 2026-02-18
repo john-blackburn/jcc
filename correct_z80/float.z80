@@ -1,0 +1,478 @@
+org 40000
+jp _main
+_pi:
+    dw 0x4248
+_string1:
+    db "numbers: %f %f\n",0
+_string2:
+    db "result: %f %f %f\n",0
+_string3:
+    db "b=%f, i=%d, i(converted)=%f, sq=%f\n",0
+_string5:
+    db "a>b\n",0
+_string7:
+    db "a>=b\n",0
+_string9:
+    db "a<b\n",0
+_string11:
+    db "a<=b\n",0
+_string13:
+    db "b>a\n",0
+_string15:
+    db "b>=a\n",0
+_string17:
+    db "b<a\n",0
+_string19:
+    db "b<=a, sinf(a)=%f\n",0
+; =========================================
+; pi l=0 o=0 [float] 
+; sinf l=0 o=0 [float] 
+; printf l=0 o=0 [int] 
+; =========================================
+; =========================================
+; x l=1 o=4 [float] ARG
+; square l=0 o=0 [float] 
+; pi l=0 o=0 [float] 
+; sinf l=0 o=0 [float] 
+; printf l=0 o=0 [int] 
+; =========================================
+_square:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_square
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld l,(iy+4)
+    ld h,(iy+5) ; x
+    push hl
+    ld l,(iy+4)
+    ld h,(iy+5) ; x
+    pop de
+    push de
+    push hl
+    call _fimul
+    pop de
+    pop de
+    ld sp,iy
+    pop iy
+    ret
+locals_square equ 0
+; ** End of function **
+; =========================================
+; square l=0 o=0 [float] 
+; pi l=0 o=0 [float] 
+; sinf l=0 o=0 [float] 
+; printf l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+; =========================================
+; main l=0 o=0 [int] 
+; square l=0 o=0 [float] 
+; pi l=0 o=0 [float] 
+; sinf l=0 o=0 [float] 
+; printf l=0 o=0 [int] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+; =========================================
+; a l=1 o=-2 [float] 
+; main l=0 o=0 [int] 
+; square l=0 o=0 [float] 
+; pi l=0 o=0 [float] 
+; sinf l=0 o=0 [float] 
+; printf l=0 o=0 [int] 
+; =========================================
+    ld hl,1
+    ld (iy-4),l
+    ld (iy-3),h ; declare i (level 1)
+; =========================================
+; i l=1 o=-4 [int] 
+; a l=1 o=-2 [float] 
+; main l=0 o=0 [int] 
+; square l=0 o=0 [float] 
+; pi l=0 o=0 [float] 
+; sinf l=0 o=0 [float] 
+; printf l=0 o=0 [int] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; a
+    push hl
+    ld hl,0x4500  ; 5.000000
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    push hl
+    ld hl,(_pi)
+    push hl
+    ld hl,_string1
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,2
+    push hl
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; a
+    pop de
+    push hl
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    push de
+    call _int2float
+    pop bc
+    push hl
+    pop de
+    pop hl
+    push de
+    push hl
+    call _fadd
+    pop de
+    pop de
+    push hl
+    pop de
+    pop hl
+    ld (hl),e
+    inc hl
+    ld (hl),d
+    dec hl
+    push de
+    pop hl
+    ld hl,0x3e00  ; 1.500000
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    pop de
+    push de
+    push hl
+    call _fsub
+    pop de
+    pop de
+    push hl
+    ld hl,(_pi)
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    pop de
+    push de
+    push hl
+    call _fadd
+    pop de
+    pop de
+    push hl
+    ld hl,0x4300  ; 3.500000
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    pop de
+    push de
+    push hl
+    call _fadd
+    pop de
+    pop de
+    push hl
+    ld hl,_string2
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    pop bc
+    ld hl,0x4200  ; 3.000000
+    push hl
+    call _fneg
+    pop bc
+    ld (iy-6),l
+    ld (iy-5),h ; declare b (level 1)
+; =========================================
+; b l=1 o=-6 [float] 
+; i l=1 o=-4 [int] 
+; a l=1 o=-2 [float] 
+; main l=0 o=0 [int] 
+; square l=0 o=0 [float] 
+; pi l=0 o=0 [float] 
+; sinf l=0 o=0 [float] 
+; printf l=0 o=0 [int] 
+; =========================================
+    ld l,(iy-6)
+    ld h,(iy-5) ; b
+    push hl
+    call _square
+    pop bc
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; i
+    push hl
+    call _int2float
+    pop bc
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; i
+    push hl
+    ld l,(iy-6)
+    ld h,(iy-5) ; b
+    push hl
+    ld hl,_string3
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    pop bc
+    pop bc
+    ld l,(iy-6)
+    ld h,(iy-5) ; b
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    pop de
+    push de
+    push hl
+    call _fcmp
+    pop de
+    pop de
+    ld hl,0
+    call _seta
+    ld a,h
+    or l
+    jp z,_end4
+    ld hl,_string5
+    push hl
+    call _printf
+    pop bc
+_end4:
+    ld l,(iy-6)
+    ld h,(iy-5) ; b
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    pop de
+    push de
+    push hl
+    call _fcmp
+    pop de
+    pop de
+    ld hl,0
+    call _setae
+    ld a,h
+    or l
+    jp z,_end6
+    ld hl,_string7
+    push hl
+    call _printf
+    pop bc
+_end6:
+    ld l,(iy-6)
+    ld h,(iy-5) ; b
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    pop de
+    push de
+    push hl
+    call _fcmp
+    pop de
+    pop de
+    ld hl,0
+    call _setb
+    ld a,h
+    or l
+    jp z,_end8
+    ld hl,_string9
+    push hl
+    call _printf
+    pop bc
+_end8:
+    ld l,(iy-6)
+    ld h,(iy-5) ; b
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    pop de
+    push de
+    push hl
+    call _fcmp
+    pop de
+    pop de
+    ld hl,0
+    call _setbe
+    ld a,h
+    or l
+    jp z,_end10
+    ld hl,_string11
+    push hl
+    call _printf
+    pop bc
+_end10:
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    push hl
+    ld l,(iy-6)
+    ld h,(iy-5) ; b
+    pop de
+    push de
+    push hl
+    call _fcmp
+    pop de
+    pop de
+    ld hl,0
+    call _seta
+    ld a,h
+    or l
+    jp z,_end12
+    ld hl,_string13
+    push hl
+    call _printf
+    pop bc
+_end12:
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    push hl
+    ld l,(iy-6)
+    ld h,(iy-5) ; b
+    pop de
+    push de
+    push hl
+    call _fcmp
+    pop de
+    pop de
+    ld hl,0
+    call _setae
+    ld a,h
+    or l
+    jp z,_end14
+    ld hl,_string15
+    push hl
+    call _printf
+    pop bc
+_end14:
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    push hl
+    ld l,(iy-6)
+    ld h,(iy-5) ; b
+    pop de
+    push de
+    push hl
+    call _fcmp
+    pop de
+    pop de
+    ld hl,0
+    call _setb
+    ld a,h
+    or l
+    jp z,_end16
+    ld hl,_string17
+    push hl
+    call _printf
+    pop bc
+_end16:
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    push hl
+    ld l,(iy-6)
+    ld h,(iy-5) ; b
+    pop de
+    push de
+    push hl
+    call _fcmp
+    pop de
+    pop de
+    ld hl,0
+    call _setbe
+    ld a,h
+    or l
+    jp z,_end18
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    push hl
+    call _sinf
+    pop bc
+    push hl
+    ld hl,_string19
+    push hl
+    call _printf
+    pop bc
+    pop bc
+_end18:
+    push iy
+    pop hl
+    ld bc,-4
+    add hl,bc ; i
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; a
+    push hl
+    ld hl,3
+    pop de
+    push hl
+    call _int2float
+    pop bc
+    push de
+    push hl
+    call _fadd
+    pop de
+    pop de
+    pop de
+    push hl
+    call _float2int
+    pop bc
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,1
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; i
+    pop de
+    add hl,de
+    push hl
+    pop bc
+    ld sp,iy
+    pop iy
+    ret
+locals_main equ 6
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; square l=0 o=0 [float] 
+; pi l=0 o=0 [float] 
+; sinf l=0 o=0 [float] 
+; printf l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "string.z80"
+include "ctype.z80"
+include "math.z80"
+_heap:
