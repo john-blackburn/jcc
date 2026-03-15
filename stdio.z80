@@ -4,6 +4,7 @@
 ; putchar
 ; getchar 
 ; gets (extra limit argument)
+; scanf
 ; sscanf
 
 ; stdlib.c:
@@ -90,7 +91,28 @@ _puts_done:
 ; PRINTF
 ; -------------------------------------------------------------
 
-; set Z if 'd' or 'p'
+; Z=1 if A is a leading 0
+islead00: db 1   ; 1 if we've never seen a non-zero (static)
+islead0:
+    cp '-'
+    jr z,islead02
+    ld b,a   ; store 
+    cp '0'
+    jr z,islead01
+    ld a,0         ; non-zero so set variable to zero
+    ld (islead00),a; 
+    ld a,b         ; restore A
+    ret            ; Z=0, this is a non-zero digit
+islead01:
+    ld a,(islead00)  ; we found a zero but is it a leading zero?
+    cp 1             ; if var=1, its a leading zero, Z=1
+    ld a,b          ; restore
+    ret
+islead02:
+    and a   ; force Z=0 (minus sign)
+    ret
+
+; set Z=1 if 'd' or 'p'
 _isxp:
     cp 'x'
     ret z
@@ -297,54 +319,32 @@ not_percentf:
     ld ix,_printf_buf
 
     call i16tod
+    ld (ix+0),0   ; terminate string
     
     pop ix      ; recover pointer to fmt string
     
     ld hl,(_putchar_pos)
     
-    ld a,(_printf_buf)
-    cp '0'
-    jr z,_printf1
+    ld de,_printf_buf
+    ld a,1
+    ld (islead00),a    ; init islead0
+loopd:
+    ld a,(de)
+    cp 0
+    jr z,doned
+    call islead0    ; is current digit leading 0? then don't print
+    jr z,skipd
+    push de
     call asc
     ld a,00111001b
     call print    
+    pop de
     inc hl
+skipd:
+    inc de
+    jr loopd
 
-_printf1:
-    ld a,(_printf_buf+1)
-    cp '0'
-    jr z,_printf2
-    call asc
-    ld a,00111001b
-    call print
-    inc hl
-
-_printf2:
-    ld a,(_printf_buf+2)
-    cp '0'
-    jr z,_printf3
-    call asc
-    ld a,00111001b
-    call print    
-    inc hl
-
-_printf3:
-    ld a,(_printf_buf+3)
-    cp '0'
-    jr z,_printf4
-
-    call asc
-    ld a,00111001b
-    call print
-    inc hl
-
-_printf4:
-    ld a,(_printf_buf+4)
-    call asc
-    ld a,00111001b
-    call print
-    inc hl
-    
+doned:        
     ld (_putchar_pos),hl
 
     inc ix
@@ -849,3 +849,683 @@ exit  pop hl
       push de
       pop hl
       ret
+
+; wait until user is not pressing any keys
+spin:
+    ld a,0xFE
+    ld b,8
+spinloop:
+    in a,(254)
+    and %00011111
+    cp %00011111
+    jr nz,spin  ; a key is being pressed
+    rlc a
+    djnz spinloop
+    ret
+
+; -----------------------------------------------------
+; GETS(char* s)
+; -----------------------------------------------------
+_gets0: db "Czxcv"   ; 11111110 C=caps shift 
+_gets1: db "asdfg"   ; 11111101
+_gets2: db "qwert"   ; 11111011
+_gets3: db "12345"   ; 11110111
+_gets4: db "09876"   ; 11101111
+_gets5: db "poiuy"   ; 11011111
+_gets6: db "Elkjh"   ; 10111111 E=ENTER
+_gets7: db " Smnb"   ; 01111111 S=symbol shift
+
+; A is input (CPL'd after IN), HL points to _getsX, return ASCII of first pressed key
+; or A=0 if no key pressed. Ignore caps and symbol shift
+
+_getsfind:
+    ld d,a ; store a
+    ld b,%00010000   ; will be shifted right
+    ld c,5   ; index into gets0 etc (0-4)
+_getsfindloop:
+    ld a,d
+    and b
+    jr nz,_getsfindmatch
+_getsfindreject:
+    sra b
+    dec c
+    jr nz,_getsfindloop
+    
+    ld a,0   ; nothing pressed
+    ret
+_getsfindmatch:
+    push bc ; store in case of reject
+    ld b,0
+    add hl,bc
+    dec hl
+    ld a,(hl)
+    pop bc
+    cp 'C'  ;  Caps Shift
+    jr z,_getsfindreject
+    cp 'S'  ; symbol shift
+    jr z,_getsfindreject
+    ret
+
+; set Z if A=0 or A=lastkey
+_isL0:
+    cp 0   ; nothing pressed
+    ret z
+    ld hl,_getskey
+    cp (hl)   ; last key
+    ret
+    
+_symtab:
+    db "1!"
+    db "2@"
+    db "3#"
+    db "4$"
+    db "5%"
+    db "6&"
+    db "7'"
+    db "8("
+    db "9)"
+    db "0_"
+    db "r<"
+    db "t>"
+    db "o",59
+    db "p",0x22
+    db "h^"
+    db "j-"
+    db "k+"
+    db "l="
+    db "z:"
+    db "x",0x60
+    db "c?"
+    db "v/"
+    db "b*"
+    db "n,"
+    db "m."
+    db 0,0
+
+; if A is in the table return symbol else return A    
+_getsym:
+    ld hl,_symtab
+_getsym0:
+    ld b,(hl)
+    inc b
+    dec b     ; end of table if 0
+    ret z
+    
+    cp b
+    inc hl    ; doesn't affect flags
+    inc hl
+    jr nz,_getsym0
+    dec hl
+    ld a,(hl)
+    ret
+
+_getskey: db 0    ; ASCII of prev key
+_gets:
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    call spin   ; wait till no key pressed
+    
+    ld hl,(_putchar_pos)   ; set cursor flash
+    ld bc,22528
+    add hl,bc
+    set 7,(hl)
+    
+    ld l,(iy+4)
+    ld h,(iy+5)
+    push hl
+    pop ix    ; buffer for input
+    
+    ld a,0
+    ld (_getskey),a ; set last key to 0
+
+_getsloop:
+
+    ld e,0   ; stores if caps (bit 0) or symbol (bit 1) pressed
+
+    ; check if symbol shift is pressed
+    ld a,%01111111   ; row 7
+    in a,(254)
+    push af  ; store
+    bit 1,a
+    jr nz,_getsnosymbol
+    set 1,e
+_getsnosymbol:    
+
+    ; check if caps shift is pressed
+    ld a,%11111110  ; row 0
+    in a,(254)
+    bit 0,a
+    jr nz,_getsnocaps
+    set 0,e    
+_getsnocaps:
+
+    ; now scan whole keyboard, we already have row 0 and 7
+    
+    ; row 0 already on a
+    cpl
+    ld hl,_gets0
+    call _getsfind
+    cp 0
+    jr nz,_getsfound
+
+    ; pop for row7
+    pop af
+    cpl    
+    ld  hl,_gets7
+    call _getsfind    
+    cp 0
+    jr nz,_getsfound
+
+    ld a,%11111101
+    in a,(254)
+    cpl    
+    ld  hl,_gets1
+    call _getsfind
+    jr nz,_getsfound
+
+    ld a,%11111011
+    in a,(254)
+    cpl    
+    ld  hl,_gets2
+    call _getsfind
+    jr nz,_getsfound
+
+    ld a,%11110111
+    in a,(254)
+    cpl    
+    ld  hl,_gets3
+    call _getsfind
+    jr nz,_getsfound
+
+    ld a,%11101111
+    in a,(254)
+    cpl    
+    ld  hl,_gets4
+    call _getsfind
+    jr nz,_getsfound
+
+    ld a,%11011111
+    in a,(254)
+    cpl    
+    ld  hl,_gets5
+    call _getsfind
+    jr nz,_getsfound
+
+    ld a,%10111111
+    in a,(254)
+    cpl    
+    ld  hl,_gets6
+    call _getsfind
+    
+_getsfound:
+    
+    cp 'E' ; ENTER, we are done
+    jr z,_getsdone
+    
+    call _isL0   ;  check if a is either (last key) or 0 (no key)
+    ld (_getskey),a       ; store last key
+    jp z,_getsloop    ; loop if so
+    
+    bit 0,e           ; CAPS
+    jr z,_getsnotdelete
+    
+    cp '0'
+    jr nz,_getsnotdelete   ; CAPS+0 = delete
+    
+    ld c,(iy+4)
+    ld b,(iy+5)
+    push ix
+    pop hl
+    or a
+    sbc hl,bc
+    jp z,_getsloop   ; but can't go beyond start of buffer
+        
+    ; delete
+    dec ix
+    ld (ix+0),0  ; close up string, put \0
+
+    ld hl,(_putchar_pos)
+    push hl
+    
+    ld bc,22528
+    add hl,bc
+    res 7,(hl)    ; unflash cursor
+    pop hl
+    
+    dec hl
+
+    ld a,' '
+    call asc
+    ld a,%10111000   ; flashing space
+    call print
+    ld (_putchar_pos),hl
+    jp _getsloop
+    
+_getsnotdelete:
+
+    bit 0,e  ; if CAPS is pressed we need to sub 32 to get upper case
+    jr z,_getsnotupper
+
+    cp 'a'
+    jr c,_getsnotupper    ; but must be a letter
+     
+    cp 'z'+1
+    jr nc,_getsnotupper
+      
+    sub 32
+    
+_getsnotupper:
+
+    bit 1,e ; If symbol shift pressed get symbol
+    call nz,_getsym
+    
+    ld (ix+0),a    ; put text in buffer
+    inc ix
+
+    ; print text at _putchar_pos
+    call asc
+    ld a,%00111001
+    ld hl,(_putchar_pos)
+    call print
+    inc hl
+    ld (_putchar_pos),hl
+
+    ld bc,22528
+    add hl,bc
+    set 7,(hl)    ; flash cursor
+    jp _getsloop
+
+_getsdone:
+    ld (ix+0),0   ; put end marker on string
+    
+    ld hl,(_putchar_pos)
+    ld bc,22528
+    add hl,bc
+    res 7,(hl)   ; turn off cursor
+    
+    ld sp,iy
+    pop iy
+
+    ret
+
+; ------------------------------------------------
+; strtol(char *s, char **endp, int base)
+; ------------------------------------------------
+
+_strtol:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld e,(iy+4)   ; s
+    ld d,(iy+5)
+
+; skip spaces
+_strtol_sloop:
+    ld a,(de)
+    cp ' '
+    jr nz,_strtol_sdone
+    inc de
+    jr _strtol_sloop
+_strtol_sdone:
+
+    ld c,0
+    cp '-'
+    jr nz,_strtol_nominus
+    
+    ld c,1    ; store minus
+    inc de
+    
+_strtol_nominus:
+    push bc ;  store
+
+    ld hl,0
+    
+_strtol_loop:
+    ld a,(de)
+    cp '0'
+    jr c,_strtol_done
+    
+    cp '9'+1
+    jr nc,_strtol_done
+        
+    add hl,hl
+    push hl
+    pop bc
+    add hl,hl
+    add hl,hl
+    add hl,bc     ; x10
+    
+    sub '0'
+    ld c,a
+    ld b,0
+    add hl,bc
+    
+    inc de
+    jr _strtol_loop
+    
+_strtol_done:
+
+    pop bc
+    dec c
+    jr nz,_strtol_notminus
+    
+    ld a,h
+    cpl
+    ld h,a
+    ld a,l
+    cpl
+    ld l,a
+    inc hl
+    
+_strtol_notminus:
+
+    ld c,(iy+6)   ; endp
+    ld b,(iy+7)
+    
+    ld a,b
+    or c
+    jr z,_strtol_noendp
+        
+    ld a,e
+    ld (bc),a
+    inc bc
+    ld a,d
+    ld (bc),a
+    
+_strtol_noendp:
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; ------------------------------------------------
+; strtod(char *s, char **endp)
+; ------------------------------------------------
+
+_strtod:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld e,(iy+4)   ; s
+    ld d,(iy+5)
+    
+    push de
+    pop ix   ; s
+
+; skip spaces
+_strtod_spaces:
+    ld a,(ix+0)
+    cp ' '
+    jr nz,_strtod_spdone
+    inc de
+    jr _strtod_spaces
+
+_strtod_spdone:
+    ld c,0
+    cp '-'
+    jr nz,_strtod_nominus
+    
+    ld c,1    ; store minus
+    inc ix
+    
+_strtod_nominus:
+    push bc ;  store whether minus
+    ld hl,0 ; tot1
+
+_strtod_loop1:
+    ld a,(ix+0)
+    cp '0'
+    jr c,_strtod_done1
+    
+    cp '9'+1
+    jr nc,_strtod_done1
+
+    ld bc,%0100100100000000  ;  10.0
+
+    push hl
+    push bc
+    call _fimul
+    pop bc   ; clean
+    pop bc   ; clean
+    
+    push hl   ; 1st arg for add
+    
+    ld a,(ix+0)
+    sub '0'
+    ld c,a
+    ld b,0
+    push bc
+    call _int2float
+    pop bc   ; clean
+    
+    push hl
+    call _fadd
+    pop bc
+    pop bc
+        
+    inc ix
+    jr _strtod_loop1
+    
+_strtod_done1:
+
+    ld a,(ix+0)
+    cp '.'
+    
+    jr nz,_strtod_nodot
+
+; fractional dot part
+
+    inc ix
+_strtod_loopfwd:
+    ld a,(ix+0)
+    cp '0'
+    jr c,_strtod_dotend  ; found the end of the digit block after .
+    
+    cp '9'+1
+    jr nc,_strtod_dotend
+    inc ix
+    jr _strtod_loopfwd
+    
+_strtod_dotend:
+    push ix
+    push hl   ; tot1
+    ld hl,0   ; tot2
+    dec ix
+    
+_strtod_loop2:
+    ld a,(ix+0)
+    cp '.'
+    jr z,_strtod_done2
+    
+    push hl
+    
+    sub '0'
+    ld c,a
+    ld b,0
+    push bc
+    call _int2float
+    pop bc   ; clean
+
+    push hl
+    call _fadd
+    pop bc
+    pop bc
+    
+    ld bc,%0100100100000000  ;  10.0
+;    ld bc,0x2e66 ; 0.1
+
+    push bc
+    push hl
+    call _fidiv
+    pop bc
+    pop bc
+    
+    dec ix
+    jr _strtod_loop2
+    
+_strtod_done2:
+    push hl; tot2
+    call _fadd ; tot1+tot2
+    pop bc
+    pop bc
+    
+    pop ix   ; end of dot sequence
+
+_strtod_nodot:
+
+    ld a,(ix+0)
+    cp 'e'
+    jr nz,_strtod_noe
+        
+    inc ix
+
+    ld bc,%0100100100000000 ; 10.0
+
+    cp '-'
+    jr nz,_strtod_noexpminus
+
+    ld bc,0x2e66 ; 0.1
+    inc ix
+    
+_strtod_noexpminus:
+
+    cp '+'
+    jr nz,_strtod_noexpplus
+
+    inc ix
+    
+_strtod_noexpplus:    
+
+    ld a,(ix+0)
+    sub '0'
+        
+    push bc ; 10 or 0.1
+
+_strtod_loop3:
+    push hl   ; tot1+tot2
+    ex af,af'
+    call _fimul
+    pop bc ; clean (10 or 0.1 still on stack)
+    ex af,af'
+    dec a
+    jr nz,_strtod_loop3
+    pop bc ; clean
+    
+_strtod_noe:
+
+    pop bc   ; overall minus
+    dec c
+    jr nz,_strtod_notminus
+
+    ld a,h
+    xor %10000000
+    ld h,a
+        
+_strtod_notminus:
+
+    ld c,(iy+6)   ; endp
+    ld b,(iy+7)
+    
+    push ix
+    pop de
+    
+    push bc
+    pop ix
+    
+    ld (ix+0),e
+    ld (ix+1),d
+        
+    ld sp,iy
+    pop iy
+
+    ret
+
+; --------------------------------------------------
+; ATOF(char *s)
+; --------------------------------------------------
+    
+_atof:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld hl,0   ; endp=NULL
+    push hl
+    
+    ld l,(iy+4)
+    ld h,(iy+5)
+    
+    push hl
+    call _strtod
+    pop bc
+    pop bc
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; --------------------------------------------------
+; ATOL(char *s)
+; --------------------------------------------------
+
+_atol:
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    ld hl,10 ; base
+    push hl
+
+    ld hl,0   ; endp=NULL
+    push hl
+    
+    ld l,(iy+4)
+    ld h,(iy+5)
+    
+    push hl
+    call _strtol
+    pop bc
+    pop bc
+    pop bc
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; --------------------------------------------------
+; GETCHAR()
+; --------------------------------------------------
+
+_getcharbuf: ds 32,0
+_getchar:
+    ld a,(_getcharbuf)
+    cp 0
+    jr nz,_getchar0
+    
+    ld hl,_getcharbuf   ; buffer empty so get input from user
+    push hl
+    call _gets
+    pop hl
+    ld (ix+0),10 ; put newline at end
+    ld (ix+1),0
+    
+_getchar0:
+    ld a,(_getcharbuf)   ; return first char and remove from buffer
+    ld de,_getcharbuf
+    push de
+    pop hl
+    inc hl
+    ld bc,31
+    ldir
+    
+    ld l,a
+    ld h,0
+    
+    ret

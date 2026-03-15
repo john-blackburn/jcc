@@ -796,7 +796,23 @@ int main(int argc, char **argv)
 
     FILE* fpz=fopen(zname,"w");
     fprintf(fpz,"org 40000\n"
-                "jp _main\n");
+                "    di\n"
+                "    ld hl,_j80name\n"
+                "    push hl\n"
+                "    ld hl,0\n"
+                "    add hl,sp\n"
+                "    push hl   ; argv\n"
+                "    ld hl,1   ; argc\n"
+                "    push hl\n"
+                "    call _main\n"
+                "    pop bc\n"
+                "    pop bc\n"
+                "    pop bc\n"
+                "    push hl\n"
+                "    pop bc\n"
+                "    ei\n"
+                "    ret\n"
+                "_j80name: db \"%s\",0\n",name);
     
     FILE* fpd=fopen(dname,"r");
     printf("processing: %s...\n",dname);
