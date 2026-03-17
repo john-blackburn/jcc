@@ -2590,7 +2590,8 @@ struct Token* getTok(char *st, char **ed)
       if (!isalnum(*p) && *p != '_')
         idOK=0;
       
-      if (!isdigit(*p) && toupper(*p)!='U' && toupper(*p)!='L')
+      if (!isdigit(*p) && toupper(*p)!='U' && toupper(*p)!='L' && toupper(*p)!='X' &&
+          toupper(*p)!='A' && toupper(*p)!='B' && toupper(*p)!='C' && toupper(*p)!='D' && toupper(*p)!='E' && toupper(*p)!='F')
         literalOK=0;
     
       if (!isdigit(*p) && *p!='.' && toupper(*p)!='E' && toupper(*p)!='F')
@@ -3114,7 +3115,11 @@ struct Type writeBinOp(char* op, struct Type type1, struct Type type2, struct No
     }
     else if (isInt(type1) && isInt(type2))
     {
-        fprintf(fps,"%s eax,ecx\n", op);
+        if (strstr("shl,shr", op)!=NULL)
+            fprintf(fps,"%s eax,cl\n", op);
+        else
+            fprintf(fps,"%s eax,ecx\n", op);
+
         strcpy(varType.data,"int");
         if (type1.isUnsigned && type2.isUnsigned)
             varType.isUnsigned=1;

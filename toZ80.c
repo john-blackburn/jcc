@@ -826,6 +826,7 @@ int main(int argc, char **argv)
 
     fprintf(fpz,"include \"z80lib.z80\"\n");
     fprintf(fpz,"include \"stdio.z80\"\n");
+    fprintf(fpz,"include \"stdlib.z80\"\n");
     fprintf(fpz,"include \"string.z80\"\n");
     fprintf(fpz,"include \"ctype.z80\"\n");
     fprintf(fpz,"include \"math.z80\"\n");

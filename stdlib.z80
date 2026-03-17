@@ -1,0 +1,361 @@
+; atol
+; atof
+; strtol
+; strtod
+; malloc
+; free
+; exit
+
+; --------------------------------------------------
+; ATOL(char *s)
+; --------------------------------------------------
+
+_atol:
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    ld hl,10 ; base
+    push hl
+
+    ld hl,0   ; endp=NULL
+    push hl
+    
+    ld l,(iy+4)
+    ld h,(iy+5)
+    
+    push hl
+    call _strtol
+    pop bc
+    pop bc
+    pop bc
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; --------------------------------------------------
+; ATOF(char *s)
+; --------------------------------------------------
+    
+_atof:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld hl,0   ; endp=NULL
+    push hl
+    
+    ld l,(iy+4)
+    ld h,(iy+5)
+    
+    push hl
+    call _strtod
+    pop bc
+    pop bc
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; ------------------------------------------------
+; strtod(char *s, char **endp)
+; ------------------------------------------------
+
+_strtod:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld e,(iy+4)   ; s
+    ld d,(iy+5)
+    
+    push de
+    pop ix   ; s
+
+; skip spaces
+_strtod_spaces:
+    ld a,(ix+0)
+    cp ' '
+    jr nz,_strtod_spdone
+    inc de
+    jr _strtod_spaces
+
+_strtod_spdone:
+    ld c,0
+    cp '-'
+    jr nz,_strtod_nominus
+    
+    ld c,1    ; store minus
+    inc ix
+    
+_strtod_nominus:
+    push bc ;  store whether minus
+    ld hl,0 ; tot1
+
+_strtod_loop1:
+    ld a,(ix+0)
+    cp '0'
+    jr c,_strtod_done1
+    
+    cp '9'+1
+    jr nc,_strtod_done1
+
+    ld bc,%0100100100000000  ;  10.0
+
+    push hl
+    push bc
+    call _fimul
+    pop bc   ; clean
+    pop bc   ; clean
+    
+    push hl   ; 1st arg for add
+    
+    ld a,(ix+0)
+    sub '0'
+    ld c,a
+    ld b,0
+    push bc
+    call _int2float
+    pop bc   ; clean
+    
+    push hl
+    call _fadd
+    pop bc
+    pop bc
+        
+    inc ix
+    jr _strtod_loop1
+    
+_strtod_done1:
+
+    ld a,(ix+0)
+    cp '.'
+    
+    jr nz,_strtod_nodot
+
+; fractional dot part
+
+    inc ix
+_strtod_loopfwd:
+    ld a,(ix+0)
+    cp '0'
+    jr c,_strtod_dotend  ; found the end of the digit block after .
+    
+    cp '9'+1
+    jr nc,_strtod_dotend
+    inc ix
+    jr _strtod_loopfwd
+    
+_strtod_dotend:
+    push ix
+    push hl   ; tot1
+    ld hl,0   ; tot2
+    dec ix
+    
+_strtod_loop2:
+    ld a,(ix+0)
+    cp '.'
+    jr z,_strtod_done2
+    
+    push hl
+    
+    sub '0'
+    ld c,a
+    ld b,0
+    push bc
+    call _int2float
+    pop bc   ; clean
+
+    push hl
+    call _fadd
+    pop bc
+    pop bc
+    
+    ld bc,%0100100100000000  ;  10.0
+;    ld bc,0x2e66 ; 0.1
+
+    push bc
+    push hl
+    call _fidiv
+    pop bc
+    pop bc
+    
+    dec ix
+    jr _strtod_loop2
+    
+_strtod_done2:
+    push hl; tot2
+    call _fadd ; tot1+tot2
+    pop bc
+    pop bc
+    
+    pop ix   ; end of dot sequence
+
+_strtod_nodot:
+
+    ld a,(ix+0)
+    cp 'e'
+    jr nz,_strtod_noe
+        
+    inc ix
+
+    ld bc,%0100100100000000 ; 10.0
+
+    cp '-'
+    jr nz,_strtod_noexpminus
+
+    ld bc,0x2e66 ; 0.1
+    inc ix
+    
+_strtod_noexpminus:
+
+    cp '+'
+    jr nz,_strtod_noexpplus
+
+    inc ix
+    
+_strtod_noexpplus:    
+
+    ld a,(ix+0)
+    sub '0'
+        
+    push bc ; 10 or 0.1
+
+_strtod_loop3:
+    push hl   ; tot1+tot2
+    ex af,af'
+    call _fimul
+    pop bc ; clean (10 or 0.1 still on stack)
+    ex af,af'
+    dec a
+    jr nz,_strtod_loop3
+    pop bc ; clean
+    
+_strtod_noe:
+
+    pop bc   ; overall minus
+    dec c
+    jr nz,_strtod_notminus
+
+    ld a,h
+    xor %10000000
+    ld h,a
+        
+_strtod_notminus:
+
+    ld c,(iy+6)   ; endp
+    ld b,(iy+7)
+    
+    push ix
+    pop de
+    
+    push bc
+    pop ix
+    
+    ld (ix+0),e
+    ld (ix+1),d
+        
+    ld sp,iy
+    pop iy
+
+    ret
+
+; ------------------------------------------------
+; strtol(char *s, char **endp, int base)
+; ------------------------------------------------
+
+_strtol:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld e,(iy+4)   ; s
+    ld d,(iy+5)
+
+; skip spaces
+_strtol_sloop:
+    ld a,(de)
+    cp ' '
+    jr nz,_strtol_sdone
+    inc de
+    jr _strtol_sloop
+_strtol_sdone:
+
+    ld c,0
+    cp '-'
+    jr nz,_strtol_nominus
+    
+    ld c,1    ; store minus
+    inc de
+    
+_strtol_nominus:
+    push bc ;  store
+
+    ld hl,0
+    
+_strtol_loop:
+    ld a,(de)
+    cp '0'
+    jr c,_strtol_done
+    
+    cp '9'+1
+    jr nc,_strtol_done
+        
+    add hl,hl
+    push hl
+    pop bc
+    add hl,hl
+    add hl,hl
+    add hl,bc     ; x10
+    
+    sub '0'
+    ld c,a
+    ld b,0
+    add hl,bc
+    
+    inc de
+    jr _strtol_loop
+    
+_strtol_done:
+
+    pop bc
+    dec c
+    jr nz,_strtol_notminus
+    
+    ld a,h
+    cpl
+    ld h,a
+    ld a,l
+    cpl
+    ld l,a
+    inc hl
+    
+_strtol_notminus:
+
+    ld c,(iy+6)   ; endp
+    ld b,(iy+7)
+    
+    ld a,b
+    or c
+    jr z,_strtol_noendp
+        
+    ld a,e
+    ld (bc),a
+    inc bc
+    ld a,d
+    ld (bc),a
+    
+_strtol_noendp:
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+_malloc:
+    ld hl,_heap
+    ret
+    
