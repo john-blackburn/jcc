@@ -146,7 +146,10 @@ int process(FILE* fp, FILE* fpz)
         else if (startsWith(line,".asciz"))
         {
             getSubstr(num,line,7,-1);
-            fprintf(fpz,"    db %s,0",num);
+            if (strlen(num)==2)  // empty string
+                fprintf(fpz,"    db 0",num);
+            else
+                fprintf(fpz,"    db %s,0",num);
         }
         
 // ----------------------------------------------------------
@@ -230,7 +233,26 @@ int process(FILE* fp, FILE* fpz)
                         "    add hl,bc",n);
             }            
             else
-                fail("unknown LEA");
+                fail("unknown LEA EAX");
+        }
+
+        else if (startsWith(line,"lea ecx"))
+        {
+            if (inStr(line,7,",[ebp"))
+            {
+                i=getInd(line,']');
+                getSubstr(num,line,12,i-1);
+                n=strtol(num,&endptr,0);
+                fprintf(fpz,
+                        "    push iy\n"
+                        "    ld bc,%d\n"
+                        "    add iy,bc\n"
+                        "    push iy\n"
+                        "    pop de\n"
+                        "    pop iy",n);
+            }            
+            else
+                fail("unknown LEA ECX");
         }
 
 // ----------------------------------------------------------
@@ -308,13 +330,15 @@ int process(FILE* fp, FILE* fpz)
                 else
                 {
                     fprintf(fpz,
-                            "    push hl\n",
+                            "    push hl\n"
+                            "    pop ix\n"
                             "    ld hl,0\n"
                             "    add hl,sp\n"
                             "    ld bc,%s\n"
                             "    %s\n"
-                            "    ld sp,hl",
-                            "    pop hl\n", num, add ? "add hl,bc":"or a\n    sbc hl,bc");
+                            "    ld sp,hl\n"
+                            "    push ix\n"
+                            "    pop hl", num, add ? "add hl,bc":"or a\n    sbc hl,bc");
                 }
             }
             else if (inStr(line,4,"eax,ecx"))
@@ -399,9 +423,12 @@ int process(FILE* fp, FILE* fpz)
         }
 
 // ----------------------------------------------------------
-// [I]MUL, [I]DIV
+// [I]MUL, [I]DIV, CDQ
 // ----------------------------------------------------------
 
+        else if (startsWith(line,"cdq"))
+        {
+        }
         else if (startsWith(line,"imul eax") || startsWith(line,"mul eax"))
             fprintf(fpz,"    call _mul_hlde");
 

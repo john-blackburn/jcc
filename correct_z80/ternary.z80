@@ -1,0 +1,362 @@
+org 40000
+    di
+    ld hl,_j80name
+    push hl
+    ld hl,0
+    add hl,sp
+    push hl   ; argv
+    ld hl,1   ; argc
+    push hl
+    call _main
+    pop bc
+    pop bc
+    pop bc
+    push hl
+    pop bc
+    ei
+    ret
+_j80name: db "ternary.c",0
+_string4:
+    db 0
+_string5:
+    db "s",0
+_string6:
+    db "You have %d item%s\n",0
+; =========================================
+; main l=0 o=0 [int] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld hl,3
+    ld (iy-2),l
+    ld (iy-1),h ; declare test (level 1)
+; =========================================
+; test l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    ld hl,1
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; test
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_else1
+    ld hl,_string4
+    jp _end1
+_else1:
+    ld hl,_string5
+_end1:
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; test
+    push hl
+    ld hl,_string6
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,1
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; test
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end7
+    ld hl,1
+    ld a,h
+    or l
+    jp z,_else8
+    ld hl,2
+    push hl
+    ld hl,3
+    pop de
+
+    call _idiv_hlde
+    push ix
+    pop hl
+    jp _end8
+_else8:
+    ld hl,4
+_end8:
+    ld (iy-4),l
+    ld (iy-3),h ; declare a (level 2)
+; =========================================
+; a l=2 o=-4 [int] 
+; test l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    ld l,(iy-4)
+    ld h,(iy-3) ; a
+    ld sp,iy
+    pop iy
+    ret
+; ** End of block **
+; =========================================
+; test l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+_end7:
+    ld hl,2
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; test
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end9
+    ld hl,1
+    ld (iy-4),l
+    ld (iy-3),h ; declare a (level 2)
+; =========================================
+; a l=2 o=-4 [int] 
+; test l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    ld hl,2
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; a
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _setne
+    ld a,h
+    or l
+    jp z,_else10
+    push iy
+    pop hl
+    ld bc,-4
+    add hl,bc ; a
+    push hl
+    ld hl,2
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    jp _end10
+_else10:
+    ld hl,0
+_end10:
+    ld l,(iy-4)
+    ld h,(iy-3) ; a
+    ld sp,iy
+    pop iy
+    ret
+; ** End of block **
+; =========================================
+; test l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+_end9:
+    ld hl,3
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; test
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end11
+    ld hl,10
+    ld (iy-4),l
+    ld (iy-3),h ; declare a (level 2)
+; =========================================
+; a l=2 o=-4 [int] 
+; test l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    ld l,(iy-4)
+    ld h,(iy-3) ; a
+    ld a,h
+    or l
+    jp z,_else13
+    ld hl,1
+    jp _end13
+_else13:
+    ld hl,0
+    ld a,h
+    or l
+    ld hl,0
+    call _setne
+_end13:
+    ld a,h
+    or l
+    jp z,_else12
+    ld hl,20
+    jp _end12
+_else12:
+    ld hl,0
+_end12:
+    ld sp,iy
+    pop iy
+    ret
+; ** End of block **
+; =========================================
+; test l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+_end11:
+    ld hl,4
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; test
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end14
+    ld hl,0
+    ld a,h
+    or l
+    jp z,_else15
+    ld hl,1
+    jp _end15
+_else15:
+    ld hl,0
+    ld a,h
+    or l
+    jp z,_else17
+    ld hl,1
+    jp _end17
+_else17:
+    ld hl,2
+    ld a,h
+    or l
+    ld hl,0
+    call _setne
+_end17:
+_end15:
+    ld sp,iy
+    pop iy
+    ret
+_end14:
+    ld hl,5
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; test
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end18
+    ld hl,1
+    ld (iy-4),l
+    ld (iy-3),h ; declare a (level 2)
+; =========================================
+; a l=2 o=-4 [int] 
+; test l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    ld hl,0
+    ld (iy-6),l
+    ld (iy-5),h ; declare b (level 2)
+; =========================================
+; b l=2 o=-6 [int] 
+; a l=2 o=-4 [int] 
+; test l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+    ld l,(iy-4)
+    ld h,(iy-3) ; a
+    ld a,h
+    or l
+    jp z,_else19
+    push iy
+    pop hl
+    ld bc,-6
+    add hl,bc ; b
+    push hl
+    ld hl,1
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    jp _end19
+_else19:
+    push iy
+    pop hl
+    ld bc,-6
+    add hl,bc ; b
+    push hl
+    ld hl,2
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+_end19:
+    ld l,(iy-6)
+    ld h,(iy-5) ; b
+    ld sp,iy
+    pop iy
+    ret
+; ** End of block **
+; =========================================
+; test l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; =========================================
+_end18:
+locals_main equ 6
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "stdlib.z80"
+include "string.z80"
+include "ctype.z80"
+include "math.z80"
+_heap:

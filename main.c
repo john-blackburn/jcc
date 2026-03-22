@@ -3427,7 +3427,7 @@ struct Type writeAsm(struct Node *node, int level, int lvalue, int loop)
                     fprintf(fpd,".asciz \"%s\"\n", node->child->line[i]->id);
                 }            
                 if (!node->varType.isStatic) fprintf(fpd,".globl _%s\n",node->id);
-                fprintf(fps,"_%s:\n",node->id);
+                fprintf(fpd,"_%s:\n",node->id);
                 for (i=0;i<node->child->nlines;i++)
                 {
                     fprintf(fpd,".long %s_string%d\n",node->id,i);

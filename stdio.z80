@@ -304,6 +304,21 @@ not_percentf:
     inc hl
     push hl
     
+    ld a,d
+    or e
+    jr nz,dnot0
+
+    ; special case of 0
+    ld hl,(_putchar_pos)
+    ld a,'0'
+    call asc    
+    ld a,00111001b
+    call print    
+    inc hl
+    jr doned
+    
+dnot0:
+    
     push de
     pop hl
     

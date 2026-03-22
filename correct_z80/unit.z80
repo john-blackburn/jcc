@@ -1,0 +1,2963 @@
+org 40000
+    di
+    ld hl,_j80name
+    push hl
+    ld hl,0
+    add hl,sp
+    push hl   ; argv
+    ld hl,1   ; argc
+    push hl
+    call _main
+    pop bc
+    pop bc
+    pop bc
+    push hl
+    pop bc
+    ei
+    ret
+_j80name: db "unit.c",0
+_varEnd:
+    ds 2
+_string8:
+    db "void",0
+_string9:
+    db "Cannot take sizeof void\n",0
+_string14:
+    db "Failed to parse index number\n",0
+_string18:
+    db "int",0
+_string20:
+    db "char",0
+_string22:
+    db "struct",0
+_string26:
+    db "Unknown struct %s\n",0
+_string28:
+    db "Cannot find sizeof %s\n",0
+_string29:
+    db "jo",0
+_string30:
+    db "John",0
+_string31:
+    db "Jo",0
+_string32:
+    db "John",0
+_string33:
+    db "startsWith %d %d\n",0
+_string34:
+    db "John",0
+_string35:
+    db "John",0
+_string36:
+    db "endsWith %d %d\n",0
+_string37:
+    db "int*",0
+_string38:
+    db "sizeOf int* =%d, isPointer=%d\n",0
+_string39:
+    db "int",0
+_string40:
+    db "sizeOf int =%d, isPointer=%d\n",0
+_string41:
+    db "char",0
+_string42:
+    db "sizeOf char =%d isPointer=%d\n",0
+_string43:
+    db "char*",0
+_string44:
+    db "sizeOf char* =%d isPointer=%d\n",0
+_string45:
+    db "char*[2][3]",0
+_string46:
+    db "sizeOf char*[2][3] =%d isPointer=%d\n",0
+; =========================================
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; s l=1 o=6 [char*] ARG
+; t l=1 o=4 [char*] ARG
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_startsWith:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_startsWith
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld l,(iy+4)
+    ld h,(iy+5) ; t
+    push hl
+    call _strlen
+    pop bc
+    push hl
+    ld l,(iy+6)
+    ld h,(iy+7) ; s
+    push hl
+    call _strlen
+    pop bc
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _setg
+    ld a,h
+    or l
+    jp z,_end1
+    ld hl,0
+    ld sp,iy
+    pop iy
+    ret
+_end1:
+; =========================================
+; i l=1 o=-2 [int] 
+; s l=1 o=6 [char*] ARG
+; t l=1 o=4 [char*] ARG
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; i
+    push hl
+    ld hl,0
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+_start2:
+    ld l,(iy+6)
+    ld h,(iy+7) ; s
+    push hl
+    call _strlen
+    pop bc
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _setl
+    ld a,h
+    or l
+    jp z,_end2
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    push hl
+    push iy
+    pop hl
+    ld bc,6
+    add hl,bc ; s
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+
+    add hl,de
+    ld l,(hl)
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    push hl
+    push iy
+    pop hl
+    ld bc,4
+    add hl,bc ; t
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+
+    add hl,de
+    ld l,(hl)
+    pop de
+    ld a,l
+    cp e
+    ld hl,0
+    call _setne
+    ld a,h
+    or l
+    jp z,_end3
+    ld hl,0
+    ld sp,iy
+    pop iy
+    ret
+_end3:
+; ** End of block **
+; =========================================
+; i l=1 o=-2 [int] 
+; s l=1 o=6 [char*] ARG
+; t l=1 o=4 [char*] ARG
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_cont2:
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; i
+    ld e,(hl)
+    inc hl
+    ld d,(hl)
+    dec hl
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    inc bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+    push de
+    pop hl
+    jp _start2
+_end2:
+    ld hl,1
+    ld sp,iy
+    pop iy
+    ret
+locals_startsWith equ 2
+; ** End of function **
+; =========================================
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+; =========================================
+; c l=1 o=6 [char] ARG
+; t l=1 o=4 [char*] ARG
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_endsWith:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_endsWith
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld l,(iy+4)
+    ld h,(iy+5) ; t
+    push hl
+    call _strlen
+    pop bc
+    ld (iy-2),l
+    ld (iy-1),h ; declare l (level 1)
+; =========================================
+; l l=1 o=-2 [int] 
+; c l=1 o=6 [char] ARG
+; t l=1 o=4 [char*] ARG
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld l,(iy+6) ; c
+    push hl
+    ld hl,1
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; l
+    pop de
+    or a
+    sbc hl,de
+    push hl
+    push iy
+    pop hl
+    ld bc,4
+    add hl,bc ; t
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+
+    add hl,de
+    ld l,(hl)
+    pop de
+    ld a,l
+    cp e
+    ld hl,0
+    call _sete
+    ld sp,iy
+    pop iy
+    ret
+locals_endsWith equ 2
+; ** End of function **
+; =========================================
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+; =========================================
+; close l=1 o=8 [int[]] ARG
+; open l=1 o=6 [int[]] ARG
+; t l=1 o=4 [char*] ARG
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_getArray:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_getArray
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld l,(iy+4)
+    ld h,(iy+5) ; t
+    push hl
+    call _strlen
+    pop bc
+    ld (iy-2),l
+    ld (iy-1),h ; declare l (level 1)
+; =========================================
+; l l=1 o=-2 [int] 
+; close l=1 o=8 [int[]] ARG
+; open l=1 o=6 [int[]] ARG
+; t l=1 o=4 [char*] ARG
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; i l=1 o=-4 [int] 
+; l l=1 o=-2 [int] 
+; close l=1 o=8 [int[]] ARG
+; open l=1 o=6 [int[]] ARG
+; t l=1 o=4 [char*] ARG
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld hl,0
+    ld (iy-6),l
+    ld (iy-5),h ; declare ind (level 1)
+; =========================================
+; ind l=1 o=-6 [int] 
+; i l=1 o=-4 [int] 
+; l l=1 o=-2 [int] 
+; close l=1 o=8 [int[]] ARG
+; open l=1 o=6 [int[]] ARG
+; t l=1 o=4 [char*] ARG
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-4
+    add hl,bc ; i
+    push hl
+    ld hl,0
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+_start4:
+    ld l,(iy-2)
+    ld h,(iy-1) ; l
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; i
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _setl
+    ld a,h
+    or l
+    jp z,_end4
+    ld l,'['
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; i
+    push hl
+    push iy
+    pop hl
+    ld bc,4
+    add hl,bc ; t
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+
+    add hl,de
+    ld l,(hl)
+    pop de
+    ld a,l
+    cp e
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end5
+    ld l,(iy-6)
+    ld h,(iy-5) ; ind
+    push hl
+    ld l,(iy+6)
+    ld h,(iy+7) ; open
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; i
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+; ** End of block **
+; =========================================
+; ind l=1 o=-6 [int] 
+; i l=1 o=-4 [int] 
+; l l=1 o=-2 [int] 
+; close l=1 o=8 [int[]] ARG
+; open l=1 o=6 [int[]] ARG
+; t l=1 o=4 [char*] ARG
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_end5:
+    ld l,']'
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; i
+    push hl
+    push iy
+    pop hl
+    ld bc,4
+    add hl,bc ; t
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+
+    add hl,de
+    ld l,(hl)
+    pop de
+    ld a,l
+    cp e
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end6
+    ld l,(iy-6)
+    ld h,(iy-5) ; ind
+    push hl
+    ld l,(iy+8)
+    ld h,(iy+9) ; close
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; i
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-6
+    add hl,bc ; ind
+    ld e,(hl)
+    inc hl
+    ld d,(hl)
+    dec hl
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    inc bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+    push de
+    pop hl
+; ** End of block **
+; =========================================
+; ind l=1 o=-6 [int] 
+; i l=1 o=-4 [int] 
+; l l=1 o=-2 [int] 
+; close l=1 o=8 [int[]] ARG
+; open l=1 o=6 [int[]] ARG
+; t l=1 o=4 [char*] ARG
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_end6:
+; ** End of block **
+; =========================================
+; ind l=1 o=-6 [int] 
+; i l=1 o=-4 [int] 
+; l l=1 o=-2 [int] 
+; close l=1 o=8 [int[]] ARG
+; open l=1 o=6 [int[]] ARG
+; t l=1 o=4 [char*] ARG
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_cont4:
+    push iy
+    pop hl
+    ld bc,-4
+    add hl,bc ; i
+    ld e,(hl)
+    inc hl
+    ld d,(hl)
+    dec hl
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    inc bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+    push de
+    pop hl
+    jp _start4
+_end4:
+    ld l,(iy-6)
+    ld h,(iy-5) ; ind
+    ld sp,iy
+    pop iy
+    ret
+locals_getArray equ 6
+; ** End of function **
+; =========================================
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+; =========================================
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_sizeOf:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_sizeOf
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld hl,0
+    push hl
+    ld hl,_string8
+    push hl
+    push iy
+    pop hl
+    ld bc,4
+    add hl,bc ; t
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _strcmp
+    pop bc
+    pop bc
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end7
+    ld hl,_string9
+    push hl
+    call _printf
+    pop bc
+    ld hl,1
+    push hl
+    call _exit
+    pop bc
+; ** End of block **
+; =========================================
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_end7:
+    ld hl,0
+    push hl
+    push iy
+    pop hl
+    ld bc,4
+    add hl,bc ; t
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _strlen
+    pop bc
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end10
+    ld hl,0
+    ld sp,iy
+    pop iy
+    ret
+_end10:
+; =========================================
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-4
+    add hl,bc ; n
+    push hl
+    push iy
+    pop hl
+    ld bc,-44
+    add hl,bc ; close
+    push hl
+    push iy
+    pop hl
+    ld bc,-24
+    add hl,bc ; open
+    push hl
+    push iy
+    pop hl
+    ld bc,4
+    add hl,bc ; t
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _getArray
+    pop bc
+    pop bc
+    pop bc
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,1
+    ld (iy-46),l
+    ld (iy-45),h ; declare nElem (level 1)
+; =========================================
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld hl,0
+    ld (iy-68),l
+    ld (iy-67),h ; declare endptr (level 1)
+; =========================================
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; i
+    push hl
+    ld hl,0
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+_start11:
+    ld l,(iy-4)
+    ld h,(iy-3) ; n
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _setl
+    ld a,h
+    or l
+    jp z,_end11
+    push iy
+    pop hl
+    ld bc,-48
+    add hl,bc ; st
+    push hl
+    ld hl,1
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    push hl
+    push iy
+    pop hl
+    ld bc,-24
+    add hl,bc ; open
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    add hl,de
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-50
+    add hl,bc ; len
+    push hl
+    ld hl,1
+    push hl
+    ld l,(iy-48)
+    ld h,(iy-47) ; st
+    push hl
+    ld hl,1
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    push hl
+    push iy
+    pop hl
+    ld bc,-44
+    add hl,bc ; close
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    or a
+    sbc hl,de
+    pop de
+    or a
+    sbc hl,de
+    pop de
+    add hl,de
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld l,(iy-50)
+    ld h,(iy-49) ; len
+    push hl
+    ld l,(iy-48)
+    ld h,(iy-47) ; st
+    push hl
+    push iy
+    pop hl
+    ld bc,4
+    add hl,bc ; t
+    ld de,0
+    add hl,de ; .data
+    pop de
+
+    add hl,de
+    push hl
+    push iy
+    pop hl
+    ld bc,-66
+    add hl,bc ; index
+    push hl
+    call _memcpy
+    pop bc
+    pop bc
+    pop bc
+    ld l,(iy-50)
+    ld h,(iy-49) ; len
+    push hl
+    push iy
+    pop hl
+    ld bc,-66
+    add hl,bc ; index
+    pop de
+
+    add hl,de
+    push hl
+    ld l,0
+    pop de
+    ld a,l
+    ld (de),a
+    call __errno
+
+    push hl
+    ld hl,0
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,0
+    push hl
+    push iy
+    pop hl
+    ld bc,-68
+    add hl,bc ; endptr
+    push hl
+    push iy
+    pop hl
+    ld bc,-66
+    add hl,bc ; index
+    push hl
+    call _strtol
+    pop bc
+    pop bc
+    pop bc
+    push hl
+    push iy
+    pop hl
+    ld bc,-46
+    add hl,bc ; nElem
+    pop de
+    push hl
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    ld (hl),e
+    inc hl
+    ld (hl),d
+    dec hl
+    push de
+    pop hl
+    ld hl,0
+    push hl
+    call __errno
+
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp nz,_else13
+    ld hl,0
+    jp _end13
+_else13:
+    ld l,0
+    push hl
+    ld l,(iy-68)
+    ld h,(iy-67) ; endptr
+    ld l,(hl)
+    pop de
+    ld a,l
+    cp e
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    ld hl,0
+    call _setne
+_end13:
+    ld a,h
+    or l
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end12
+    ld hl,_string14
+    push hl
+    call _printf
+    pop bc
+    ld hl,1
+    push hl
+    call _exit
+    pop bc
+; ** End of block **
+; =========================================
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_end12:
+; ** End of block **
+; =========================================
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_cont11:
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; i
+    ld e,(hl)
+    inc hl
+    ld d,(hl)
+    dec hl
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    inc bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+    push de
+    pop hl
+    jp _start11
+_end11:
+    push iy
+    pop hl
+    ld bc,4
+    add hl,bc ; t
+    push iy
+    ld bc,-100
+    add iy,bc
+    push iy
+    pop de
+    pop iy
+    ld bc,32
+    ldir
+; =========================================
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld hl,0
+    push hl
+    ld l,(iy-4)
+    ld h,(iy-3) ; n
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _setg
+    ld a,h
+    or l
+    jp z,_end15
+    ld hl,0
+    push hl
+    push iy
+    pop hl
+    ld bc,-24
+    add hl,bc ; open
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,-100
+    add hl,bc ; s
+    ld de,0
+    add hl,de ; .data
+    pop de
+
+    add hl,de
+    push hl
+    ld l,0
+    pop de
+    ld a,l
+    ld (de),a
+; ** End of block **
+; =========================================
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_end15:
+    ld l,'*'
+    push hl
+    push iy
+    pop hl
+    ld bc,-100
+    add hl,bc ; s
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _endsWith
+    pop bc
+    pop bc
+    ld a,h
+    or l
+    jp z,_else16
+    ld l,(iy-46)
+    ld h,(iy-45) ; nElem
+    push hl
+    ld hl,4
+    pop de
+    call _mul_hlde
+    ld sp,iy
+    pop iy
+    ret
+    jp _end16
+_else16:
+    ld hl,0
+    push hl
+    ld hl,_string18
+    push hl
+    push iy
+    pop hl
+    ld bc,-100
+    add hl,bc ; s
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _strcmp
+    pop bc
+    pop bc
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_else17
+    ld l,(iy-46)
+    ld h,(iy-45) ; nElem
+    push hl
+    ld hl,4
+    pop de
+    call _mul_hlde
+    ld sp,iy
+    pop iy
+    ret
+    jp _end17
+_else17:
+    ld hl,0
+    push hl
+    ld hl,_string20
+    push hl
+    push iy
+    pop hl
+    ld bc,-100
+    add hl,bc ; s
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _strcmp
+    pop bc
+    pop bc
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_else19
+    ld l,(iy-46)
+    ld h,(iy-45) ; nElem
+    ld sp,iy
+    pop iy
+    ret
+    jp _end19
+_else19:
+    ld hl,_string22
+    push hl
+    push iy
+    pop hl
+    ld bc,-100
+    add hl,bc ; s
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _startsWith
+    pop bc
+    pop bc
+    ld a,h
+    or l
+    jp z,_else21
+    ld hl,(_varEnd)
+    ld (iy-102),l
+    ld (iy-101),h ; declare p (level 2)
+; =========================================
+; p l=2 o=-102 [struct Var*] 
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+; =========================================
+; structNode l=2 o=-104 [struct Node*] 
+; p l=2 o=-102 [struct Var*] 
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld hl,0
+    ld (iy-106),l
+    ld (iy-105),h ; declare found (level 2)
+; =========================================
+; found l=2 o=-106 [int] 
+; structNode l=2 o=-104 [struct Node*] 
+; p l=2 o=-102 [struct Var*] 
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_cont23:
+_start23:
+    ld hl,0
+    push hl
+    ld l,(iy-102)
+    ld h,(iy-101) ; p
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _setne
+    ld a,h
+    or l
+    jp z,_end23
+    ld hl,0
+    push hl
+    ld l,(iy-102)
+    ld h,(iy-101) ; p
+    ld de,0
+    add hl,de ; .id
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,-100
+    add hl,bc ; s
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _strcmp
+    pop bc
+    pop bc
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end24
+    push iy
+    pop hl
+    ld bc,-104
+    add hl,bc ; structNode
+    push hl
+    ld l,(iy-102)
+    ld h,(iy-101) ; p
+    ld de,40
+    add hl,de ; .structNode
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-106
+    add hl,bc ; found
+    push hl
+    ld hl,1
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    jp _end23
+; ** End of block **
+; =========================================
+; found l=2 o=-106 [int] 
+; structNode l=2 o=-104 [struct Node*] 
+; p l=2 o=-102 [struct Var*] 
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_end24:
+    push iy
+    pop hl
+    ld bc,-102
+    add hl,bc ; p
+    push hl
+    ld l,(iy-102)
+    ld h,(iy-101) ; p
+    ld de,42
+    add hl,de ; .prev
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+; ** End of block **
+; =========================================
+; found l=2 o=-106 [int] 
+; structNode l=2 o=-104 [struct Node*] 
+; p l=2 o=-102 [struct Var*] 
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    jp _start23
+_end23:
+    ld hl,0
+    push hl
+    ld l,(iy-106)
+    ld h,(iy-105) ; found
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _sete
+    ld a,h
+    or l
+    jp z,_end25
+    push iy
+    pop hl
+    ld bc,-100
+    add hl,bc ; s
+    ld de,0
+    add hl,de ; .data
+    push hl
+    ld hl,_string26
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    ld hl,1
+    push hl
+    call _exit
+    pop bc
+; ** End of block **
+; =========================================
+; found l=2 o=-106 [int] 
+; structNode l=2 o=-104 [struct Node*] 
+; p l=2 o=-102 [struct Var*] 
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_end25:
+    ld hl,0
+    ld (iy-108),l
+    ld (iy-107),h ; declare tot (level 2)
+; =========================================
+; tot l=2 o=-108 [int] 
+; found l=2 o=-106 [int] 
+; structNode l=2 o=-104 [struct Node*] 
+; p l=2 o=-102 [struct Var*] 
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; i
+    push hl
+    ld hl,0
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+_start27:
+    ld l,(iy-104)
+    ld h,(iy-103) ; structNode
+    ld de,46
+    add hl,de ; .nlines
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    pop de
+    push hl
+    or a
+    sbc hl,de
+    pop hl
+    ld hl,0
+    call _setl
+    ld a,h
+    or l
+    jp z,_end27
+    ld l,(iy-2)
+    ld h,(iy-1) ; i
+    push hl
+    ld l,(iy-104)
+    ld h,(iy-103) ; structNode
+    ld de,44
+    add hl,de ; .line
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    ld de,4
+    add hl,de ; .varType
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    or a
+    sbc hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,32
+    ldir
+    call _sizeOf
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    add hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,-108
+    add hl,bc ; tot
+    pop de
+    push hl
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    add hl,de
+    push hl
+    pop de
+    pop hl
+    ld (hl),e
+    inc hl
+    ld (hl),d
+    dec hl
+    push de
+    pop hl
+; ** End of block **
+; =========================================
+; tot l=2 o=-108 [int] 
+; found l=2 o=-106 [int] 
+; structNode l=2 o=-104 [struct Node*] 
+; p l=2 o=-102 [struct Var*] 
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_cont27:
+    push iy
+    pop hl
+    ld bc,-2
+    add hl,bc ; i
+    ld e,(hl)
+    inc hl
+    ld d,(hl)
+    dec hl
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    inc bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+    push de
+    pop hl
+    jp _start27
+_end27:
+    ld l,(iy-108)
+    ld h,(iy-107) ; tot
+    push hl
+    ld l,(iy-46)
+    ld h,(iy-45) ; nElem
+    pop de
+    call _mul_hlde
+    ld sp,iy
+    pop iy
+    ret
+; ** End of block **
+; =========================================
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    jp _end21
+_else21:
+    push iy
+    pop hl
+    ld bc,-100
+    add hl,bc ; s
+    ld de,0
+    add hl,de ; .data
+    push hl
+    ld hl,_string28
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    ld hl,1
+    push hl
+    call _exit
+    pop bc
+; ** End of block **
+; =========================================
+; s l=1 o=-100 [struct Type] 
+; endptr l=1 o=-68 [char*] 
+; index l=1 o=-66 [char[16]] 
+; len l=1 o=-50 [int] 
+; st l=1 o=-48 [int] 
+; nElem l=1 o=-46 [int] 
+; close l=1 o=-44 [int[10]] 
+; open l=1 o=-24 [int[10]] 
+; n l=1 o=-4 [int] 
+; i l=1 o=-2 [int] 
+; t l=1 o=4 [struct Type] ARG
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_end21:
+_end19:
+_end17:
+_end16:
+locals_sizeOf equ 108
+; ** End of function **
+; =========================================
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+; =========================================
+; t l=1 o=4 [struct Type] ARG
+; isPointer l=0 o=0 [int] 
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_isPointer:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_isPointer
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld l,'*'
+    push hl
+    push iy
+    pop hl
+    ld bc,4
+    add hl,bc ; t
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _endsWith
+    pop bc
+    pop bc
+    ld sp,iy
+    pop iy
+    ret
+locals_isPointer equ 0
+; ** End of function **
+; =========================================
+; isPointer l=0 o=0 [int] 
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+; =========================================
+; argv l=1 o=6 [char**] ARG
+; argc l=1 o=4 [int] ARG
+; main l=0 o=0 [int] 
+; isPointer l=0 o=0 [int] 
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+; =========================================
+; t l=1 o=-32 [struct Type] 
+; argv l=1 o=6 [char**] ARG
+; argc l=1 o=4 [int] ARG
+; main l=0 o=0 [int] 
+; isPointer l=0 o=0 [int] 
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld hl,_string29
+    push hl
+    ld hl,_string30
+    push hl
+    call _startsWith
+    pop bc
+    pop bc
+    push hl
+    ld hl,_string31
+    push hl
+    ld hl,_string32
+    push hl
+    call _startsWith
+    pop bc
+    pop bc
+    push hl
+    ld hl,_string33
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld l,'N'
+    push hl
+    ld hl,_string34
+    push hl
+    call _endsWith
+    pop bc
+    pop bc
+    push hl
+    ld l,'n'
+    push hl
+    ld hl,_string35
+    push hl
+    call _endsWith
+    pop bc
+    pop bc
+    push hl
+    ld hl,_string36
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,_string37
+    push hl
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _strcpy
+    pop bc
+    pop bc
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    or a
+    sbc hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,32
+    ldir
+    call _isPointer
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    add hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    or a
+    sbc hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,32
+    ldir
+    call _sizeOf
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    add hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    push hl
+    ld hl,_string38
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,_string39
+    push hl
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _strcpy
+    pop bc
+    pop bc
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    or a
+    sbc hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,32
+    ldir
+    call _isPointer
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    add hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    or a
+    sbc hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,32
+    ldir
+    call _sizeOf
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    add hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    push hl
+    ld hl,_string40
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,_string41
+    push hl
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _strcpy
+    pop bc
+    pop bc
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    or a
+    sbc hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,32
+    ldir
+    call _isPointer
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    add hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    or a
+    sbc hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,32
+    ldir
+    call _sizeOf
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    add hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    push hl
+    ld hl,_string42
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,_string43
+    push hl
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _strcpy
+    pop bc
+    pop bc
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    or a
+    sbc hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,32
+    ldir
+    call _isPointer
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    add hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    or a
+    sbc hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,32
+    ldir
+    call _sizeOf
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    add hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    push hl
+    ld hl,_string44
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,_string45
+    push hl
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _strcpy
+    pop bc
+    pop bc
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    or a
+    sbc hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,32
+    ldir
+    call _isPointer
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    add hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    push hl
+    push iy
+    pop hl
+    ld bc,-32
+    add hl,bc ; t
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    or a
+    sbc hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    ld ix,0
+    add ix,sp
+    push ix
+    pop de
+    ld bc,32
+    ldir
+    call _sizeOf
+    push hl
+    pop ix
+    ld hl,0
+    add hl,sp
+    ld bc,32
+    add hl,bc
+    ld sp,hl
+    push ix
+    pop hl
+    push hl
+    ld hl,_string46
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,0
+    ld sp,iy
+    pop iy
+    ret
+locals_main equ 32
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; isPointer l=0 o=0 [int] 
+; sizeOf l=0 o=0 [int] 
+; getArray l=0 o=0 [int] 
+; endsWith l=0 o=0 [int] 
+; startsWith l=0 o=0 [int] 
+; varEnd l=0 o=0 [struct Var*] 
+; struct Var l=0 o=0 [] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; _errno l=0 o=0 [int*] 
+; strtol l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; exit l=0 o=0 [void] 
+; memcpy l=0 o=0 [void*] 
+; printf l=0 o=0 [int] 
+; strcmp l=0 o=0 [int] 
+; strlen l=0 o=0 [int] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "stdlib.z80"
+include "string.z80"
+include "ctype.z80"
+include "math.z80"
+_heap:

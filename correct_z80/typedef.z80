@@ -1,0 +1,175 @@
+org 40000
+    di
+    ld hl,_j80name
+    push hl
+    ld hl,0
+    add hl,sp
+    push hl   ; argv
+    ld hl,1   ; argc
+    push hl
+    call _main
+    pop bc
+    pop bc
+    pop bc
+    push hl
+    pop bc
+    ei
+    ret
+_j80name: db "typedef.c",0
+_string1:
+    db "sizeof FILE=%d\n",0
+; =========================================
+; struct _iobuf l=0 o=0 [] 
+; =========================================
+; =========================================
+; main l=0 o=0 [int] 
+; malloc l=0 o=0 [void*] 
+; struct _iobuf l=0 o=0 [] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld hl,16
+    push hl
+    ld hl,_string1
+    push hl
+    call _printf
+    pop bc
+    pop bc
+; =========================================
+; n l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; malloc l=0 o=0 [void*] 
+; struct _iobuf l=0 o=0 [] 
+; =========================================
+; =========================================
+; m l=1 o=-4 [int] 
+; n l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; malloc l=0 o=0 [void*] 
+; struct _iobuf l=0 o=0 [] 
+; =========================================
+; =========================================
+; p l=1 o=-6 [int*] 
+; m l=1 o=-4 [int] 
+; n l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; malloc l=0 o=0 [void*] 
+; struct _iobuf l=0 o=0 [] 
+; =========================================
+; =========================================
+; z l=1 o=-8 [int**] 
+; p l=1 o=-6 [int*] 
+; m l=1 o=-4 [int] 
+; n l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; malloc l=0 o=0 [void*] 
+; struct _iobuf l=0 o=0 [] 
+; =========================================
+; =========================================
+; q l=1 o=-10 [int**] 
+; z l=1 o=-8 [int**] 
+; p l=1 o=-6 [int*] 
+; m l=1 o=-4 [int] 
+; n l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; malloc l=0 o=0 [void*] 
+; struct _iobuf l=0 o=0 [] 
+; =========================================
+; =========================================
+; k l=1 o=-12 [int**] 
+; q l=1 o=-10 [int**] 
+; z l=1 o=-8 [int**] 
+; p l=1 o=-6 [int*] 
+; m l=1 o=-4 [int] 
+; n l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; malloc l=0 o=0 [void*] 
+; struct _iobuf l=0 o=0 [] 
+; =========================================
+    ld hl,16
+    push hl
+    call _malloc
+    pop bc
+    ld (iy-14),l
+    ld (iy-13),h ; declare fp (level 1)
+; =========================================
+; fp l=1 o=-14 [struct _iobuf*] 
+; k l=1 o=-12 [int**] 
+; q l=1 o=-10 [int**] 
+; z l=1 o=-8 [int**] 
+; p l=1 o=-6 [int*] 
+; m l=1 o=-4 [int] 
+; n l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; malloc l=0 o=0 [void*] 
+; struct _iobuf l=0 o=0 [] 
+; =========================================
+    ld l,(iy-14)
+    ld h,(iy-13) ; fp
+    ld de,6
+    add hl,de ; ._flag
+    push hl
+    ld hl,9
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,2
+    ld (iy-16),l
+    ld (iy-15),h ; declare index (level 1)
+; =========================================
+; index l=1 o=-16 [int] 
+; fp l=1 o=-14 [struct _iobuf*] 
+; k l=1 o=-12 [int**] 
+; q l=1 o=-10 [int**] 
+; z l=1 o=-8 [int**] 
+; p l=1 o=-6 [int*] 
+; m l=1 o=-4 [int] 
+; n l=1 o=-2 [int] 
+; main l=0 o=0 [int] 
+; malloc l=0 o=0 [void*] 
+; struct _iobuf l=0 o=0 [] 
+; =========================================
+    ld l,(iy-14)
+    ld h,(iy-13) ; fp
+    ld de,6
+    add hl,de ; ._flag
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld l,(iy-16)
+    ld h,(iy-15) ; index
+    pop de
+    add hl,de
+    ld sp,iy
+    pop iy
+    ret
+locals_main equ 16
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; malloc l=0 o=0 [void*] 
+; struct _iobuf l=0 o=0 [] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "stdlib.z80"
+include "string.z80"
+include "ctype.z80"
+include "math.z80"
+_heap:

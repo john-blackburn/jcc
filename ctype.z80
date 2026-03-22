@@ -1,0 +1,215 @@
+; isspace
+; isdigit
+; isalpha
+; isalnum
+; islower
+; isupper
+; tolower
+; toupper
+
+_isupper:
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    ld a,(iy+4)
+    call _iscapletter
+
+    ld sp,iy
+    pop iy
+
+    ret
+    
+; --------------------------------------------
+
+_islower:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld a,(iy+4)
+    call _islowletter
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; --------------------------------------------
+    
+_toupper:
+
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld a,(iy+4)
+    call _islowletter
+    
+    dec l    ; if L=1, it's a lower case letter
+    
+    jr nz,_toupper0
+    
+    sub 32   ; convert a -> A etc
+    
+_toupper0:
+
+    ld l,a
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; --------------------------------------------
+
+_tolower:
+
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld a,(iy+4)
+    call _iscapletter
+    
+    dec l    ; if L=1, it's an upper case letter
+    
+    jr nz,_tolower0
+    
+    add a,32   ; convert A -> a etc
+    
+_tolower0:
+
+    ld l,a
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; --------------------------------------------
+    
+; int isspace(int c)
+_isspace:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld hl,1
+    ld a,(iy+4)
+    cp ' '
+    jr z,_isspace_done
+    ld hl,0
+
+_isspace_done:
+    ld sp,iy
+    pop iy
+
+    ret
+
+; --------------------------------------------
+
+; int isdigit(int c)
+_isdigit:
+
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld hl,0
+    
+    ld a,(iy+4)
+    cp '0'
+    jr c,_isdigit_done
+    
+    cp '9'+1
+    jr nc,_isdigit_done
+    
+    ld hl,1
+    
+_isdigit_done:
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; --------------------------------------------
+
+_iscapletter:
+    
+    ld hl,0
+    cp 'A'
+    jr c,_iscapletter0
+    
+    cp 'Z'+1
+    jr nc,_iscapletter0
+    
+    ld hl,1
+    
+_iscapletter0:
+
+    ret
+
+_islowletter:
+
+    ld hl,0    
+    cp 'a'
+    jr c,_islowletter0
+    
+    cp 'z'+1
+    jr nc,_islowletter0
+    
+    ld hl,1
+    
+_islowletter0:
+
+    ret
+
+; int isalpha(int c)
+_isalpha
+
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld hl,0
+    ld a,(iy+4)
+    call _iscapletter
+    call _islowletter
+
+    ld sp,iy
+    pop iy
+
+    ret
+
+; --------------------------------------------
+
+; int isalnum(int c)
+_isalnum
+
+    push iy
+    ld iy,0
+    add iy,sp
+    
+    ld hl,0
+
+    ld a,(iy+4)
+
+    cp '0'
+    jr c,_isalnum_done
+    
+    cp '9'+1
+    jr nc,_isalnum_done
+    
+    ld hl,1
+    
+_isalnum_done:
+
+    call _iscapletter
+    call _islowletter
+
+    ld sp,iy
+    pop iy
+
+    ret

@@ -1,0 +1,455 @@
+org 40000
+    di
+    ld hl,_j80name
+    push hl
+    ld hl,0
+    add hl,sp
+    push hl   ; argv
+    ld hl,1   ; argc
+    push hl
+    call _main
+    pop bc
+    pop bc
+    pop bc
+    push hl
+    pop bc
+    ei
+    ret
+_j80name: db "node.c",0
+_numToks:
+    dw 56
+names_string0:
+    db "foo",0
+names_string1:
+    db "bar",0
+_names:
+    dw names_string0
+    dw names_string1
+_string1:
+    db "int**[3]",0
+_string2:
+    db "%d %s\n",0
+_string3:
+    db "1+p[2]=%d\n",0
+_string4:
+    db "names=%s, %s\n",0
+; =========================================
+; numToks l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; malloc l=0 o=0 [void*] 
+; =========================================
+; =========================================
+; names l=0 o=0 [char*[]] 
+; numToks l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; malloc l=0 o=0 [void*] 
+; =========================================
+; =========================================
+; struct Type l=0 o=0 [] 
+; names l=0 o=0 [char*[]] 
+; numToks l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; malloc l=0 o=0 [void*] 
+; =========================================
+; =========================================
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; names l=0 o=0 [char*[]] 
+; numToks l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; malloc l=0 o=0 [void*] 
+; =========================================
+; =========================================
+; main l=0 o=0 [int] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; names l=0 o=0 [char*[]] 
+; numToks l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; malloc l=0 o=0 [void*] 
+; =========================================
+_main:
+    push iy
+    ld iy,0
+    add iy,sp
+    ld hl,0
+    add hl,sp
+    ld bc,locals_main
+    or a
+    sbc hl,bc
+    ld sp,hl
+    ld hl,48
+    push hl
+    call _malloc
+    pop bc
+    ld (iy-2),l
+    ld (iy-1),h ; declare node (level 1)
+; =========================================
+; node l=1 o=-2 [struct Node*] 
+; main l=0 o=0 [int] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; names l=0 o=0 [char*[]] 
+; numToks l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; malloc l=0 o=0 [void*] 
+; =========================================
+    ld l,(iy-2)
+    ld h,(iy-1) ; node
+    ld de,0
+    add hl,de ; .type
+    push hl
+    ld hl,10
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,_string1
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; node
+    ld de,4
+    add hl,de ; .varType
+    ld de,0
+    add hl,de ; .data
+    push hl
+    call _strcpy
+    pop bc
+    pop bc
+    ld l,(iy-2)
+    ld h,(iy-1) ; node
+    ld de,4
+    add hl,de ; .varType
+    ld de,0
+    add hl,de ; .data
+    push hl
+    ld l,(iy-2)
+    ld h,(iy-1) ; node
+    ld de,0
+    add hl,de ; .type
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,_string2
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+; =========================================
+; array l=1 o=-8 [int[3]] 
+; node l=1 o=-2 [struct Node*] 
+; main l=0 o=0 [int] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; names l=0 o=0 [char*[]] 
+; numToks l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; malloc l=0 o=0 [void*] 
+; =========================================
+    ld hl,0
+    push hl
+    push iy
+    pop hl
+    ld bc,-8
+    add hl,bc ; array
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld (iy-10),l
+    ld (iy-9),h ; declare p (level 1)
+; =========================================
+; p l=1 o=-10 [int*] 
+; array l=1 o=-8 [int[3]] 
+; node l=1 o=-2 [struct Node*] 
+; main l=0 o=0 [int] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; names l=0 o=0 [char*[]] 
+; numToks l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; malloc l=0 o=0 [void*] 
+; =========================================
+    ld hl,2
+    push hl
+    push iy
+    pop hl
+    ld bc,-10
+    add hl,bc ; p
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    push hl
+    ld hl,1
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld hl,2
+    push hl
+    push iy
+    pop hl
+    ld bc,-10
+    add hl,bc ; p
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,1
+    pop de
+    add hl,de
+    push hl
+    ld hl,_string3
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    ld hl,1
+    push hl
+    ld hl,1
+    push hl
+    ld hl,_names
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+
+    add hl,de
+    push hl
+    ld l,'A'
+    pop de
+    ld a,l
+    ld (de),a
+    ld hl,0
+    push hl
+    ld hl,1
+    push hl
+    ld hl,_names
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+
+    add hl,de
+    push hl
+    ld l,'B'
+    pop de
+    ld a,l
+    ld (de),a
+    ld hl,1
+    push hl
+    ld hl,_names
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,0
+    push hl
+    ld hl,_names
+    pop de
+    push hl
+    ld hl,2
+    call _mul_hlde
+    push hl
+    pop de
+    pop hl
+    add hl,de
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    push hl
+    ld hl,_string4
+    push hl
+    call _printf
+    pop bc
+    pop bc
+    pop bc
+    ld hl,20
+    ld (iy-12),l
+    ld (iy-11),h ; declare i (level 1)
+; =========================================
+; i l=1 o=-12 [int] 
+; p l=1 o=-10 [int*] 
+; array l=1 o=-8 [int[3]] 
+; node l=1 o=-2 [struct Node*] 
+; main l=0 o=0 [int] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; names l=0 o=0 [char*[]] 
+; numToks l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; malloc l=0 o=0 [void*] 
+; =========================================
+    ld hl,30
+    ld (iy-14),l
+    ld (iy-13),h ; declare j (level 1)
+; =========================================
+; j l=1 o=-14 [int] 
+; i l=1 o=-12 [int] 
+; p l=1 o=-10 [int*] 
+; array l=1 o=-8 [int[3]] 
+; node l=1 o=-2 [struct Node*] 
+; main l=0 o=0 [int] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; names l=0 o=0 [char*[]] 
+; numToks l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; malloc l=0 o=0 [void*] 
+; =========================================
+    push iy
+    pop hl
+    ld bc,-14
+    add hl,bc ; j
+    push hl
+    push iy
+    pop hl
+    ld bc,-12
+    add hl,bc ; i
+    ld e,(hl)
+    inc hl
+    ld d,(hl)
+    dec hl
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    inc bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+    push de
+    pop hl
+    push hl
+    ld l,(iy-14)
+    ld h,(iy-13) ; j
+    pop de
+    call _mul_hlde
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    push iy
+    pop hl
+    ld bc,-12
+    add hl,bc ; i
+    push hl
+    push iy
+    pop hl
+    ld bc,-14
+    add hl,bc ; j
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    inc bc
+    ld (hl),b
+    dec hl
+    ld (hl),c
+    ld c,(hl)
+    inc hl
+    ld b,(hl)
+    push bc
+    pop hl
+    pop de
+    push de
+    pop ix
+    ld (ix+0),l
+    ld (ix+1),h
+    ld l,(iy-14)
+    ld h,(iy-13) ; j
+    push hl
+    ld l,(iy-12)
+    ld h,(iy-11) ; i
+    pop de
+    add hl,de
+    ld sp,iy
+    pop iy
+    ret
+locals_main equ 14
+; ** End of function **
+; =========================================
+; main l=0 o=0 [int] 
+; struct Node l=0 o=0 [] 
+; struct Type l=0 o=0 [] 
+; names l=0 o=0 [char*[]] 
+; numToks l=0 o=0 [int] 
+; strcpy l=0 o=0 [char*] 
+; malloc l=0 o=0 [void*] 
+; =========================================
+    ld sp,iy
+    pop iy
+    ret
+include "z80lib.z80"
+include "stdio.z80"
+include "stdlib.z80"
+include "string.z80"
+include "ctype.z80"
+include "math.z80"
+_heap:
