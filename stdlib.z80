@@ -5,6 +5,8 @@
 ; malloc
 ; free
 ; exit
+; rand
+; srand
 
 __errnoval dw 0
 __errno:
@@ -12,6 +14,31 @@ __errno:
     ret
 
 _exit:
+    ret
+
+;  seed = seed*25173+13849
+_rand_seed: dw 0
+_rand:
+    ld hl,(_rand_seed)
+    ld de,25173
+    call _mul_hlde
+    ld de,13849
+    add hl,de
+    ld (_rand_seed),hl
+    ret
+    
+_srand:
+    push iy
+    ld iy,0
+    add iy,sp
+
+    ld l,(iy+4)
+    ld h,(iy+5)
+
+    ld (_rand_seed),hl
+
+    ld sp,iy
+    pop iy
     ret
 
 ; --------------------------------------------------
